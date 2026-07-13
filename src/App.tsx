@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import { CreatorLibrary } from "./components/CreatorLibrary";
 import { FacePreview } from "./components/FacePreview";
 import {
   extractFaceAnalysis,
@@ -18,6 +19,7 @@ import {
 import { FEATURE_LABELS } from "./domain/featureLabels";
 import { assessPhotoQuality, type QualityIssue } from "./domain/quality";
 import { detectFace } from "./services/faceLandmarker";
+import { loadImageBlob } from "./services/imageFile";
 import { measureAverageLuminance } from "./services/imageQuality";
 
 interface LoadedPhoto {
@@ -36,17 +38,11 @@ interface AnalysisResult {
 type AnalysisStatus = "idle" | "loading" | "complete" | "error";
 
 function loadImage(file: File): Promise<LoadedPhoto> {
-  const objectUrl = URL.createObjectURL(file);
-  const image = new Image();
-
-  return new Promise((resolve, reject) => {
-    image.onload = () => resolve({ fileName: file.name, image, objectUrl });
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("照片无法读取，请选择 JPG、PNG 或 WebP 文件。"));
-    };
-    image.src = objectUrl;
-  });
+  return loadImageBlob(file).then(({ image, objectUrl }) => ({
+    fileName: file.name,
+    image,
+    objectUrl,
+  }));
 }
 
 function App() {
@@ -56,6 +52,7 @@ function App() {
   const [status, setStatus] = useState<AnalysisStatus>("idle");
   const [result, setResult] = useState<AnalysisResult>();
   const [error, setError] = useState<string>();
+  const [view, setView] = useState<"analysis" | "creators">("analysis");
 
   useEffect(
     () => () => {
@@ -139,13 +136,30 @@ function App() {
           <p className="brand-name">妆容参照</p>
           <p className="brand-stage">特征稳定性测试</p>
         </div>
+        <nav className="topnav" aria-label="主要页面">
+          <button
+            className={view === "analysis" ? "active" : ""}
+            onClick={() => setView("analysis")}
+            type="button"
+          >
+            照片分析
+          </button>
+          <button
+            className={view === "creators" ? "active" : ""}
+            onClick={() => setView("creators")}
+            type="button"
+          >
+            博主库
+          </button>
+        </nav>
         <div className="privacy-badge">
           <ShieldCheck size={16} />
           <span>仅在本机处理</span>
         </div>
       </header>
 
-      <main>
+      {view === "analysis" ? (
+        <main>
         <div className="page-heading">
           <div>
             <p className="eyebrow">阶段 1 / 照片分析</p>
@@ -303,7 +317,10 @@ function App() {
             )}
           </aside>
         </div>
-      </main>
+        </main>
+      ) : (
+        <CreatorLibrary />
+      )}
     </div>
   );
 }
