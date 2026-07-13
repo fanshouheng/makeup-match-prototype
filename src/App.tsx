@@ -12,12 +12,15 @@ import {
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { CreatorLibrary } from "./components/CreatorLibrary";
 import { FacePreview } from "./components/FacePreview";
+import { MatchResults } from "./components/MatchResults";
 import {
   extractFaceAnalysis,
   type FaceAnalysis,
 } from "./domain/faceFeatures";
 import { FEATURE_LABELS } from "./domain/featureLabels";
+import { rankCreators, type CreatorMatch } from "./domain/matching";
 import { assessPhotoQuality, type QualityIssue } from "./domain/quality";
+import { listCreators } from "./services/creatorDb";
 import { detectFace } from "./services/faceLandmarker";
 import { loadImageBlob } from "./services/imageFile";
 import { measureAverageLuminance } from "./services/imageQuality";
@@ -53,6 +56,10 @@ function App() {
   const [result, setResult] = useState<AnalysisResult>();
   const [error, setError] = useState<string>();
   const [view, setView] = useState<"analysis" | "creators">("analysis");
+  const [matches, setMatches] = useState<CreatorMatch[]>();
+  const [creatorsCount, setCreatorsCount] = useState(0);
+  const [matching, setMatching] = useState(false);
+  const [matchError, setMatchError] = useState<string>();
 
   useEffect(
     () => () => {
@@ -61,10 +68,46 @@ function App() {
     [photo],
   );
 
+  useEffect(() => {
+    if (
+      view !== "analysis" ||
+      status !== "complete" ||
+      !result?.analysis ||
+      result.issues.length > 0
+    ) {
+      return;
+    }
+
+    let active = true;
+    setMatching(true);
+    setMatchError(undefined);
+    listCreators()
+      .then((creators) => {
+        if (!active) return;
+        setCreatorsCount(creators.length);
+        setMatches(rankCreators(result.analysis!.features, creators));
+      })
+      .catch((loadError) => {
+        console.error(loadError);
+        if (active) setMatchError("无法读取本地博主库，请检查浏览器存储权限。");
+      })
+      .finally(() => {
+        if (active) setMatching(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [result, status, view]);
+
   const resetAnalysis = () => {
     setResult(undefined);
     setError(undefined);
     setStatus("idle");
+    setMatches(undefined);
+    setCreatorsCount(0);
+    setMatching(false);
+    setMatchError(undefined);
   };
 
   const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -317,6 +360,25 @@ function App() {
             )}
           </aside>
         </div>
+        {status === "complete" && result?.analysis && result.issues.length === 0 && (
+          matching ? (
+            <section className="matches-loading" aria-live="polite">
+              <LoaderCircle className="spin" size={24} />
+              <p>正在比较本地博主库</p>
+            </section>
+          ) : matchError ? (
+            <div className="notice notice-error matches-error">
+              <AlertCircle size={18} />
+              <p>{matchError}</p>
+            </div>
+          ) : matches ? (
+            <MatchResults
+              creatorsCount={creatorsCount}
+              matches={matches}
+              onManageCreators={() => setView("creators")}
+            />
+          ) : null
+        )}
         </main>
       ) : (
         <CreatorLibrary />

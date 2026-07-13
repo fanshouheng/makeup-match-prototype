@@ -39,6 +39,7 @@ import {
 import { detectFace } from "../services/faceLandmarker";
 import { loadImageBlob, type LoadedImage } from "../services/imageFile";
 import { measureAverageLuminance } from "../services/imageQuality";
+import { CreatorPhoto } from "./CreatorPhoto";
 import { FacePreview } from "./FacePreview";
 
 function isWebUrl(value: string): boolean {
@@ -49,18 +50,6 @@ function isWebUrl(value: string): boolean {
   } catch {
     return false;
   }
-}
-
-function CreatorPhoto({ creator }: { creator: CreatorProfile }) {
-  const [url, setUrl] = useState<string>();
-
-  useEffect(() => {
-    const objectUrl = URL.createObjectURL(creator.referencePhoto);
-    setUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [creator.referencePhoto]);
-
-  return url ? <img src={url} alt={`${creator.name}的参考照`} /> : null;
 }
 
 interface CreatorFormProps {
