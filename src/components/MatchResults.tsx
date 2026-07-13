@@ -1,21 +1,38 @@
 import {
   AlertCircle,
+  Blend,
   CheckCircle2,
+  Eye,
   ExternalLink,
   Library,
+  ScanFace,
 } from "lucide-react";
-import type { CreatorMatch } from "../domain/matching";
+import type { CreatorMatch, MatchPreference } from "../domain/matching";
 import { CreatorPhoto } from "./CreatorPhoto";
+
+const PREFERENCE_OPTIONS: Array<{
+  value: MatchPreference;
+  label: string;
+  icon: typeof ScanFace;
+}> = [
+  { value: "balanced", label: "综合参考", icon: ScanFace },
+  { value: "eyes", label: "重点眼妆", icon: Eye },
+  { value: "contour", label: "重点修容", icon: Blend },
+];
 
 interface MatchResultsProps {
   creatorsCount: number;
   matches: CreatorMatch[];
+  preference: MatchPreference;
+  onPreferenceChange: (preference: MatchPreference) => void;
   onManageCreators: () => void;
 }
 
 export function MatchResults({
   creatorsCount,
   matches,
+  preference,
+  onPreferenceChange,
   onManageCreators,
 }: MatchResultsProps) {
   return (
@@ -41,6 +58,26 @@ export function MatchResults({
         </div>
       ) : (
         <>
+          <div className="match-preference-row">
+            <span>我想重点学</span>
+            <div className="match-preference" role="group" aria-label="匹配重点">
+              {PREFERENCE_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                return (
+                  <button
+                    className={preference === option.value ? "active" : ""}
+                    aria-pressed={preference === option.value}
+                    key={option.value}
+                    onClick={() => onPreferenceChange(option.value)}
+                    type="button"
+                  >
+                    <Icon size={16} />
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           {creatorsCount < 5 && (
             <div className="notice notice-warning match-sample-notice">
               <AlertCircle size={17} />

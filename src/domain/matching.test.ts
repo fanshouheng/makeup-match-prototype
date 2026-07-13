@@ -100,4 +100,27 @@ describe("rankCreators", () => {
     expect(new Set(match.reasons.map((reason) => reason.focus)).size).toBe(2);
     expect(match.reasons.every((reason) => reason.text.length > 0)).toBe(true);
   });
+
+  it("changes the ranking when the user prioritizes eye makeup", () => {
+    const eyeMatch = createCreator("eye-match", {
+      ...baseFeatures,
+      faceAspectRatio: baseFeatures.faceAspectRatio * 1.2,
+      jawToCheekRatio: baseFeatures.jawToCheekRatio * 1.2,
+    });
+    const contourMatch = createCreator("contour-match", {
+      ...baseFeatures,
+      eyeSpacingRatio: baseFeatures.eyeSpacingRatio * 1.2,
+      eyeAspectRatio: baseFeatures.eyeAspectRatio * 1.2,
+    });
+    const creators = [eyeMatch, contourMatch];
+
+    expect(rankCreators(baseFeatures, creators)[0].creator.id).toBe("contour-match");
+    const [preferred] = rankCreators(baseFeatures, creators, "eyes");
+    expect(preferred.creator.id).toBe("eye-match");
+    expect(
+      preferred.reasons.some((reason) =>
+        ["eyeSpacingRatio", "eyeAspectRatio"].includes(reason.feature),
+      ),
+    ).toBe(true);
+  });
 });

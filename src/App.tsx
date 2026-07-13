@@ -18,7 +18,11 @@ import {
   type FaceAnalysis,
 } from "./domain/faceFeatures";
 import { FEATURE_LABELS } from "./domain/featureLabels";
-import { rankCreators, type CreatorMatch } from "./domain/matching";
+import {
+  rankCreators,
+  type CreatorMatch,
+  type MatchPreference,
+} from "./domain/matching";
 import { assessPhotoQuality, type QualityIssue } from "./domain/quality";
 import { listCreators } from "./services/creatorDb";
 import { detectFace } from "./services/faceLandmarker";
@@ -60,6 +64,8 @@ function App() {
   const [creatorsCount, setCreatorsCount] = useState(0);
   const [matching, setMatching] = useState(false);
   const [matchError, setMatchError] = useState<string>();
+  const [matchPreference, setMatchPreference] =
+    useState<MatchPreference>("balanced");
 
   useEffect(
     () => () => {
@@ -85,7 +91,9 @@ function App() {
       .then((creators) => {
         if (!active) return;
         setCreatorsCount(creators.length);
-        setMatches(rankCreators(result.analysis!.features, creators));
+        setMatches(
+          rankCreators(result.analysis!.features, creators, matchPreference),
+        );
       })
       .catch((loadError) => {
         console.error(loadError);
@@ -98,7 +106,7 @@ function App() {
     return () => {
       active = false;
     };
-  }, [result, status, view]);
+  }, [matchPreference, result, status, view]);
 
   const resetAnalysis = () => {
     setResult(undefined);
@@ -361,7 +369,7 @@ function App() {
           </aside>
         </div>
         {status === "complete" && result?.analysis && result.issues.length === 0 && (
-          matching ? (
+          matching && !matches ? (
             <section className="matches-loading" aria-live="polite">
               <LoaderCircle className="spin" size={24} />
               <p>正在比较本地博主库</p>
@@ -375,6 +383,8 @@ function App() {
             <MatchResults
               creatorsCount={creatorsCount}
               matches={matches}
+              preference={matchPreference}
+              onPreferenceChange={setMatchPreference}
               onManageCreators={() => setView("creators")}
             />
           ) : null

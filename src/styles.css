@@ -638,6 +638,53 @@ h2 {
   font-size: 21px;
 }
 
+.match-preference-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.match-preference-row > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.match-preference {
+  display: grid;
+  min-width: 350px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.match-preference button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.match-preference button.active {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
 .match-sample-notice {
   margin: 0 0 14px;
 }
@@ -1093,6 +1140,22 @@ h2 {
 
   .matches-heading .button {
     width: 100%;
+  }
+
+  .match-preference-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .match-preference {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .match-preference button {
+    padding-right: 5px;
+    padding-left: 5px;
   }
 
   .match-grid {

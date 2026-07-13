@@ -13,6 +13,8 @@ export interface CreatorMatch {
   reasons: MatchReason[];
 }
 
+export type MatchPreference = "balanced" | "eyes" | "contour";
+
 interface FeatureConfig {
   weight: number;
   group: string;
@@ -79,6 +81,33 @@ const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
 
 const MIN_RELATIVE_STANDARD_DEVIATION = 0.08;
 
+const PREFERENCE_MULTIPLIERS: Record<
+  MatchPreference,
+  Partial<Record<FeatureKey, number>>
+> = {
+  balanced: {},
+  eyes: {
+    eyeSpacingRatio: 2,
+    eyeAspectRatio: 1.5,
+  },
+  contour: {
+    faceAspectRatio: 1.4,
+    jawToCheekRatio: 1.6,
+    foreheadToCheekRatio: 1.4,
+    lowerThirdRatio: 1.2,
+  },
+};
+
+function getFeatureWeight(
+  feature: FeatureKey,
+  preference: MatchPreference,
+): number {
+  return (
+    FEATURE_CONFIG[feature].weight *
+    (PREFERENCE_MULTIPLIERS[preference][feature] ?? 1)
+  );
+}
+
 function calculateFeatureScales(
   creators: CreatorProfile[],
 ): FaceFeatureVector {
@@ -102,6 +131,7 @@ function compareCreator(
   target: FaceFeatureVector,
   creator: CreatorProfile,
   scales: FaceFeatureVector,
+  preference: MatchPreference,
 ): CreatorMatch {
   const differences = FEATURE_KEYS.map((feature) => {
     const normalizedDifference =
@@ -110,20 +140,25 @@ function compareCreator(
     return { feature, normalizedDifference };
   });
   const weightTotal = FEATURE_KEYS.reduce(
-    (sum, feature) => sum + FEATURE_CONFIG[feature].weight,
+    (sum, feature) => sum + getFeatureWeight(feature, preference),
     0,
   );
   const weightedSquaredDistance = differences.reduce(
     (sum, { feature, normalizedDifference }) =>
-      sum + FEATURE_CONFIG[feature].weight * normalizedDifference ** 2,
+      sum + getFeatureWeight(feature, preference) * normalizedDifference ** 2,
     0,
   );
 
   const usedGroups = new Set<string>();
   const reasons: MatchReason[] = [];
-  for (const { feature } of [...differences].sort(
-    (left, right) => left.normalizedDifference - right.normalizedDifference,
-  )) {
+  for (const { feature } of [...differences].sort((left, right) => {
+    const leftWeight = getFeatureWeight(left.feature, preference);
+    const rightWeight = getFeatureWeight(right.feature, preference);
+    const scoreDifference =
+      left.normalizedDifference / Math.sqrt(leftWeight) -
+      right.normalizedDifference / Math.sqrt(rightWeight);
+    return scoreDifference || rightWeight - leftWeight;
+  })) {
     const config = FEATURE_CONFIG[feature];
     if (usedGroups.has(config.group)) continue;
     usedGroups.add(config.group);
@@ -145,6 +180,7 @@ function compareCreator(
 export function rankCreators(
   target: FaceFeatureVector,
   creators: CreatorProfile[],
+  preference: MatchPreference = "balanced",
   limit = 3,
 ): CreatorMatch[] {
   if (creators.length === 0 || limit <= 0) return [];
@@ -152,7 +188,7 @@ export function rankCreators(
   const scales = calculateFeatureScales(creators);
   return creators
     .map((creator, index) => ({
-      ...compareCreator(target, creator, scales),
+      ...compareCreator(target, creator, scales, preference),
       originalIndex: index,
     }))
     .sort(
