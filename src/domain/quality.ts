@@ -6,7 +6,8 @@ export type QualityIssueCode =
   | "too-dark"
   | "too-small"
   | "tilted"
-  | "side-facing";
+  | "side-facing"
+  | "expressive-mouth";
 
 export interface QualityIssue {
   code: QualityIssueCode;
@@ -46,6 +47,12 @@ export function assessPhotoQuality(input: QualityInput): QualityIssue[] {
   }
   if (input.pose && input.pose.yawAsymmetry > 0.18) {
     issues.push({ code: "side-facing", message: "侧脸角度较大，请正对镜头。" });
+  }
+  if (input.pose && input.pose.mouthOpenRatio > 0.04) {
+    issues.push({
+      code: "expressive-mouth",
+      message: "嘴部张开较明显，请自然闭合嘴唇。",
+    });
   }
 
   return issues;

@@ -17,11 +17,17 @@ export interface PoseMetrics {
   rollDegrees: number;
   yawAsymmetry: number;
   faceWidthInImage: number;
+  mouthOpenRatio: number;
 }
 
 export interface FaceAnalysis {
   features: FaceFeatureVector;
   pose: PoseMetrics;
+}
+
+export interface ImageSize {
+  width: number;
+  height: number;
 }
 
 type Point = Pick<NormalizedLandmark, "x" | "y">;
@@ -49,8 +55,10 @@ const INDEX = {
   rightLowerEyelid: 374,
   leftMouth: 61,
   rightMouth: 291,
-  upperLip: 13,
-  lowerLip: 14,
+  upperOuterLip: 0,
+  upperInnerLip: 13,
+  lowerInnerLip: 14,
+  lowerOuterLip: 17,
 } as const;
 
 const REQUIRED_LANDMARK_COUNT = 455;
@@ -66,30 +74,48 @@ function safeRatio(numerator: number, denominator: number): number {
   return numerator / denominator;
 }
 
+function scaleLandmarks(
+  landmarks: NormalizedLandmark[],
+  imageSize: ImageSize,
+): NormalizedLandmark[] {
+  return landmarks.map((point) => ({
+    ...point,
+    x: point.x * imageSize.width,
+    y: point.y * imageSize.height,
+    z: point.z * imageSize.width,
+  }));
+}
+
 export function normalizeLandmarks(
   landmarks: NormalizedLandmark[],
+  imageSize: ImageSize,
 ): NormalizedLandmark[] {
   if (landmarks.length < REQUIRED_LANDMARK_COUNT) {
     throw new Error("面部关键点数量不足");
   }
+  if (imageSize.width <= 0 || imageSize.height <= 0) {
+    throw new Error("照片尺寸无效");
+  }
 
-  const leftEye = landmarks[INDEX.leftOuterEye];
-  const rightEye = landmarks[INDEX.rightOuterEye];
+  const scaledLandmarks = scaleLandmarks(landmarks, imageSize);
+
+  const leftEye = scaledLandmarks[INDEX.leftOuterEye];
+  const rightEye = scaledLandmarks[INDEX.rightOuterEye];
   const centerX = (leftEye.x + rightEye.x) / 2;
   const centerY = (leftEye.y + rightEye.y) / 2;
   const rotation = -Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
   const cos = Math.cos(rotation);
   const sin = Math.sin(rotation);
   const faceWidth = distance(
-    landmarks[INDEX.leftCheek],
-    landmarks[INDEX.rightCheek],
+    scaledLandmarks[INDEX.leftCheek],
+    scaledLandmarks[INDEX.rightCheek],
   );
 
   if (faceWidth <= Number.EPSILON) {
     throw new Error("无法确定面部宽度");
   }
 
-  return landmarks.map((point) => {
+  return scaledLandmarks.map((point) => {
     const x = point.x - centerX;
     const y = point.y - centerY;
     return {
@@ -103,28 +129,40 @@ export function normalizeLandmarks(
 
 export function extractFaceAnalysis(
   landmarks: NormalizedLandmark[],
+  imageSize: ImageSize,
 ): FaceAnalysis {
   if (landmarks.length < REQUIRED_LANDMARK_COUNT) {
     throw new Error("面部关键点数量不足");
   }
+  if (imageSize.width <= 0 || imageSize.height <= 0) {
+    throw new Error("照片尺寸无效");
+  }
 
-  const leftEye = landmarks[INDEX.leftOuterEye];
-  const rightEye = landmarks[INDEX.rightOuterEye];
+  const scaledLandmarks = scaleLandmarks(landmarks, imageSize);
+
+  const leftEye = scaledLandmarks[INDEX.leftOuterEye];
+  const rightEye = scaledLandmarks[INDEX.rightOuterEye];
   const rollDegrees =
     (Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * 180) /
     Math.PI;
   const originalFaceWidth = distance(
-    landmarks[INDEX.leftCheek],
-    landmarks[INDEX.rightCheek],
+    scaledLandmarks[INDEX.leftCheek],
+    scaledLandmarks[INDEX.rightCheek],
   );
   const yawAsymmetry = safeRatio(
     Math.abs(
-      distance(landmarks[INDEX.noseCenter], landmarks[INDEX.leftCheek]) -
-        distance(landmarks[INDEX.noseCenter], landmarks[INDEX.rightCheek]),
+      distance(
+        scaledLandmarks[INDEX.noseCenter],
+        scaledLandmarks[INDEX.leftCheek],
+      ) -
+        distance(
+          scaledLandmarks[INDEX.noseCenter],
+          scaledLandmarks[INDEX.rightCheek],
+        ),
     ),
     originalFaceWidth,
   );
-  const points = normalizeLandmarks(landmarks);
+  const points = normalizeLandmarks(landmarks, imageSize);
   const faceWidth = distance(points[INDEX.leftCheek], points[INDEX.rightCheek]);
   const faceLength = Math.abs(points[INDEX.chin].y - points[INDEX.top].y);
   const leftEyeWidth = distance(
@@ -144,6 +182,13 @@ export function extractFaceAnalysis(
     points[INDEX.rightLowerEyelid],
   );
   const lipWidth = distance(points[INDEX.leftMouth], points[INDEX.rightMouth]);
+  const mouthOpenRatio = safeRatio(
+    distance(points[INDEX.upperInnerLip], points[INDEX.lowerInnerLip]),
+    faceWidth,
+  );
+  const faceBoundsWidth =
+    Math.max(...scaledLandmarks.map((point) => point.x)) -
+    Math.min(...scaledLandmarks.map((point) => point.x));
 
   return {
     features: {
@@ -174,14 +219,22 @@ export function extractFaceAnalysis(
       ),
       lipWidthRatio: safeRatio(lipWidth, faceWidth),
       lipAspectRatio: safeRatio(
-        distance(points[INDEX.upperLip], points[INDEX.lowerLip]),
+        distance(
+          points[INDEX.upperOuterLip],
+          points[INDEX.upperInnerLip],
+        ) +
+          distance(
+            points[INDEX.lowerInnerLip],
+            points[INDEX.lowerOuterLip],
+          ),
         lipWidth,
       ),
     },
     pose: {
       rollDegrees,
       yawAsymmetry,
-      faceWidthInImage: originalFaceWidth,
+      faceWidthInImage: faceBoundsWidth / imageSize.width,
+      mouthOpenRatio,
     },
   };
 }

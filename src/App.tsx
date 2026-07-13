@@ -105,7 +105,10 @@ function App() {
       const faceCount = detection.faceLandmarks.length;
       const analysis =
         faceCount === 1
-          ? extractFaceAnalysis(detection.faceLandmarks[0])
+          ? extractFaceAnalysis(detection.faceLandmarks[0], {
+              width: photo.image.naturalWidth,
+              height: photo.image.naturalHeight,
+            })
           : undefined;
       const issues = assessPhotoQuality({
         faceCount,

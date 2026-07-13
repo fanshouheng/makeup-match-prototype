@@ -35,8 +35,10 @@ function createFace(): NormalizedLandmark[] {
   set(374, 0.63, 0.425);
   set(61, 0.38, 0.7);
   set(291, 0.62, 0.7);
+  set(0, 0.5, 0.67);
   set(13, 0.5, 0.685);
   set(14, 0.5, 0.725);
+  set(17, 0.5, 0.74);
 
   return points;
 }
@@ -58,17 +60,27 @@ function transform(
 
 describe("extractFaceAnalysis", () => {
   it("calculates interpretable ratios from normalized landmarks", () => {
-    const result = extractFaceAnalysis(createFace());
+    const result = extractFaceAnalysis(createFace(), {
+      width: 1000,
+      height: 1000,
+    });
 
     expect(result.features.faceAspectRatio).toBeCloseTo(4 / 3);
     expect(result.features.jawToCheekRatio).toBeCloseTo(0.46 / 0.6);
     expect(result.features.eyeSpacingRatio).toBeCloseTo(0.12 / 0.6);
+    expect(result.features.lipAspectRatio).toBeCloseTo(0.03 / 0.24);
     expect(result.pose.rollDegrees).toBeCloseTo(0);
   });
 
   it("keeps feature ratios stable after rotation, translation, and scaling", () => {
-    const original = extractFaceAnalysis(createFace());
-    const transformed = extractFaceAnalysis(transform(createFace(), 0.13, 0.78));
+    const original = extractFaceAnalysis(createFace(), {
+      width: 1000,
+      height: 1000,
+    });
+    const transformed = extractFaceAnalysis(transform(createFace(), 0.13, 0.78), {
+      width: 1000,
+      height: 1000,
+    });
 
     for (const key of Object.keys(original.features) as Array<
       keyof typeof original.features
@@ -78,9 +90,38 @@ describe("extractFaceAnalysis", () => {
     expect(transformed.pose.rollDegrees).toBeCloseTo((0.13 * 180) / Math.PI);
   });
 
+  it("keeps ratios stable across landscape, square, and portrait images", () => {
+    const square = createFace();
+    const landscape = square.map((point) => ({
+      ...point,
+      x: (point.x * 900 + 350) / 1600,
+    }));
+    const portrait = square.map((point) => ({
+      ...point,
+      y: (point.y * 900 + 350) / 1600,
+    }));
+    const expected = extractFaceAnalysis(square, { width: 900, height: 900 });
+    const variants = [
+      extractFaceAnalysis(landscape, { width: 1600, height: 900 }),
+      extractFaceAnalysis(portrait, { width: 900, height: 1600 }),
+    ];
+
+    for (const variant of variants) {
+      for (const key of Object.keys(expected.features) as Array<
+        keyof typeof expected.features
+      >) {
+        expect(variant.features[key]).toBeCloseTo(expected.features[key], 8);
+      }
+      expect(variant.pose.rollDegrees).toBeCloseTo(expected.pose.rollDegrees, 8);
+    }
+  });
+
   it("rejects incomplete landmark data", () => {
-    expect(() => extractFaceAnalysis(createFace().slice(0, 100))).toThrow(
-      "面部关键点数量不足",
-    );
+    expect(() =>
+      extractFaceAnalysis(createFace().slice(0, 100), {
+        width: 1000,
+        height: 1000,
+      }),
+    ).toThrow("面部关键点数量不足");
   });
 });

@@ -5,6 +5,7 @@ const goodPose = {
   rollDegrees: 2,
   yawAsymmetry: 0.04,
   faceWidthInImage: 0.5,
+  mouthOpenRatio: 0.01,
 };
 
 describe("assessPhotoQuality", () => {
@@ -39,6 +40,7 @@ describe("assessPhotoQuality", () => {
         rollDegrees: 14,
         yawAsymmetry: 0.22,
         faceWidthInImage: 0.2,
+        mouthOpenRatio: 0.06,
       },
     });
 
@@ -47,6 +49,7 @@ describe("assessPhotoQuality", () => {
       "too-small",
       "tilted",
       "side-facing",
+      "expressive-mouth",
     ]);
   });
 });
