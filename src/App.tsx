@@ -98,14 +98,13 @@ function App() {
     setResult(undefined);
 
     try {
-      const [detection, luminance] = await Promise.all([
-        detectFace(photo.image),
-        Promise.resolve(measureAverageLuminance(photo.image)),
-      ]);
+      const detection = await detectFace(photo.image);
       const faceCount = detection.faceLandmarks.length;
+      const landmarks = faceCount === 1 ? detection.faceLandmarks[0] : undefined;
+      const luminance = measureAverageLuminance(photo.image, landmarks);
       const analysis =
-        faceCount === 1
-          ? extractFaceAnalysis(detection.faceLandmarks[0], {
+        landmarks
+          ? extractFaceAnalysis(landmarks, {
               width: photo.image.naturalWidth,
               height: photo.image.naturalHeight,
             })
@@ -119,7 +118,7 @@ function App() {
       setResult({
         analysis,
         issues,
-        landmarks: analysis ? detection.faceLandmarks[0] : undefined,
+        landmarks: analysis ? landmarks : undefined,
         luminance,
       });
       setStatus("complete");
