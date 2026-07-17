@@ -1,9 +1,25 @@
 <div align="center">
+
+  <img src="public/favicon.svg" width="144" height="144" alt="妆容参照图标" />
+
   <h1>妆容参照</h1>
-  <p>一款帮你寻找相似妆容博主的工具</p>
-  <p>上传一张清晰正脸照，在浏览器本地比较你的面部结构与博主资料，找到更适合参考的主页和教程。</p>
-  <p><strong>只比较面部比例，不判断你是谁，也不评价长相好坏。</strong></p>
+
+  <p><em>找到和你面部结构更接近的妆容博主。</em></p>
+
+  <p>
+    上传一张清晰正脸照，在浏览器本地完成面部比例比较。<br />
+    找到更适合参考的博主主页和代表教程，不判断身份，也不评价长相好坏。
+  </p>
+
+  <p>
+    <img src="https://img.shields.io/badge/version-0.1.0-245b48" alt="版本 0.1.0" />
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-ff8f83" alt="AGPL-3.0 许可证" /></a>
+    <img src="https://img.shields.io/badge/privacy-local%20processing-245b48" alt="照片本地处理" />
+  </p>
+
 </div>
+
+---
 
 ## 怎么使用
 
