@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@marsidev/react-turnstile": "1.5.3",
     "@mediapipe/tasks-vision": "0.10.35",
     "@supabase/supabase-js": "^2.110.7",
     "lucide-react": "^0.468.0",

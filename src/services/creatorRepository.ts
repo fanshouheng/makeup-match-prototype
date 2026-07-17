@@ -31,6 +31,7 @@ export interface CreatorSubmissionInput {
     averageLuminance: number;
     pose: PoseMetrics;
   };
+  turnstileToken: string;
 }
 
 function parseFeatureVector(value: unknown): FaceFeatureVector {
@@ -99,39 +100,38 @@ export async function listCreators(): Promise<CreatorProfile[]> {
   });
 }
 
-function extensionForMimeType(type: string): string {
-  if (type === "image/png") return "png";
-  if (type === "image/webp") return "webp";
-  return "jpg";
-}
-
 export async function submitCreator(
   input: CreatorSubmissionInput,
 ): Promise<void> {
   const supabase = await getSupabaseClient();
-  const submissionId = crypto.randomUUID();
-  const extension = extensionForMimeType(input.referencePhoto.type);
-  const photoPath = `submissions/${submissionId}/reference.${extension}`;
+  const body = new FormData();
+  body.set("name", input.name);
+  body.set("contactEmail", input.contactEmail);
+  body.set("douyinUrl", input.douyinUrl);
+  body.set("tutorialUrl", input.tutorialUrl);
+  body.set("referencePhoto", input.referencePhoto);
+  body.set("featureVector", JSON.stringify(input.featureVector));
+  body.set("qualityMetrics", JSON.stringify(input.qualityMetrics));
+  body.set("consentVersion", CONSENT_VERSION);
+  body.set("turnstileToken", input.turnstileToken);
 
-  const upload = await supabase.storage
-    .from(PHOTO_BUCKET)
-    .upload(photoPath, input.referencePhoto, {
-      cacheControl: "3600",
-      contentType: input.referencePhoto.type || "image/jpeg",
-      upsert: false,
-    });
-  if (upload.error) throw upload.error;
+  const { error } = await supabase.functions.invoke("submit-creator", { body });
+  if (!error) return;
 
-  const inserted = await supabase.from("creator_submissions").insert({
-    id: submissionId,
-    name: input.name,
-    contact_email: input.contactEmail,
-    douyin_url: input.douyinUrl,
-    tutorial_url: input.tutorialUrl || null,
-    reference_photo_path: photoPath,
-    feature_vector: input.featureVector,
-    quality_metrics: input.qualityMetrics,
-    consent_version: CONSENT_VERSION,
-  });
-  if (inserted.error) throw inserted.error;
+  let code: string | undefined;
+  if ("context" in error && error.context instanceof Response) {
+    const payload = await error.context
+      .clone()
+      .json()
+      .catch(() => undefined) as { code?: string } | undefined;
+    code = payload?.code;
+  }
+
+  if (code === "rate_limited") {
+    throw new Error("申请次数过多，请一小时后再试。");
+  }
+  if (code === "captcha_failed") {
+    throw new Error("安全验证已失效，请重新验证后提交。");
+  }
+  throw new Error("提交失败，请稍后重试。");
 }

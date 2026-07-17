@@ -1,5 +1,9 @@
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import {
+  Turnstile,
+  type TurnstileInstance,
+} from "@marsidev/react-turnstile";
+import {
   AlertCircle,
   CheckCircle2,
   ExternalLink,
@@ -16,6 +20,10 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  hasTurnstileConfig,
+  turnstileSiteKey,
+} from "../config";
 import type { CreatorProfile } from "../domain/creator";
 import {
   extractFaceAnalysis,
@@ -59,11 +67,13 @@ interface AnalyzedPhoto {
 
 function SubmissionModal({ onClose }: { onClose: () => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
   const [name, setName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [douyinUrl, setDouyinUrl] = useState("");
   const [tutorialUrl, setTutorialUrl] = useState("");
   const [consent, setConsent] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [loadedImage, setLoadedImage] = useState<LoadedImage>();
   const [landmarks, setLandmarks] = useState<NormalizedLandmark[]>();
   const [analyzedPhoto, setAnalyzedPhoto] = useState<AnalyzedPhoto>();
@@ -144,6 +154,8 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
     if (!analyzedPhoto) return setError("请上传一张通过质量检查的本人正脸照。");
     if (!consent) return setError("请确认授权与公开展示声明。");
     if (!hasSupabaseConfig) return setError("当前部署尚未连接公开博主库，暂时无法提交。");
+    if (!hasTurnstileConfig) return setError("申请入口尚未完成安全配置。");
+    if (!turnstileToken) return setError("请先完成安全验证。");
 
     setSubmitting(true);
     try {
@@ -158,11 +170,16 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
           averageLuminance: analyzedPhoto.luminance,
           pose: analyzedPhoto.analysis.pose,
         },
+        turnstileToken,
       });
       setSubmitted(true);
     } catch (submitError) {
       console.error(submitError);
-      setError("提交失败，请稍后重试。");
+      setError(
+        submitError instanceof Error ? submitError.message : "提交失败，请稍后重试。",
+      );
+      setTurnstileToken("");
+      turnstileRef.current?.reset();
     } finally {
       setSubmitting(false);
     }
@@ -246,8 +263,37 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
               </label>
               <label className="consent-field">
                 <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-                <span>我确认本人为该主页博主或已获得明确授权，并同意将此照片及提取的面部特征用于公开相似匹配。</span>
+                <span>
+                  我确认本人为该主页博主或已获得明确授权，并同意将此照片及提取的面部特征用于公开相似匹配。
+                </span>
               </label>
+              <p className="consent-policy-link">
+                提交前请阅读<a href="#privacy" target="_blank" rel="noreferrer">隐私说明</a>。
+              </p>
+              {hasTurnstileConfig ? (
+                <Turnstile
+                  ref={turnstileRef}
+                  className="turnstile-widget"
+                  siteKey={turnstileSiteKey}
+                  onSuccess={setTurnstileToken}
+                  onExpire={() => setTurnstileToken("")}
+                  onError={() => {
+                    setTurnstileToken("");
+                    setError("安全验证加载失败，请刷新后重试。");
+                  }}
+                  options={{
+                    action: "creator_submission",
+                    language: "zh-CN",
+                    size: "compact",
+                    theme: "light",
+                  }}
+                />
+              ) : (
+                <div className="notice notice-warning compact">
+                  <AlertCircle size={16} />
+                  <p>申请入口正在进行安全配置，暂时无法提交。</p>
+                </div>
+              )}
               {!hasSupabaseConfig && (
                 <div className="notice notice-warning compact">
                   <AlertCircle size={16} />
@@ -262,7 +308,16 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
               )}
               <div className="form-actions">
                 <button className="button button-ghost" onClick={onClose} type="button">取消</button>
-                <button className="button button-primary" disabled={analyzing || submitting} type="submit">
+                <button
+                  className="button button-primary"
+                  disabled={
+                    analyzing ||
+                    submitting ||
+                    !hasTurnstileConfig ||
+                    !turnstileToken
+                  }
+                  type="submit"
+                >
                   {submitting && <LoaderCircle className="spin" size={17} />}
                   {submitting ? "正在提交" : "提交审核"}
                 </button>

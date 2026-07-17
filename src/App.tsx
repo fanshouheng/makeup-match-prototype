@@ -13,6 +13,7 @@ import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { CreatorLibrary } from "./components/CreatorLibrary";
 import { FacePreview } from "./components/FacePreview";
 import { MatchResults } from "./components/MatchResults";
+import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import {
   extractFaceAnalysis,
   type FaceAnalysis,
@@ -39,6 +40,11 @@ interface AnalysisResult {
 }
 
 type AnalysisStatus = "idle" | "loading" | "complete" | "error";
+type AppView = "analysis" | "creators" | "privacy";
+
+function initialView(): AppView {
+  return window.location.hash === "#privacy" ? "privacy" : "analysis";
+}
 
 function loadImage(file: File): Promise<LoadedPhoto> {
   return loadImageBlob(file).then(({ image, objectUrl }) => ({
@@ -55,7 +61,7 @@ function App() {
   const [status, setStatus] = useState<AnalysisStatus>("idle");
   const [result, setResult] = useState<AnalysisResult>();
   const [error, setError] = useState<string>();
-  const [view, setView] = useState<"analysis" | "creators">("analysis");
+  const [view, setView] = useState<AppView>(initialView);
   const [matches, setMatches] = useState<CreatorMatch[]>();
   const [creatorsCount, setCreatorsCount] = useState(0);
   const [matching, setMatching] = useState(false);
@@ -130,6 +136,15 @@ function App() {
     resetAnalysis();
   };
 
+  const navigate = (nextView: AppView) => {
+    setView(nextView);
+    const nextUrl =
+      nextView === "privacy"
+        ? "#privacy"
+        : `${window.location.pathname}${window.location.search}`;
+    window.history.replaceState(null, "", nextUrl);
+  };
+
   const runAnalysis = async () => {
     if (!photo) return;
 
@@ -175,24 +190,31 @@ function App() {
         <div className="brand-mark" aria-hidden="true">
           <ScanFace size={21} />
         </div>
-        <div>
+        <div className="brand-copy">
           <p className="brand-name">妆容参照</p>
           <p className="brand-stage">特征稳定性测试</p>
         </div>
         <nav className="topnav" aria-label="主要页面">
           <button
             className={view === "analysis" ? "active" : ""}
-            onClick={() => setView("analysis")}
+            onClick={() => navigate("analysis")}
             type="button"
           >
             照片分析
           </button>
           <button
             className={view === "creators" ? "active" : ""}
-            onClick={() => setView("creators")}
+            onClick={() => navigate("creators")}
             type="button"
           >
             博主库
+          </button>
+          <button
+            className={view === "privacy" ? "active" : ""}
+            onClick={() => navigate("privacy")}
+            type="button"
+          >
+            隐私
           </button>
         </nav>
         <div className="privacy-badge">
@@ -375,13 +397,15 @@ function App() {
             <MatchResults
               creatorsCount={creatorsCount}
               matches={matches}
-              onViewCreators={() => setView("creators")}
+              onViewCreators={() => navigate("creators")}
             />
           ) : null
         )}
         </main>
-      ) : (
+      ) : view === "creators" ? (
         <CreatorLibrary />
+      ) : (
+        <PrivacyPolicy />
       )}
     </div>
   );
