@@ -4,7 +4,6 @@ import type { FaceFeatureVector, FeatureKey } from "./faceFeatures";
 export interface MatchReason {
   feature: FeatureKey;
   text: string;
-  focus: string;
 }
 
 export interface CreatorMatch {
@@ -13,100 +12,61 @@ export interface CreatorMatch {
   reasons: MatchReason[];
 }
 
-export type MatchPreference = "balanced" | "eyes" | "contour";
-
 interface FeatureConfig {
   weight: number;
   group: string;
   reason: string;
-  focus: string;
 }
 
 const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
   faceAspectRatio: {
     weight: 1.5,
     group: "face-outline",
-    reason: "脸部长宽比例差异较小，整体轮廓走向更有参考性。",
-    focus: "整体修容",
+    reason: "脸部长宽比例接近，整体轮廓更相似。",
   },
   jawToCheekRatio: {
     weight: 1.5,
     group: "jaw",
-    reason: "下颌与颧骨宽度比例接近，可以重点参考下颌修容。",
-    focus: "下颌修容与腮红位置",
+    reason: "下颌与颧骨宽度比例接近，脸部外轮廓更相似。",
   },
   foreheadToCheekRatio: {
     weight: 1.1,
     group: "upper-face",
-    reason: "上庭与颧骨宽度比例接近，眉形和额头修饰更有参考性。",
-    focus: "眉形与额头修饰",
+    reason: "上庭与颧骨宽度比例接近，上半脸结构更相似。",
   },
   lowerThirdRatio: {
     weight: 0.65,
     group: "lower-face",
-    reason: "下庭长度比例相对接近，可以参考下半脸的妆容布局。",
-    focus: "下半脸妆容布局",
+    reason: "下庭长度比例接近，下半脸结构更相似。",
   },
   eyeSpacingRatio: {
     weight: 1.2,
     group: "eye-spacing",
-    reason: "眼间距比例接近，眼线起点和内眼角处理更值得参考。",
-    focus: "眼线起点与内眼角",
+    reason: "眼间距比例接近，五官横向分布更相似。",
   },
   eyeAspectRatio: {
     weight: 0.65,
     group: "eye-shape",
-    reason: "眼部长宽比例相对接近，可以参考眼影和眼线范围。",
-    focus: "眼影与眼线范围",
+    reason: "眼部长宽比例接近，眼部形态更相似。",
   },
   noseWidthRatio: {
     weight: 0.8,
     group: "nose",
-    reason: "鼻翼宽度比例相对接近，鼻影宽度更有参考性。",
-    focus: "鼻影宽度",
+    reason: "鼻翼宽度相对脸宽的比例接近。",
   },
   lipWidthRatio: {
     weight: 0.55,
     group: "lip-width",
-    reason: "唇宽比例相对接近，可以参考口红外扩和收窄方式。",
-    focus: "唇形边界",
+    reason: "唇宽相对脸宽的比例接近。",
   },
   lipAspectRatio: {
     weight: 0.7,
     group: "lip-shape",
-    reason: "唇部厚宽比例相对接近，唇妆层次更有参考性。",
-    focus: "唇妆层次",
+    reason: "唇部厚宽比例接近，唇部形态更相似。",
   },
 };
 
 const MIN_RELATIVE_STANDARD_DEVIATION = 0.08;
-
-const PREFERENCE_MULTIPLIERS: Record<
-  MatchPreference,
-  Partial<Record<FeatureKey, number>>
-> = {
-  balanced: {},
-  eyes: {
-    eyeSpacingRatio: 2,
-    eyeAspectRatio: 1.5,
-  },
-  contour: {
-    faceAspectRatio: 1.4,
-    jawToCheekRatio: 1.6,
-    foreheadToCheekRatio: 1.4,
-    lowerThirdRatio: 1.2,
-  },
-};
-
-function getFeatureWeight(
-  feature: FeatureKey,
-  preference: MatchPreference,
-): number {
-  return (
-    FEATURE_CONFIG[feature].weight *
-    (PREFERENCE_MULTIPLIERS[preference][feature] ?? 1)
-  );
-}
 
 function calculateFeatureScales(
   creators: CreatorProfile[],
@@ -131,7 +91,6 @@ function compareCreator(
   target: FaceFeatureVector,
   creator: CreatorProfile,
   scales: FaceFeatureVector,
-  preference: MatchPreference,
 ): CreatorMatch {
   const differences = FEATURE_KEYS.map((feature) => {
     const normalizedDifference =
@@ -140,20 +99,20 @@ function compareCreator(
     return { feature, normalizedDifference };
   });
   const weightTotal = FEATURE_KEYS.reduce(
-    (sum, feature) => sum + getFeatureWeight(feature, preference),
+    (sum, feature) => sum + FEATURE_CONFIG[feature].weight,
     0,
   );
   const weightedSquaredDistance = differences.reduce(
     (sum, { feature, normalizedDifference }) =>
-      sum + getFeatureWeight(feature, preference) * normalizedDifference ** 2,
+      sum + FEATURE_CONFIG[feature].weight * normalizedDifference ** 2,
     0,
   );
 
   const usedGroups = new Set<string>();
   const reasons: MatchReason[] = [];
   for (const { feature } of [...differences].sort((left, right) => {
-    const leftWeight = getFeatureWeight(left.feature, preference);
-    const rightWeight = getFeatureWeight(right.feature, preference);
+    const leftWeight = FEATURE_CONFIG[left.feature].weight;
+    const rightWeight = FEATURE_CONFIG[right.feature].weight;
     const scoreDifference =
       left.normalizedDifference / Math.sqrt(leftWeight) -
       right.normalizedDifference / Math.sqrt(rightWeight);
@@ -165,7 +124,6 @@ function compareCreator(
     reasons.push({
       feature,
       text: config.reason,
-      focus: config.focus,
     });
     if (reasons.length === 2) break;
   }
@@ -180,7 +138,6 @@ function compareCreator(
 export function rankCreators(
   target: FaceFeatureVector,
   creators: CreatorProfile[],
-  preference: MatchPreference = "balanced",
   limit = 3,
 ): CreatorMatch[] {
   if (creators.length === 0 || limit <= 0) return [];
@@ -188,7 +145,7 @@ export function rankCreators(
   const scales = calculateFeatureScales(creators);
   return creators
     .map((creator, index) => ({
-      ...compareCreator(target, creator, scales, preference),
+      ...compareCreator(target, creator, scales),
       originalIndex: index,
     }))
     .sort(

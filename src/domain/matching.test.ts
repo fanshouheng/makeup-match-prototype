@@ -22,11 +22,9 @@ function createCreator(
   return {
     id,
     name: id,
-    referencePhoto: new Blob(),
-    referencePhotoName: `${id}.jpg`,
+    referencePhotoUrl: `https://example.com/${id}.jpg`,
     douyinUrl: `https://www.douyin.com/user/${id}`,
     tutorialUrl: "",
-    tags: [],
     featureVector,
     createdAt: "2026-07-13T00:00:00.000Z",
     updatedAt: "2026-07-13T00:00:00.000Z",
@@ -91,36 +89,13 @@ describe("rankCreators", () => {
     expect(matches.every((match) => Number.isFinite(match.distance))).toBe(true);
   });
 
-  it("provides two explanations with different learning focuses", () => {
+  it("provides two facial-similarity explanations from different groups", () => {
     const [match] = rankCreators(baseFeatures, [
       createCreator("creator", shiftFeatures(0.02)),
     ]);
 
     expect(match.reasons).toHaveLength(2);
-    expect(new Set(match.reasons.map((reason) => reason.focus)).size).toBe(2);
+    expect(new Set(match.reasons.map((reason) => reason.feature)).size).toBe(2);
     expect(match.reasons.every((reason) => reason.text.length > 0)).toBe(true);
-  });
-
-  it("changes the ranking when the user prioritizes eye makeup", () => {
-    const eyeMatch = createCreator("eye-match", {
-      ...baseFeatures,
-      faceAspectRatio: baseFeatures.faceAspectRatio * 1.2,
-      jawToCheekRatio: baseFeatures.jawToCheekRatio * 1.2,
-    });
-    const contourMatch = createCreator("contour-match", {
-      ...baseFeatures,
-      eyeSpacingRatio: baseFeatures.eyeSpacingRatio * 1.2,
-      eyeAspectRatio: baseFeatures.eyeAspectRatio * 1.2,
-    });
-    const creators = [eyeMatch, contourMatch];
-
-    expect(rankCreators(baseFeatures, creators)[0].creator.id).toBe("contour-match");
-    const [preferred] = rankCreators(baseFeatures, creators, "eyes");
-    expect(preferred.creator.id).toBe("eye-match");
-    expect(
-      preferred.reasons.some((reason) =>
-        ["eyeSpacingRatio", "eyeAspectRatio"].includes(reason.feature),
-      ),
-    ).toBe(true);
   });
 });

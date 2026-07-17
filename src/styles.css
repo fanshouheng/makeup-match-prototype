@@ -518,6 +518,15 @@ h2 {
   font-size: 17px;
 }
 
+.library-empty > p {
+  max-width: 430px;
+  margin: -6px 20px 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
 .creator-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -565,12 +574,6 @@ h2 {
   white-space: nowrap;
 }
 
-.card-tools {
-  display: flex;
-  flex: 0 0 auto;
-  gap: 3px;
-}
-
 .icon-button {
   display: inline-grid;
   width: 34px;
@@ -588,21 +591,6 @@ h2 {
   border-color: var(--line);
   color: var(--text);
   background: var(--surface-subtle);
-}
-
-.icon-button.danger:hover {
-  color: #a2433b;
-  background: var(--coral-soft);
-}
-
-.creator-tags {
-  min-height: 18px;
-  margin: 8px 0 0;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .creator-links {
@@ -636,53 +624,6 @@ h2 {
 .matches-heading h2 {
   margin-top: 5px;
   font-size: 21px;
-}
-
-.match-preference-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 14px;
-}
-
-.match-preference-row > span {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.match-preference {
-  display: grid;
-  min-width: 350px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--line-strong);
-  border-radius: 7px;
-  background: var(--surface);
-}
-
-.match-preference button {
-  display: inline-flex;
-  min-width: 0;
-  min-height: 34px;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border: 0;
-  border-radius: 5px;
-  color: var(--muted);
-  background: transparent;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.match-preference button.active {
-  color: var(--green);
-  background: var(--green-soft);
 }
 
 .match-sample-notice {
@@ -767,7 +708,7 @@ h2 {
 
 .match-card-body {
   display: flex;
-  min-height: 310px;
+  min-height: 260px;
   flex-direction: column;
   gap: 14px;
   padding: 16px;
@@ -778,15 +719,6 @@ h2 {
   overflow-wrap: anywhere;
   font-size: 17px;
   line-height: 1.35;
-}
-
-.match-tags {
-  margin: 6px 0 0;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .match-reasons {
@@ -809,20 +741,6 @@ h2 {
 .match-reasons svg {
   margin-top: 2px;
   color: var(--green);
-}
-
-.match-focus {
-  margin: 0;
-  color: var(--text);
-  font-size: 12px;
-  line-height: 1.55;
-}
-
-.match-focus span {
-  display: block;
-  margin-bottom: 3px;
-  color: var(--muted);
-  font-size: 11px;
 }
 
 .match-links {
@@ -921,6 +839,12 @@ h2 {
   font-weight: 650;
 }
 
+.creator-fields small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
 .creator-fields input {
   width: 100%;
   min-height: 40px;
@@ -934,6 +858,55 @@ h2 {
 
 .creator-fields input::placeholder {
   color: #a1a39f;
+}
+
+.creator-fields .consent-field {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  color: var(--muted);
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+.creator-fields .consent-field input {
+  width: 16px;
+  min-height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--green);
+}
+
+.photo-requirement {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.submission-success {
+  display: flex;
+  min-height: 360px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 40px 24px;
+  color: var(--green);
+  text-align: center;
+}
+
+.submission-success h3 {
+  margin: 16px 0 0;
+  color: var(--text);
+  font-size: 19px;
+}
+
+.submission-success p {
+  max-width: 480px;
+  margin: 10px 0 24px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
 }
 
 .form-error {
@@ -1140,22 +1113,6 @@ h2 {
 
   .matches-heading .button {
     width: 100%;
-  }
-
-  .match-preference-row {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .match-preference {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .match-preference button {
-    padding-right: 5px;
-    padding-left: 5px;
   }
 
   .match-grid {

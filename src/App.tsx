@@ -18,13 +18,9 @@ import {
   type FaceAnalysis,
 } from "./domain/faceFeatures";
 import { FEATURE_LABELS } from "./domain/featureLabels";
-import {
-  rankCreators,
-  type CreatorMatch,
-  type MatchPreference,
-} from "./domain/matching";
+import { rankCreators, type CreatorMatch } from "./domain/matching";
 import { assessPhotoQuality, type QualityIssue } from "./domain/quality";
-import { listCreators } from "./services/creatorDb";
+import { listCreators } from "./services/creatorRepository";
 import { detectFace } from "./services/faceLandmarker";
 import { loadImageBlob } from "./services/imageFile";
 import { measureAverageLuminance } from "./services/imageQuality";
@@ -64,8 +60,6 @@ function App() {
   const [creatorsCount, setCreatorsCount] = useState(0);
   const [matching, setMatching] = useState(false);
   const [matchError, setMatchError] = useState<string>();
-  const [matchPreference, setMatchPreference] =
-    useState<MatchPreference>("balanced");
 
   useEffect(
     () => () => {
@@ -91,13 +85,11 @@ function App() {
       .then((creators) => {
         if (!active) return;
         setCreatorsCount(creators.length);
-        setMatches(
-          rankCreators(result.analysis!.features, creators, matchPreference),
-        );
+        setMatches(rankCreators(result.analysis!.features, creators));
       })
       .catch((loadError) => {
         console.error(loadError);
-        if (active) setMatchError("无法读取本地博主库，请检查浏览器存储权限。");
+        if (active) setMatchError("无法读取公开博主库，请稍后重试。");
       })
       .finally(() => {
         if (active) setMatching(false);
@@ -106,7 +98,7 @@ function App() {
     return () => {
       active = false;
     };
-  }, [matchPreference, result, status, view]);
+  }, [result, status, view]);
 
   const resetAnalysis = () => {
     setResult(undefined);
@@ -205,7 +197,7 @@ function App() {
         </nav>
         <div className="privacy-badge">
           <ShieldCheck size={16} />
-          <span>仅在本机处理</span>
+          <span>匹配照片仅在本机处理</span>
         </div>
       </header>
 
@@ -213,8 +205,8 @@ function App() {
         <main>
         <div className="page-heading">
           <div>
-            <p className="eyebrow">阶段 1 / 照片分析</p>
-            <h1>检查面部特征是否稳定</h1>
+            <p className="eyebrow">人脸相似匹配</p>
+            <h1>找到和你面部结构更接近的博主</h1>
           </div>
           <p className="heading-note">正面、无遮挡、光线均匀</p>
         </div>
@@ -336,7 +328,7 @@ function App() {
                 {result.issues.length === 0 ? (
                   <div className="notice notice-pass">
                     <CheckCircle2 size={18} />
-                    <p>照片质量通过，可用于稳定性对比。</p>
+                    <p>照片质量通过，可以开始相似匹配。</p>
                   </div>
                 ) : (
                   <div className="issue-list">
@@ -360,7 +352,7 @@ function App() {
                       ))}
                     </dl>
                     <p className="measurement-note">
-                      环境亮度 {Math.round(result.luminance)} / 255 · 仅供照片间稳定性比较
+                      环境亮度 {Math.round(result.luminance)} / 255 · 面部比例仅用于相似度计算
                     </p>
                   </>
                 )}
@@ -372,7 +364,7 @@ function App() {
           matching && !matches ? (
             <section className="matches-loading" aria-live="polite">
               <LoaderCircle className="spin" size={24} />
-              <p>正在比较本地博主库</p>
+              <p>正在比较公开博主库</p>
             </section>
           ) : matchError ? (
             <div className="notice notice-error matches-error">
@@ -383,9 +375,7 @@ function App() {
             <MatchResults
               creatorsCount={creatorsCount}
               matches={matches}
-              preference={matchPreference}
-              onPreferenceChange={setMatchPreference}
-              onManageCreators={() => setView("creators")}
+              onViewCreators={() => setView("creators")}
             />
           ) : null
         )}
