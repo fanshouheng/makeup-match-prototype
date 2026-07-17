@@ -9,7 +9,7 @@ let clientPromise: Promise<SupabaseClient> | undefined;
 
 export function getSupabaseClient(): Promise<SupabaseClient> {
   if (!supabaseUrl || !supabaseAnonKey) {
-    return Promise.reject(new Error("公开博主库尚未连接"));
+    return Promise.reject(new Error("匹配库尚未连接"));
   }
 
   clientPromise ??= import("@supabase/supabase-js").then(({ createClient }) =>

@@ -1,4 +1,4 @@
-import { Database, ShieldCheck, Trash2, UserRoundCheck } from "lucide-react";
+import { Database, FlaskConical, ShieldCheck, Trash2, UserRoundCheck } from "lucide-react";
 import { privacyContactEmail } from "../config";
 
 export function PrivacyPolicy() {
@@ -23,9 +23,22 @@ export function PrivacyPolicy() {
       </div>
 
       <section className="privacy-section">
+        <FlaskConical size={21} />
+        <div>
+          <h2>当前处于小范围测试阶段</h2>
+          <p>
+            测试用于验证本地照片匹配和博主授权入库流程，不以未经授权使用他人肖像、照片或内容为目的。完整博主名单不会对外展示；候选资料只有在完成本人或授权代表核验后，才会进入匹配库。
+          </p>
+          <p>
+            如发现姓名、照片、主页链接或内容被误用，请通过下方联系方式反馈。收到后会先暂停相关展示，再核验并完成下架或删除。
+          </p>
+        </div>
+      </section>
+
+      <section className="privacy-section">
         <Database size={21} />
         <div>
-          <h2>访问公开博主库时</h2>
+          <h2>进行相似匹配时</h2>
           <p>
             应用会从服务器下载已审核博主的公开资料、授权照片和面部比例，用于在你的设备上完成比较。服务器和托管服务可能记录常规的 IP、请求时间、浏览器类型和错误信息，但请求中不包含你的匹配照片或面部比例。
           </p>
@@ -37,10 +50,10 @@ export function PrivacyPolicy() {
         <div>
           <h2>博主申请入库时</h2>
           <p>
-            申请人主动提交博主名称、抖音主页、联系邮箱、授权正脸照、从照片中提取的面部比例，以及可选的代表教程。联系邮箱只用于身份核验和申请沟通，不会出现在公开博主库中。
+            申请人主动提交博主名称、抖音主页、联系邮箱、授权正脸照、从照片中提取的面部比例，以及可选的代表教程。联系邮箱只用于身份核验和申请沟通，不会出现在匹配结果中。
           </p>
           <p>
-            申请不会自动公开。核验主页归属和照片授权后，公开库只展示博主名称、主页、授权照片、面部比例和代表教程。安全验证由 Cloudflare Turnstile 提供，申请资料与照片存储由 Supabase 提供。
+            申请不会自动进入匹配库。核验主页归属和照片授权后，博主名称、主页、授权照片和代表教程只会在相关匹配结果中展示，面部比例只用于本地相似度计算。安全验证由 Cloudflare Turnstile 提供，申请资料与照片存储由 Supabase 提供。
           </p>
         </div>
       </section>

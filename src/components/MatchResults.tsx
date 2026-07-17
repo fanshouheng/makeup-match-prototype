@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   ExternalLink,
   Library,
+  UserPlus,
 } from "lucide-react";
 import type { CreatorMatch } from "../domain/matching";
 import { CreatorPhoto } from "./CreatorPhoto";
@@ -26,18 +27,18 @@ export function MatchResults({
           <h2 id="matches-title">和你面部结构更接近的博主</h2>
         </div>
         <button className="button button-ghost" onClick={onViewCreators} type="button">
-          <Library size={17} />
-          查看公开库
+          <UserPlus size={17} />
+          博主申请
         </button>
       </div>
 
       {creatorsCount === 0 ? (
         <div className="matches-empty">
           <Library size={28} />
-          <h3>公开博主库还是空的</h3>
+          <h3>还没有可匹配的博主</h3>
           <p>博主本人完成申请和身份核验后，才会参与匹配。</p>
           <button className="button button-primary" onClick={onViewCreators} type="button">
-            查看公开库
+            博主申请
           </button>
         </div>
       ) : (

@@ -95,7 +95,7 @@ function App() {
       })
       .catch((loadError) => {
         console.error(loadError);
-        if (active) setMatchError("无法读取公开博主库，请稍后重试。");
+        if (active) setMatchError("无法读取匹配库，请稍后重试。");
       })
       .finally(() => {
         if (active) setMatching(false);
@@ -207,7 +207,7 @@ function App() {
             onClick={() => navigate("creators")}
             type="button"
           >
-            博主库
+            博主申请
           </button>
           <button
             className={view === "privacy" ? "active" : ""}
@@ -386,7 +386,7 @@ function App() {
           matching && !matches ? (
             <section className="matches-loading" aria-live="polite">
               <LoaderCircle className="spin" size={24} />
-              <p>正在比较公开博主库</p>
+              <p>正在比较已审核博主资料</p>
             </section>
           ) : matchError ? (
             <div className="notice notice-error matches-error">

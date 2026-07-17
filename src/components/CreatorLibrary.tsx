@@ -6,7 +6,6 @@ import {
 import {
   AlertCircle,
   CheckCircle2,
-  ExternalLink,
   ImagePlus,
   LoaderCircle,
   Plus,
@@ -24,21 +23,16 @@ import {
   hasTurnstileConfig,
   turnstileSiteKey,
 } from "../config";
-import type { CreatorProfile } from "../domain/creator";
 import {
   extractFaceAnalysis,
   type FaceAnalysis,
 } from "../domain/faceFeatures";
 import { assessPhotoQuality, type QualityIssue } from "../domain/quality";
-import {
-  listCreators,
-  submitCreator,
-} from "../services/creatorRepository";
+import { submitCreator } from "../services/creatorRepository";
 import { detectFace } from "../services/faceLandmarker";
 import { loadImageBlob, type LoadedImage } from "../services/imageFile";
 import { measureAverageLuminance } from "../services/imageQuality";
 import { hasSupabaseConfig } from "../services/supabaseClient";
-import { CreatorPhoto } from "./CreatorPhoto";
 import { FacePreview } from "./FacePreview";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -152,8 +146,8 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
       return setError("代表教程需要填写抖音链接。");
     }
     if (!analyzedPhoto) return setError("请上传一张通过质量检查的本人正脸照。");
-    if (!consent) return setError("请确认授权与公开展示声明。");
-    if (!hasSupabaseConfig) return setError("当前部署尚未连接公开博主库，暂时无法提交。");
+    if (!consent) return setError("请确认授权与匹配展示声明。");
+    if (!hasSupabaseConfig) return setError("当前部署尚未连接匹配库，暂时无法提交。");
     if (!hasTurnstileConfig) return setError("申请入口尚未完成安全配置。");
     if (!turnstileToken) return setError("请先完成安全验证。");
 
@@ -191,7 +185,7 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
         <div className="modal-header">
           <div>
             <p className="eyebrow">博主本人申请</p>
-            <h2>申请加入公开博主库</h2>
+            <h2>申请加入匹配库</h2>
           </div>
           <button className="icon-button" onClick={onClose} type="button" aria-label="关闭">
             <X size={19} />
@@ -202,7 +196,7 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
           <div className="submission-success">
             <CheckCircle2 size={36} />
             <h3>申请已提交</h3>
-            <p>资料不会立即公开。我们会先通过联系邮箱核验主页归属，审核通过后再加入匹配。</p>
+            <p>资料不会自动进入匹配库。我们会先通过联系邮箱核验主页归属和照片授权。</p>
             <button className="button button-primary" onClick={onClose} type="button">完成</button>
           </div>
         ) : (
@@ -264,7 +258,7 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
               <label className="consent-field">
                 <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
                 <span>
-                  我确认本人为该主页博主或已获得明确授权，并同意将此照片及提取的面部特征用于公开相似匹配。
+                  我确认本人为该主页博主或已获得明确授权，并同意将此照片及提取的面部特征用于向用户展示相似匹配结果。
                 </span>
               </label>
               <p className="consent-policy-link">
@@ -283,7 +277,7 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
                   }}
                   options={{
                     action: "creator_submission",
-                    language: "zh-CN",
+                    language: "zh-cn",
                     size: "compact",
                     theme: "light",
                   }}
@@ -297,7 +291,7 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
               {!hasSupabaseConfig && (
                 <div className="notice notice-warning compact">
                   <AlertCircle size={16} />
-                  <p>当前部署尚未连接公开博主库，可以预览申请流程，但不能提交。</p>
+                  <p>当前部署尚未连接匹配库，可以预览申请流程，但不能提交。</p>
                 </div>
               )}
               {error && (
@@ -331,87 +325,26 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
 }
 
 export function CreatorLibrary() {
-  const [creators, setCreators] = useState<CreatorProfile[]>([]);
-  const [loading, setLoading] = useState(hasSupabaseConfig);
   const [showSubmission, setShowSubmission] = useState(false);
-  const [error, setError] = useState<string>();
-
-  useEffect(() => {
-    if (!hasSupabaseConfig) return;
-    let active = true;
-    listCreators()
-      .then((items) => {
-        if (active) setCreators(items);
-      })
-      .catch((loadError) => {
-        console.error(loadError);
-        if (active) setError("公开博主库读取失败，请稍后重试。");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   return (
     <main className="creator-page">
       <div className="page-heading creator-heading">
         <div>
-          <p className="eyebrow">公开资料</p>
-          <h1>公开博主库</h1>
+          <p className="eyebrow">本人或授权代表</p>
+          <h1>申请加入匹配库</h1>
         </div>
-        <button className="button button-primary" onClick={() => setShowSubmission(true)} type="button">
-          <Plus size={17} />
-          申请入库
-        </button>
       </div>
 
-      {!hasSupabaseConfig && (
-        <div className="notice notice-warning library-error">
-          <AlertCircle size={17} />
-          <p>当前部署尚未连接 Supabase，公开博主资料暂不可用。</p>
-        </div>
-      )}
-      {error && (
-        <div className="notice notice-error library-error">
-          <AlertCircle size={17} />
-          <p>{error}</p>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="library-empty"><LoaderCircle className="spin" size={28} /></div>
-      ) : creators.length === 0 ? (
-        <div className="library-empty">
-          <ShieldCheck size={30} />
-          <h2>还没有审核通过的博主</h2>
-          <p>博主本人提交并完成身份核验后，资料才会在这里公开。</p>
-          <button className="button button-primary" onClick={() => setShowSubmission(true)} type="button">
-            <Plus size={17} />
-            申请入库
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="creator-summary"><span>{creators.length} 位已审核博主</span></div>
-          <div className="creator-grid">
-            {creators.map((creator) => (
-              <article className="creator-card" key={creator.id}>
-                <div className="creator-card-photo"><CreatorPhoto creator={creator} /></div>
-                <div className="creator-card-body">
-                  <div className="creator-card-title"><h2>{creator.name}</h2></div>
-                  <div className="creator-links">
-                    <a href={creator.douyinUrl} target="_blank" rel="noreferrer">抖音主页 <ExternalLink size={14} /></a>
-                    {creator.tutorialUrl && <a href={creator.tutorialUrl} target="_blank" rel="noreferrer">代表教程 <ExternalLink size={14} /></a>}
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </>
-      )}
+      <div className="library-empty">
+        <ShieldCheck size={30} />
+        <h2>资料不会在此页面公开展示</h2>
+        <p>提交后先核验主页归属和照片授权；审核通过的资料仅在用户获得匹配结果时展示。</p>
+        <button className="button button-primary" onClick={() => setShowSubmission(true)} type="button">
+          <Plus size={17} />
+          填写申请
+        </button>
+      </div>
 
       {showSubmission && <SubmissionModal onClose={() => setShowSubmission(false)} />}
     </main>
