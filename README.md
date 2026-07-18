@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="public/favicon.svg" width="144" height="144" alt="妆容参照图标" />
+  <img src="public/readme-look.svg" width="500" alt="LOOK" />
 
   <h1>妆容参照</h1>
 
