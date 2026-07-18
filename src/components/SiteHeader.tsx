@@ -9,7 +9,7 @@ export function SiteHeader({ currentView, onNavigate }: SiteHeaderProps) {
   return (
     <header className="site-header">
       <button className="wordmark" onClick={() => onNavigate("home")} type="button">
-        <span>妆容参照</span>
+        <span>LOOK</span>
       </button>
       <nav className="site-nav" aria-label="站点导航">
         <button
