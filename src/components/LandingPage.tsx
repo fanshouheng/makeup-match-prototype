@@ -17,9 +17,13 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
             </button>
           </div>
           <div className="landing-copy">
-            <h1>找到更适合你参考的美妆博主</h1>
+            <h1>
+              <span>找到更适合你</span>
+              <span>参考的美妆博主</span>
+            </h1>
             <p>
-              上传一张正面照片，从面部结构出发寻找更接近的博主。不是评价长相，而是让妆容参照更具体；照片与个人比例只在当前设备完成分析。
+              <span>上传一张正面照片，从面部结构出发寻找更接近的博主。</span>
+              <span>不是评价长相，而是让妆容参照更具体；照片与个人比例只在当前设备完成分析。</span>
             </p>
           </div>
         </section>
