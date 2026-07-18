@@ -26,13 +26,13 @@
 :root {
   font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
   color: #1a1a1a;
-  background: #f3f3f0;
+  background: #ffffff;
   font-synthesis: weight;
   text-rendering: optimizeLegibility;
   letter-spacing: 0;
-  --bg: #f3f3f0;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-muted: #e9e9e5;
+  --surface-muted: #ffffff;
   --ink: #1a1a1a;
   --muted: #74746f;
   --faint: #a0a09b;
@@ -102,7 +102,7 @@ h3 {
   align-items: center;
   justify-content: space-between;
   margin: 0 auto;
-  background: rgba(243, 243, 240, 0.94);
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(14px);
 }
 
@@ -240,7 +240,7 @@ h3 {
 
 .site-footer {
   min-height: 280px;
-  background: #e7e7e3;
+  background: #ffffff;
 }
 
 .footer-inner {
@@ -820,7 +820,7 @@ h3 {
 .creator-card-photo {
   position: relative;
   overflow: hidden;
-  background: #d9d9d5;
+  background: #ffffff;
 }
 
 .primary-match-photo img,
