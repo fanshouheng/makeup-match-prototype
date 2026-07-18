@@ -2,7 +2,7 @@
 
   <img src="public/readme-look.svg" width="500" alt="LOOK" />
 
- 
+  <p><em>make up</em></p>
 
   <p><em>找到和你面部结构更接近的妆容博主。</em></p>
 
