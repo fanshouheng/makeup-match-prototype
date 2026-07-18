@@ -10,27 +10,29 @@ import { CreatorPhoto } from "./CreatorPhoto";
 interface MatchResultsProps {
   creatorsCount: number;
   matches: CreatorMatch[];
+  mode?: "all" | "primary" | "more";
   onViewCreators: () => void;
 }
 
 export function MatchResults({
   creatorsCount,
   matches,
+  mode = "all",
   onViewCreators,
 }: MatchResultsProps) {
   const [primaryMatch, ...otherMatches] = matches;
+  const showPrimary = mode !== "more";
+  const showMore = mode !== "primary";
 
   return (
-    <section className="matches-section" aria-labelledby="matches-title">
+    <section className={`matches-section matches-${mode}`} aria-labelledby={`matches-title-${mode}`}>
       <div className="matches-heading">
         <div>
-          <p className="eyebrow">相似匹配</p>
-          <h2 id="matches-title">和你面部结构更接近的博主</h2>
+          <p className="eyebrow">{mode === "more" ? "MORE / 更多参照" : "MATCH / 相似匹配"}</p>
+          <h2 id={`matches-title-${mode}`}>
+            {mode === "more" ? "也可以看看这些博主" : "和你面部结构更接近的博主"}
+          </h2>
         </div>
-        <button className="button button-ghost" onClick={onViewCreators} type="button">
-          <Library size={17} />
-          查看公开库
-        </button>
       </div>
 
       {creatorsCount === 0 ? (
@@ -39,18 +41,18 @@ export function MatchResults({
           <h3>公开博主库还是空的</h3>
           <p>博主本人完成申请和身份核验后，才会参与匹配。</p>
           <button className="button button-primary" onClick={onViewCreators} type="button">
-            查看公开库
+            博主入驻
           </button>
         </div>
       ) : (
         <>
-          {creatorsCount < 5 && (
+          {mode === "all" && creatorsCount < 5 && (
             <div className="notice notice-warning match-sample-notice">
               <AlertCircle size={17} />
               <p>当前只有 {creatorsCount} 位已审核博主，结果仅用于体验匹配流程。</p>
             </div>
           )}
-          {primaryMatch && (
+          {showPrimary && primaryMatch && (
             <article className="primary-match">
               <div className="primary-match-photo">
                 <CreatorPhoto creator={primaryMatch.creator} />
@@ -83,13 +85,13 @@ export function MatchResults({
               </div>
             </article>
           )}
-          {otherMatches.length > 0 && (
+          {mode === "all" && otherMatches.length > 0 && (
             <div className="more-matches-heading">
               <p className="eyebrow">更多参照</p>
               <h3>也可以看看这些博主</h3>
             </div>
           )}
-          <div className="match-grid">
+          {showMore && <div className="match-grid">
             {otherMatches.map((match, index) => (
               <article className="match-card" key={match.creator.id}>
                 <div className="match-card-photo">
@@ -121,7 +123,7 @@ export function MatchResults({
                 </div>
               </article>
             ))}
-          </div>
+          </div>}
         </>
       )}
     </section>

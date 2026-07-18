@@ -3,21 +3,20 @@ import {
   AlertCircle,
   Camera,
   CheckCircle2,
+  ChevronDown,
   ImagePlus,
   LoaderCircle,
   RotateCcw,
-  ScanFace,
   ShieldCheck,
 } from "lucide-react";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { CreatorLibrary } from "./components/CreatorLibrary";
 import { FacePreview } from "./components/FacePreview";
+import { LandingPage } from "./components/LandingPage";
 import { MatchResults } from "./components/MatchResults";
 import { PrivacyPolicy } from "./components/PrivacyPolicy";
-import {
-  extractFaceAnalysis,
-  type FaceAnalysis,
-} from "./domain/faceFeatures";
+import { SiteHeader, type SiteView } from "./components/SiteHeader";
+import { extractFaceAnalysis, type FaceAnalysis } from "./domain/faceFeatures";
 import { FEATURE_LABELS } from "./domain/featureLabels";
 import { rankCreators, type CreatorMatch } from "./domain/matching";
 import { assessPhotoQuality, type QualityIssue } from "./domain/quality";
@@ -40,10 +39,12 @@ interface AnalysisResult {
 }
 
 type AnalysisStatus = "idle" | "loading" | "complete" | "error";
-type AppView = "analysis" | "creators" | "privacy";
 
-function initialView(): AppView {
-  return window.location.hash === "#privacy" ? "privacy" : "analysis";
+function viewFromLocation(): SiteView {
+  if (window.location.hash === "#start") return "analysis";
+  if (window.location.hash === "#creator") return "creators";
+  if (window.location.hash === "#privacy") return "privacy";
+  return "home";
 }
 
 function loadImage(file: File): Promise<LoadedPhoto> {
@@ -57,15 +58,23 @@ function loadImage(file: File): Promise<LoadedPhoto> {
 function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const sceneRef = useRef<HTMLElement>(null);
   const [photo, setPhoto] = useState<LoadedPhoto>();
   const [status, setStatus] = useState<AnalysisStatus>("idle");
   const [result, setResult] = useState<AnalysisResult>();
   const [error, setError] = useState<string>();
-  const [view, setView] = useState<AppView>(initialView);
+  const [view, setView] = useState<SiteView>(viewFromLocation);
   const [matches, setMatches] = useState<CreatorMatch[]>();
   const [creatorsCount, setCreatorsCount] = useState(0);
   const [matching, setMatching] = useState(false);
   const [matchError, setMatchError] = useState<string>();
+
+  const showMatchScene = Boolean(
+    status === "complete" &&
+    result?.analysis &&
+    result.issues.length === 0 &&
+    matches?.length,
+  );
 
   useEffect(
     () => () => {
@@ -73,6 +82,12 @@ function App() {
     },
     [photo],
   );
+
+  useEffect(() => {
+    const syncView = () => setView(viewFromLocation());
+    window.addEventListener("popstate", syncView);
+    return () => window.removeEventListener("popstate", syncView);
+  }, []);
 
   useEffect(() => {
     if (
@@ -106,6 +121,36 @@ function App() {
     };
   }, [result, status, view]);
 
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!showMatchScene || !scene) return;
+
+    let frame = 0;
+    const updateProgress = () => {
+      frame = 0;
+      const rect = scene.getBoundingClientRect();
+      const stickyHeight = Math.max(window.innerHeight - 72, 560);
+      const travel = Math.max(scene.offsetHeight - stickyHeight, 1);
+      const progress = Math.min(Math.max(-rect.top / travel, 0), 1);
+      const collapse = Math.min(progress / 0.62, 1);
+      const reveal = Math.min(Math.max((progress - 0.18) / 0.58, 0), 1);
+      scene.style.setProperty("--collapse", collapse.toFixed(4));
+      scene.style.setProperty("--reveal", reveal.toFixed(4));
+    };
+    const requestUpdate = () => {
+      if (!frame) frame = window.requestAnimationFrame(updateProgress);
+    };
+
+    updateProgress();
+    window.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("resize", requestUpdate);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", requestUpdate);
+      window.removeEventListener("resize", requestUpdate);
+    };
+  }, [showMatchScene]);
+
   const resetAnalysis = () => {
     setResult(undefined);
     setError(undefined);
@@ -136,13 +181,16 @@ function App() {
     resetAnalysis();
   };
 
-  const navigate = (nextView: AppView) => {
+  const navigate = (nextView: SiteView) => {
+    const hash = {
+      home: "",
+      analysis: "#start",
+      creators: "#creator",
+      privacy: "#privacy",
+    }[nextView];
+    window.history.pushState(null, "", `${window.location.pathname}${window.location.search}${hash}`);
     setView(nextView);
-    const nextUrl =
-      nextView === "privacy"
-        ? "#privacy"
-        : `${window.location.pathname}${window.location.search}`;
-    window.history.replaceState(null, "", nextUrl);
+    window.scrollTo({ top: 0, behavior: "auto" });
   };
 
   const runAnalysis = async () => {
@@ -157,13 +205,12 @@ function App() {
       const faceCount = detection.faceLandmarks.length;
       const landmarks = faceCount === 1 ? detection.faceLandmarks[0] : undefined;
       const luminance = measureAverageLuminance(photo.image, landmarks);
-      const analysis =
-        landmarks
-          ? extractFaceAnalysis(landmarks, {
-              width: photo.image.naturalWidth,
-              height: photo.image.naturalHeight,
-            })
-          : undefined;
+      const analysis = landmarks
+        ? extractFaceAnalysis(landmarks, {
+            width: photo.image.naturalWidth,
+            height: photo.image.naturalHeight,
+          })
+        : undefined;
       const issues = assessPhotoQuality({
         faceCount,
         averageLuminance: luminance,
@@ -184,185 +231,175 @@ function App() {
     }
   };
 
+  const analysisWorkspace = photo && (
+    <section className="analysis-workspace" aria-label="照片与面部分析">
+      <div className="analysis-photo">
+        <FacePreview image={photo.image} landmarks={result?.landmarks} />
+        <div className="photo-toolbar">
+          <div className="file-meta">
+            <span className="file-name">{photo.fileName}</span>
+            <span>{photo.image.naturalWidth} × {photo.image.naturalHeight}</span>
+          </div>
+          <button
+            className="button button-primary"
+            disabled={status === "loading"}
+            onClick={runAnalysis}
+            type="button"
+          >
+            {status === "loading" && <LoaderCircle className="spin" size={17} />}
+            {status === "loading" ? "正在分析" : status === "complete" ? "重新分析" : "开始分析"}
+          </button>
+        </div>
+      </div>
+
+      <aside className="result-panel" aria-live="polite">
+        <div className="panel-title-row">
+          <div>
+            <p className="eyebrow">ANALYSIS / 专业数据</p>
+            <h2>照片质量与面部比例</h2>
+          </div>
+          {status === "complete" && result && (
+            <span className={result.issues.length ? "status warning" : "status pass"}>
+              {result.issues.length ? "建议重拍" : "分析完成"}
+            </span>
+          )}
+        </div>
+
+        {status === "idle" && (
+          <div className="result-empty result-empty-compact">
+            <p>开始后会显示面部关键点与个人比例数据</p>
+          </div>
+        )}
+        {status === "loading" && (
+          <div className="result-empty result-empty-compact">
+            <LoaderCircle className="spin" size={27} />
+            <p>正在识别关键点并计算面部比例</p>
+            <span>首次加载分析组件可能需要几秒</span>
+          </div>
+        )}
+        {status === "error" && error && (
+          <div className="notice notice-error">
+            <AlertCircle size={18} />
+            <p>{error}</p>
+          </div>
+        )}
+        {status === "complete" && result && (
+          <div className="result-content">
+            {result.issues.length === 0 ? (
+              <div className="notice notice-pass">
+                <CheckCircle2 size={18} />
+                <p>照片质量通过，已开始匹配相似博主。</p>
+              </div>
+            ) : (
+              <div className="issue-list">
+                {result.issues.map((issue) => (
+                  <div className="notice notice-warning" key={issue.code}>
+                    <AlertCircle size={18} />
+                    <p>{issue.message}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {result.analysis && (
+              <>
+                <dl className="feature-list">
+                  {Object.entries(result.analysis.features).map(([key, value]) => (
+                    <div className="feature-row" key={key}>
+                      <dt>{FEATURE_LABELS[key as keyof typeof FEATURE_LABELS]}</dt>
+                      <dd>{value.toFixed(3)}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="measurement-note">
+                  环境亮度 {Math.round(result.luminance)} / 255 · 数据仅用于本次相似度计算
+                </p>
+              </>
+            )}
+          </div>
+        )}
+        <div className="analysis-mini-summary" aria-hidden="true">
+          <span>ANALYSIS / COMPLETE</span>
+          <strong>9 项面部结构数据</strong>
+        </div>
+      </aside>
+    </section>
+  );
+
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="brand-mark" aria-hidden="true">
-          <ScanFace size={21} />
-        </div>
-        <div className="brand-copy">
-          <p className="brand-name">妆容参照</p>
-          <p className="brand-stage">找到适合你的美妆参照</p>
-        </div>
-        <nav className="topnav" aria-label="主要页面">
-          <button
-            className={view === "analysis" ? "active" : ""}
-            onClick={() => navigate("analysis")}
-            type="button"
-          >
-            开始匹配
-          </button>
-          <button
-            className={view === "creators" ? "active" : ""}
-            onClick={() => navigate("creators")}
-            type="button"
-          >
-            博主库
-          </button>
-          <button
-            className={view === "privacy" ? "active" : ""}
-            onClick={() => navigate("privacy")}
-            type="button"
-          >
-            隐私
-          </button>
-        </nav>
-        <div className="privacy-badge">
-          <ShieldCheck size={16} />
-          <span>匹配照片仅在本机处理</span>
-        </div>
-      </header>
+      <SiteHeader currentView={view} onNavigate={navigate} />
 
-      {view === "analysis" ? (
+      {view === "home" ? (
+        <LandingPage onStart={() => navigate("analysis")} />
+      ) : view === "analysis" ? (
         <main className="analysis-page">
           {!photo ? (
-            <section className="upload-hero" aria-labelledby="upload-title">
-              <div className="upload-hero-icon" aria-hidden="true">
-                <ScanFace size={30} />
+            <section className="start-upload-screen" aria-labelledby="upload-title">
+              <div className="start-upload-copy">
+                <p className="eyebrow">START / 照片分析</p>
+                <h1 id="upload-title">上传一张清晰的正面照片</h1>
+                <p>照片将占据分析主视窗。识别完成后，面部关键点和个人比例会显示在右侧。</p>
               </div>
-              <p className="eyebrow">你的妆容参照，从相似面部结构开始</p>
-              <h1 id="upload-title">找到更适合你参考的美妆博主</h1>
-              <p className="upload-hero-copy">
-                上传一张正面照片，我们会在本机分析面部结构，并从公开博主库中寻找更接近的参照。
-              </p>
-              <div className="upload-actions">
-                <button
-                  className="button button-primary upload-primary"
-                  onClick={() => fileInputRef.current?.click()}
-                  type="button"
-                >
-                  <ImagePlus size={18} />
-                  选择照片
-                </button>
-                <button
-                  className="button button-secondary"
-                  onClick={() => cameraInputRef.current?.click()}
-                  type="button"
-                >
-                  <Camera size={18} />
-                  拍照
-                </button>
+              <div className="start-upload-stage">
+                <div className="upload-stage-icon"><ImagePlus size={34} /></div>
+                <div className="upload-actions">
+                  <button className="button button-primary" onClick={() => fileInputRef.current?.click()} type="button">
+                    <ImagePlus size={18} />选择照片
+                  </button>
+                  <button className="button button-secondary" onClick={() => cameraInputRef.current?.click()} type="button">
+                    <Camera size={18} />拍照
+                  </button>
+                </div>
+                <div className="photo-guidance" aria-label="照片要求">
+                  <span>正面拍摄</span><span>无遮挡</span><span>光线均匀</span>
+                </div>
+                <p className="local-note"><ShieldCheck size={15} />照片仅在当前设备处理</p>
               </div>
-              <div className="photo-guidance" aria-label="照片要求">
-                <span>正面拍摄</span>
-                <span>无遮挡</span>
-                <span>光线均匀</span>
-              </div>
-              <p className="local-note"><ShieldCheck size={15} />照片仅在当前设备处理</p>
             </section>
           ) : (
             <>
               <div className="analysis-heading">
                 <div>
-                  <p className="eyebrow">{status === "complete" ? "面部结构分析" : "照片已准备好"}</p>
+                  <p className="eyebrow">{status === "complete" ? "RESULT / 面部结构分析" : "PHOTO / 照片已准备好"}</p>
                   <h1>{status === "complete" ? "你的个人分析" : "确认照片，开始寻找妆容参照"}</h1>
                 </div>
                 <button className="button button-ghost" onClick={clearPhoto} type="button">
-                  <RotateCcw size={17} />
-                  重新选择
+                  <RotateCcw size={17} />重新选择
                 </button>
               </div>
 
-              <section className="analysis-workspace" aria-label="照片与面部分析">
-                <div className="analysis-photo">
-                  <FacePreview image={photo.image} landmarks={result?.landmarks} />
-                  <div className="photo-toolbar">
-                    <div className="file-meta">
-                      <span className="file-name">{photo.fileName}</span>
-                      <span>{photo.image.naturalWidth} × {photo.image.naturalHeight}</span>
+              <section
+                className={`analysis-scene ${showMatchScene ? "is-scrollable" : ""}`}
+                ref={sceneRef}
+              >
+                <div className="analysis-sticky">
+                  {analysisWorkspace}
+                  {showMatchScene && matches && (
+                    <div className="match-reveal">
+                      <MatchResults
+                        creatorsCount={creatorsCount}
+                        matches={matches}
+                        mode="primary"
+                        onViewCreators={() => navigate("creators")}
+                      />
                     </div>
-                    <button
-                      className="button button-primary"
-                      disabled={status === "loading"}
-                      onClick={runAnalysis}
-                      type="button"
-                    >
-                      {status === "loading" ? <LoaderCircle className="spin" size={17} /> : <ScanFace size={17} />}
-                      {status === "loading" ? "正在分析" : status === "complete" ? "重新分析" : "开始分析"}
-                    </button>
-                  </div>
+                  )}
+                  {showMatchScene && (
+                    <div className="scroll-cue" aria-hidden="true"><ChevronDown size={20} /></div>
+                  )}
                 </div>
-
-                <aside className="result-panel" aria-live="polite">
-                  <div className="panel-title-row">
-                    <div>
-                      <p className="eyebrow">专业数据</p>
-                      <h2>照片质量与面部比例</h2>
-                    </div>
-                    {status === "complete" && result && (
-                      <span className={result.issues.length ? "status warning" : "status pass"}>
-                        {result.issues.length ? "建议重拍" : "分析完成"}
-                      </span>
-                    )}
-                  </div>
-
-                  {status === "idle" && (
-                    <div className="result-empty result-empty-compact">
-                      <ScanFace size={27} />
-                      <p>开始后会显示面部关键点与个人比例数据</p>
-                    </div>
-                  )}
-                  {status === "loading" && (
-                    <div className="result-empty result-empty-compact">
-                      <LoaderCircle className="spin" size={27} />
-                      <p>正在识别关键点并计算面部比例</p>
-                      <span>首次加载分析组件可能需要几秒</span>
-                    </div>
-                  )}
-                  {status === "error" && error && (
-                    <div className="notice notice-error">
-                      <AlertCircle size={18} />
-                      <p>{error}</p>
-                    </div>
-                  )}
-                  {status === "complete" && result && (
-                    <div className="result-content">
-                      {result.issues.length === 0 ? (
-                        <div className="notice notice-pass">
-                          <CheckCircle2 size={18} />
-                          <p>照片质量通过，已开始匹配相似博主。</p>
-                        </div>
-                      ) : (
-                        <div className="issue-list">
-                          {result.issues.map((issue) => (
-                            <div className="notice notice-warning" key={issue.code}>
-                              <AlertCircle size={18} />
-                              <p>{issue.message}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {result.analysis && (
-                        <>
-                          <dl className="feature-list">
-                            {Object.entries(result.analysis.features).map(([key, value]) => (
-                              <div className="feature-row" key={key}>
-                                <dt>{FEATURE_LABELS[key as keyof typeof FEATURE_LABELS]}</dt>
-                                <dd>{value.toFixed(3)}</dd>
-                              </div>
-                            ))}
-                          </dl>
-                          <p className="measurement-note">
-                            环境亮度 {Math.round(result.luminance)} / 255 · 数据仅用于本次相似度计算
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </aside>
               </section>
 
-              {status === "complete" && result?.analysis && result.issues.length === 0 && (
+              {showMatchScene && matches && matches.length > 1 && (
+                <MatchResults
+                  creatorsCount={creatorsCount}
+                  matches={matches}
+                  mode="more"
+                  onViewCreators={() => navigate("creators")}
+                />
+              )}
+
+              {status === "complete" && result?.analysis && result.issues.length === 0 && !showMatchScene && (
                 matching && !matches ? (
                   <section className="matches-loading" aria-live="polite">
                     <LoaderCircle className="spin" size={24} />
@@ -370,8 +407,7 @@ function App() {
                   </section>
                 ) : matchError ? (
                   <div className="notice notice-error matches-error">
-                    <AlertCircle size={18} />
-                    <p>{matchError}</p>
+                    <AlertCircle size={18} /><p>{matchError}</p>
                   </div>
                 ) : matches ? (
                   <MatchResults
@@ -384,21 +420,8 @@ function App() {
             </>
           )}
 
-          <input
-            ref={fileInputRef}
-            className="visually-hidden"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleFile}
-          />
-          <input
-            ref={cameraInputRef}
-            className="visually-hidden"
-            type="file"
-            accept="image/*"
-            capture="user"
-            onChange={handleFile}
-          />
+          <input ref={fileInputRef} className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFile} />
+          <input ref={cameraInputRef} className="visually-hidden" type="file" accept="image/*" capture="user" onChange={handleFile} />
         </main>
       ) : view === "creators" ? (
         <CreatorLibrary />

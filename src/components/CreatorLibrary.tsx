@@ -359,12 +359,15 @@ export function CreatorLibrary() {
     <main className="creator-page">
       <div className="page-heading creator-heading">
         <div>
-          <p className="eyebrow">公开资料</p>
-          <h1>公开博主库</h1>
+          <p className="eyebrow">CREATOR / 博主入驻</p>
+          <h1>成为妆容参照的一部分</h1>
+          <p className="creator-intro-copy">
+            如果你愿意让自己的公开妆容内容被更多相似面部结构的用户找到，可以提交资料申请加入。
+          </p>
         </div>
         <button className="button button-primary" onClick={() => setShowSubmission(true)} type="button">
           <Plus size={17} />
-          申请入库
+          提交入驻申请
         </button>
       </div>
 
@@ -386,11 +389,11 @@ export function CreatorLibrary() {
       ) : creators.length === 0 ? (
         <div className="library-empty">
           <ShieldCheck size={30} />
-          <h2>还没有审核通过的博主</h2>
+          <h2>公开资料正在建立中</h2>
           <p>博主本人提交并完成身份核验后，资料才会在这里公开。</p>
           <button className="button button-primary" onClick={() => setShowSubmission(true)} type="button">
             <Plus size={17} />
-            申请入库
+            提交入驻申请
           </button>
         </div>
       ) : (

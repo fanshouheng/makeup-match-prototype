@@ -6,7 +6,7 @@ export function PrivacyPolicy() {
     <main className="privacy-page">
       <div className="page-heading privacy-heading">
         <div>
-          <p className="eyebrow">最后更新：2026-07-17</p>
+          <p className="eyebrow">PRIVACY / 最后更新：2026-07-17</p>
           <h1>隐私说明</h1>
         </div>
         <p className="heading-note">普通匹配与博主申请是两条独立的数据流程</p>
