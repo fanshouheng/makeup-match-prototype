@@ -1,9 +1,20 @@
-import { ArrowRight, MessageCircle, Music2 } from "lucide-react";
-import { useState } from "react";
-import { contactDouyinUrl, contactWechatId } from "../config";
+import { ArrowRight, MessageCircle, Music2, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { contactDouyinUrl, contactWechatQrUrl } from "../config";
 
 export function LandingPage({ onStart }: { onStart: () => void }) {
-  const [contactNote, setContactNote] = useState<string>();
+  const [wechatOpen, setWechatOpen] = useState(false);
+
+  useEffect(() => {
+    if (!wechatOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setWechatOpen(false);
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [wechatOpen]);
 
   return (
     <>
@@ -34,32 +45,46 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
           <div className="social-links" aria-label="联系方式">
             <button
               aria-label="微信联系方式"
-              onClick={() => setContactNote(contactWechatId ? `微信：${contactWechatId}` : "微信联系方式待补充")}
+              aria-expanded={wechatOpen}
+              aria-haspopup="dialog"
+              onClick={() => setWechatOpen(true)}
               title="微信"
               type="button"
             >
               <MessageCircle size={18} />
             </button>
-            {contactDouyinUrl ? (
-              <a aria-label="抖音主页" href={contactDouyinUrl} rel="noreferrer" target="_blank" title="抖音">
-                <Music2 size={18} />
-              </a>
-            ) : (
-              <button
-                aria-label="抖音联系方式"
-                onClick={() => setContactNote("抖音主页待补充")}
-                title="抖音"
-                type="button"
-              >
-                <Music2 size={18} />
-              </button>
-            )}
+            <a aria-label="抖音主页" href={contactDouyinUrl} rel="noreferrer" target="_blank" title="抖音">
+              <Music2 size={18} />
+            </a>
           </div>
-          {contactNote && <p className="contact-note" role="status">{contactNote}</p>}
           <div className="footer-rule" />
           <p className="footer-copy">妆容参照 · 照片仅在当前设备处理</p>
         </div>
       </footer>
+
+      {wechatOpen && (
+        <div className="contact-modal-backdrop" onClick={() => setWechatOpen(false)}>
+          <section
+            aria-label="微信联系方式"
+            aria-modal="true"
+            className="contact-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <button
+              aria-label="关闭微信二维码"
+              className="contact-modal-close"
+              onClick={() => setWechatOpen(false)}
+              title="关闭"
+              type="button"
+            >
+              <X size={20} />
+            </button>
+            <img alt="微信联系人二维码" src={contactWechatQrUrl} />
+            <p>微信扫码添加好友</p>
+          </section>
+        </div>
+      )}
     </>
   );
 }
