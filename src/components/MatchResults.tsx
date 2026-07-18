@@ -18,6 +18,8 @@ export function MatchResults({
   matches,
   onViewCreators,
 }: MatchResultsProps) {
+  const [primaryMatch, ...otherMatches] = matches;
+
   return (
     <section className="matches-section" aria-labelledby="matches-title">
       <div className="matches-heading">
@@ -48,12 +50,51 @@ export function MatchResults({
               <p>当前只有 {creatorsCount} 位已审核博主，结果仅用于体验匹配流程。</p>
             </div>
           )}
+          {primaryMatch && (
+            <article className="primary-match">
+              <div className="primary-match-photo">
+                <CreatorPhoto creator={primaryMatch.creator} />
+                <span className="match-rank">最接近</span>
+              </div>
+              <div className="primary-match-body">
+                <p className="eyebrow">首选参照</p>
+                <h3>{primaryMatch.creator.name}</h3>
+                <p className="primary-match-intro">这些面部结构特征与你更接近，可以优先参考她的妆容思路。</p>
+                <ul className="match-reasons">
+                  {primaryMatch.reasons.map((reason) => (
+                    <li key={reason.feature}>
+                      <CheckCircle2 size={16} />
+                      <span>{reason.text}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="match-links">
+                  {primaryMatch.creator.tutorialUrl && (
+                    <a className="button button-primary" href={primaryMatch.creator.tutorialUrl} target="_blank" rel="noreferrer">
+                      查看代表教程
+                      <ExternalLink size={15} />
+                    </a>
+                  )}
+                  <a className="button button-secondary" href={primaryMatch.creator.douyinUrl} target="_blank" rel="noreferrer">
+                    博主主页
+                    <ExternalLink size={15} />
+                  </a>
+                </div>
+              </div>
+            </article>
+          )}
+          {otherMatches.length > 0 && (
+            <div className="more-matches-heading">
+              <p className="eyebrow">更多参照</p>
+              <h3>也可以看看这些博主</h3>
+            </div>
+          )}
           <div className="match-grid">
-            {matches.map((match, index) => (
+            {otherMatches.map((match, index) => (
               <article className="match-card" key={match.creator.id}>
                 <div className="match-card-photo">
                   <CreatorPhoto creator={match.creator} />
-                  <span className="match-rank">第 {index + 1} 名</span>
+                  <span className="match-rank">第 {index + 2} 名</span>
                 </div>
                 <div className="match-card-body">
                   <h3>{match.creator.name}</h3>
