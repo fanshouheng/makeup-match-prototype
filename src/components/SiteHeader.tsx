@@ -8,8 +8,14 @@ interface SiteHeaderProps {
 export function SiteHeader({ currentView, onNavigate }: SiteHeaderProps) {
   return (
     <header className="site-header">
-      <button className="wordmark" onClick={() => onNavigate("home")} type="button">
-        <span>LOOK</span>
+      <button
+        aria-label="LOOK AI 首页"
+        className="wordmark"
+        onClick={() => onNavigate("home")}
+        type="button"
+      >
+        <span className="wordmark-name">LOOK AI</span>
+        <span className="wordmark-product">MAKEUP REFERENCE</span>
       </button>
       <nav className="site-nav" aria-label="站点导航">
         <button

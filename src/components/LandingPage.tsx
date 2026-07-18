@@ -10,7 +10,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
       <main className="landing-page">
         <section className="landing-intro">
           <div className="landing-entry">
-            <p className="section-index">MAKEUP REFERENCE / 2026</p>
+            <p className="section-index">AI FOR YOUR LOOK / 2026</p>
             <button className="start-button" onClick={onStart} type="button">
               Start
               <ArrowRight size={18} />

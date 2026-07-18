@@ -1,8 +1,10 @@
 <div align="center">
 
-  <img src="public/readme-look.svg" width="500" alt="LOOK" />
+  <img src="public/readme-look.svg" width="500" alt="LOOK AI" />
 
-  <p><em>make up</em></p>
+  <p><strong>MAKEUP REFERENCE</strong></p>
+
+  <p><em>AI for your look</em></p>
 
   <p>找到和你面部结构更接近的妆容博主。</p>
 

@@ -118,9 +118,23 @@ h3 {
 .wordmark {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
+}
+
+.wordmark-name {
   font-size: 34px;
   font-weight: 650;
+  line-height: 1;
+}
+
+.wordmark-product {
+  max-width: 74px;
+  color: var(--muted);
+  font-family: "Space Mono", "Cascadia Mono", Consolas, monospace;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
 }
 
 .site-nav {
@@ -1338,7 +1352,16 @@ h3 {
   }
 
   .wordmark {
+    gap: 9px;
+  }
+
+  .wordmark-name {
     font-size: 26px;
+  }
+
+  .wordmark-product {
+    max-width: 56px;
+    font-size: 7px;
   }
 
   .site-nav {
