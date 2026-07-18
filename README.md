@@ -101,3 +101,9 @@
 - [数据权利声明](DATA_RIGHTS.md)
 - [服务条款](TERMS_OF_SERVICE.md)
 - [完整开源许可证](LICENSE)
+
+## 第三方字体
+
+界面使用 HarmonyOS Sans SC 和 Space Mono。字体版权及许可条款分别保留在
+[HarmonyOS Sans 字体许可](public/fonts/LICENSE-HarmonyOS-Sans.txt)和
+[Space Mono 字体许可](public/fonts/LICENSE-Space-Mono.txt)中。

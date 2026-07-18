@@ -1,8 +1,33 @@
+/* Font licenses are retained in public/fonts. */
+@font-face {
+  font-family: "HarmonyOS Sans SC";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/harmonyos-sans-sc-regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Space Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/space-mono-latin-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Space Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/space-mono-latin-700.woff2") format("woff2");
+}
+
 :root {
-  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
   color: #1a1a1a;
   background: #f3f3f0;
-  font-synthesis: none;
+  font-synthesis: weight;
   text-rendering: optimizeLegibility;
   letter-spacing: 0;
   --bg: #f3f3f0;
@@ -152,7 +177,7 @@ h3 {
 .section-index,
 .eyebrow {
   color: var(--muted);
-  font-family: "Geist Mono", "Cascadia Mono", Consolas, monospace;
+  font-family: "Space Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 1.5;
@@ -265,7 +290,7 @@ h3 {
   right: 0;
   bottom: 20px;
   color: var(--faint);
-  font-family: "Geist Mono", "Cascadia Mono", Consolas, monospace;
+  font-family: "Space Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 9px;
 }
 
@@ -507,7 +532,7 @@ h3 {
   flex-direction: column;
   gap: 3px;
   color: var(--muted);
-  font-family: "Geist Mono", "Cascadia Mono", Consolas, monospace;
+  font-family: "Space Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 9px;
 }
 
@@ -643,7 +668,7 @@ h3 {
 .feature-row dd {
   margin: 0;
   color: var(--ink);
-  font-family: "Geist Mono", "Cascadia Mono", Consolas, monospace;
+  font-family: "Space Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 10px;
   font-weight: 600;
   text-align: right;
@@ -670,7 +695,7 @@ h3 {
 
 .analysis-mini-summary span {
   color: var(--muted);
-  font-family: "Geist Mono", "Cascadia Mono", Consolas, monospace;
+  font-family: "Space Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 9px;
 }
 
@@ -806,7 +831,7 @@ h3 {
   border-radius: 999px;
   color: #fff;
   background: rgba(26, 26, 26, 0.88);
-  font-family: "Geist Mono", "Cascadia Mono", Consolas, monospace;
+  font-family: "Space Mono", "Cascadia Mono", Consolas, monospace;
   font-size: 9px;
 }
 
