@@ -119,7 +119,7 @@ h3 {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 26px;
+  font-size: 34px;
   font-weight: 650;
 }
 
@@ -1338,7 +1338,7 @@ h3 {
   }
 
   .wordmark {
-    font-size: 22px;
+    font-size: 26px;
   }
 
   .site-nav {
