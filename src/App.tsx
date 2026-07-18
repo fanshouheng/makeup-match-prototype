@@ -73,7 +73,7 @@ function App() {
     status === "complete" &&
     result?.analysis &&
     result.issues.length === 0 &&
-    matches?.length,
+    matches !== undefined,
   );
 
   useEffect(
