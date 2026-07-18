@@ -1,0 +1,52 @@
+name: 功能建议
+description: 从真实使用问题出发提出改进方向
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        功能建议优先讨论用户问题，而不是先指定实现。较开放的想法也可以发到 Discussions。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 想解决什么问题
+      description: 谁在什么场景遇到了什么困难？
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: 当前怎么处理
+      description: 现在需要怎样绕过，或者为什么现有流程不够用？
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: 希望达到的结果
+      description: 描述结果即可，不必先设计完整界面或技术方案。
+    validations:
+      required: true
+
+  - type: textarea
+    id: privacy
+    attributes:
+      label: 隐私与授权影响
+      description: 是否会上传照片、处理面部数据、扩大博主资料用途或引入第三方？
+      placeholder: 没有影响也请说明原因。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: 是否愿意参与实现
+      options:
+        - 只提供建议
+        - 可以补充场景和验收反馈
+        - 愿意提交 Pull Request
+    validations:
+      required: true

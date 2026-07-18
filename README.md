@@ -15,6 +15,7 @@
     <img src="https://img.shields.io/badge/version-0.1.0-245b48" alt="版本 0.1.0" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-ff8f83" alt="AGPL-3.0 许可证" /></a>
     <img src="https://img.shields.io/badge/privacy-local%20processing-245b48" alt="照片本地处理" />
+    <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/contributions-welcome-ff8f83" alt="欢迎参与贡献" /></a>
   </p>
 
 </div>
@@ -60,6 +61,34 @@
 匹配结果只表示照片中部分面部结构比例更接近，不代表身份相同，也不是审美、医学或专业化妆结论。
 
 博主库规模、拍摄角度、光线和表情都会影响排序。当前版本仍是验证原型，结果更适合用来发现新的妆容参考，而不是给出唯一答案。
+
+## 我们在做的事
+
+我们正在验证一件具体的事：面部结构相近的博主，能不能成为更有用的妆容参考入口。
+
+- **对普通用户**：照片和面部比例留在浏览器本地，结果用于发现参考，不做身份识别和外貌评分。
+- **对博主**：只有本人或授权代表提交并完成核验的资料，才会进入匹配流程。
+- **对开发者**：保持匹配方法可解释、数据边界可检查，让产品判断能够公开讨论和持续改进。
+
+## 我们坚持的三件事
+
+**隐私优先。** 能在设备上完成的处理，不为了省事搬到服务器。
+
+**授权先于规模。** 博主库增长不能建立在抓取、搬运或默认同意之上。
+
+**真实反馈先于功能数量。** 先验证匹配是否真的帮助用户，再决定下一项功能。
+
+## 参与社区
+
+这个项目需要三类参与者：真实使用并提供反馈的用户、愿意授权加入匹配的博主，以及帮助改进产品的开发者。
+
+- 遇到可复现的问题：提交 [Bug 报告](https://github.com/fanshouheng/makeup-match-prototype/issues/new?template=bug_report.yml)。
+- 想讨论功能和使用场景：前往 [Discussions](https://github.com/fanshouheng/makeup-match-prototype/discussions)。
+- 准备贡献代码或文档：先阅读 [参与贡献](CONTRIBUTING.md) 和 [路线图](ROADMAP.md)。
+- 发现安全问题：按照 [安全政策](SECURITY.md) 私下报告。
+- 博主申请、撤回和删除：使用正式服务入口，不要在 GitHub 上传真人照片、邮箱或授权材料。
+
+社区交流遵循 [行为准则](CODE_OF_CONDUCT.md)。其他问题的入口见 [支持说明](SUPPORT.md)。
 
 ## 开源许可与数据边界
 

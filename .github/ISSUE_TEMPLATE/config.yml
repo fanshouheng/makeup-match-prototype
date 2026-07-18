@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 功能讨论与问答
+    url: https://github.com/fanshouheng/makeup-match-prototype/discussions
+    about: 尚未收敛的问题、使用经验和开放想法请放在 Discussions。
+  - name: 博主本人申请
+    url: https://makeup.soul.xn--fiqs8s/
+    about: 真人照片、邮箱和授权资料只能通过正式服务提交，不要放进 GitHub。
+  - name: 私下报告安全漏洞
+    url: https://github.com/fanshouheng/makeup-match-prototype/security/advisories/new
+    about: 不要公开可利用的漏洞或敏感信息。
