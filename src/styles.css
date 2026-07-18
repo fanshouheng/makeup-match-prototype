@@ -227,7 +227,7 @@ h3 {
 .landing-copy > p {
   max-width: 590px;
   margin-top: 32px;
-  margin-left: 112px;
+  margin-left: 0;
   color: #4d4d49;
   font-size: 16px;
   font-weight: 400;
@@ -1381,7 +1381,6 @@ h3 {
 
   .landing-copy > p {
     margin-top: 22px;
-    margin-left: 0;
     font-size: 14px;
     line-height: 1.75;
   }
