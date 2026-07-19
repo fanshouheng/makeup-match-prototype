@@ -6,11 +6,9 @@ import {
 import {
   AlertCircle,
   CheckCircle2,
-  ExternalLink,
   ImagePlus,
   LoaderCircle,
   Plus,
-  ShieldCheck,
   X,
 } from "lucide-react";
 import {
@@ -24,21 +22,16 @@ import {
   hasTurnstileConfig,
   turnstileSiteKey,
 } from "../config";
-import type { CreatorProfile } from "../domain/creator";
 import {
   extractFaceAnalysis,
   type FaceAnalysis,
 } from "../domain/faceFeatures";
 import { assessPhotoQuality, type QualityIssue } from "../domain/quality";
-import {
-  listCreators,
-  submitCreator,
-} from "../services/creatorRepository";
+import { submitCreator } from "../services/creatorRepository";
 import { detectFace } from "../services/faceLandmarker";
 import { loadImageBlob, type LoadedImage } from "../services/imageFile";
 import { measureAverageLuminance } from "../services/imageQuality";
 import { hasSupabaseConfig } from "../services/supabaseClient";
-import { CreatorPhoto } from "./CreatorPhoto";
 import { FacePreview } from "./FacePreview";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -331,29 +324,7 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
 }
 
 export function CreatorLibrary() {
-  const [creators, setCreators] = useState<CreatorProfile[]>([]);
-  const [loading, setLoading] = useState(hasSupabaseConfig);
   const [showSubmission, setShowSubmission] = useState(false);
-  const [error, setError] = useState<string>();
-
-  useEffect(() => {
-    if (!hasSupabaseConfig) return;
-    let active = true;
-    listCreators()
-      .then((items) => {
-        if (active) setCreators(items);
-      })
-      .catch((loadError) => {
-        console.error(loadError);
-        if (active) setError("公开博主库读取失败，请稍后重试。");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   return (
     <main className="creator-page">
@@ -374,46 +345,8 @@ export function CreatorLibrary() {
       {!hasSupabaseConfig && (
         <div className="notice notice-warning library-error">
           <AlertCircle size={17} />
-          <p>当前部署尚未连接 Supabase，公开博主资料暂不可用。</p>
+          <p>当前部署尚未连接 Supabase，暂时无法提交入驻申请。</p>
         </div>
-      )}
-      {error && (
-        <div className="notice notice-error library-error">
-          <AlertCircle size={17} />
-          <p>{error}</p>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="library-empty"><LoaderCircle className="spin" size={28} /></div>
-      ) : creators.length === 0 ? (
-        <div className="library-empty">
-          <ShieldCheck size={30} />
-          <h2>公开资料正在建立中</h2>
-          <p>博主本人提交并完成身份核验后，资料才会在这里公开。</p>
-          <button className="button button-primary" onClick={() => setShowSubmission(true)} type="button">
-            <Plus size={17} />
-            提交入驻申请
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="creator-summary"><span>{creators.length} 位已审核博主</span></div>
-          <div className="creator-grid">
-            {creators.map((creator) => (
-              <article className="creator-card" key={creator.id}>
-                <div className="creator-card-photo"><CreatorPhoto creator={creator} /></div>
-                <div className="creator-card-body">
-                  <div className="creator-card-title"><h2>{creator.name}</h2></div>
-                  <div className="creator-links">
-                    <a href={creator.douyinUrl} target="_blank" rel="noreferrer">抖音主页 <ExternalLink size={14} /></a>
-                    {creator.tutorialUrl && <a href={creator.tutorialUrl} target="_blank" rel="noreferrer">代表教程 <ExternalLink size={14} /></a>}
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </>
       )}
 
       {showSubmission && <SubmissionModal onClose={() => setShowSubmission(false)} />}
