@@ -20,6 +20,8 @@
     <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/contributions-welcome-ff8f83" alt="欢迎参与贡献" /></a>
   </p>
 
+  <p><a href="https://makeup.soul.xn--fiqs8s/"><strong>立即体验 LOOK AI</strong></a></p>
+
 </div>
 
 ---

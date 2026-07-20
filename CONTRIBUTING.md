@@ -23,7 +23,7 @@ GitHub 是公开协作空间。请勿在 Issue、Discussion、Pull Request、测
 
 ## 开始开发
 
-环境要求：Node.js 20 或更新版本。
+环境要求：Node.js 20.19 及以上的 20.x 版本，或 Node.js 22.12 及以上版本。
 
 ```bash
 npm install
