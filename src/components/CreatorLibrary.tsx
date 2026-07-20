@@ -276,7 +276,7 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
                   }}
                   options={{
                     action: "creator_submission",
-                    language: "zh-CN",
+                    language: "zh-cn",
                     size: "compact",
                     theme: "light",
                   }}
