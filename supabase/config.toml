@@ -1,2 +1,5 @@
 [functions.submit-creator]
 verify_jwt = false
+
+[functions.admin-review]
+verify_jwt = true
