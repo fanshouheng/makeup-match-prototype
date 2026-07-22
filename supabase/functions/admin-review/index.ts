@@ -37,12 +37,27 @@ function reply(origin: string, status: number, body: Record<string, unknown>): R
   return new Response(JSON.stringify(body), { status, headers: headers(origin) });
 }
 
-function secretKey(): string | undefined {
-  const modernKeys = Deno.env.get("SUPABASE_SECRET_KEYS");
-  if (modernKeys) {
-    try { return JSON.parse(modernKeys).default as string | undefined; } catch { return undefined; }
+function keyFromCollection(name: string): string | undefined {
+  const collection = Deno.env.get(name);
+  if (!collection) return undefined;
+  try {
+    const values = Object.values(JSON.parse(collection) as Record<string, unknown>);
+    return values.find((value): value is string => typeof value === "string" && value.length > 0);
+  } catch {
+    return undefined;
   }
-  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+}
+
+function publishableKey(): string | undefined {
+  return Deno.env.get("SUPABASE_ANON_KEY") ??
+    Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
+    keyFromCollection("SUPABASE_PUBLISHABLE_KEYS");
+}
+
+function secretKey(): string | undefined {
+  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
+    Deno.env.get("SUPABASE_SECRET_KEY") ??
+    keyFromCollection("SUPABASE_SECRET_KEYS");
 }
 
 function adminEmails(): Set<string> {
@@ -52,7 +67,7 @@ function adminEmails(): Set<string> {
 async function authenticate(request: Request, origin: string): Promise<{ user: User; admin: SupabaseClient } | Response> {
   const authorization = request.headers.get("authorization");
   const url = Deno.env.get("SUPABASE_URL");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+  const anonKey = publishableKey();
   const serviceKey = secretKey();
   if (!authorization || !url || !anonKey || !serviceKey) return reply(origin, 503, { code: "service_not_configured" });
   const accessToken = authorization.replace(/^Bearer\s+/i, "").trim();
@@ -110,20 +125,26 @@ Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: headers(origin) });
   if (request.method !== "POST") return reply(origin, 405, { code: "method_not_allowed" });
 
+  let stage = "authenticate";
   try {
     const identity = await authenticate(request, origin);
     if (identity instanceof Response) return identity;
+    stage = "parse_request";
     const body = await request.json() as RequestBody;
     const action = body.action;
     if (!action) return reply(origin, 400, { code: "action_required" });
 
-    if (action === "list") return new Response(JSON.stringify(await listData(identity.admin)), { status: 200, headers: headers(origin) });
+    if (action === "list") {
+      stage = "list";
+      return new Response(JSON.stringify(await listData(identity.admin)), { status: 200, headers: headers(origin) });
+    }
     if (!body.submissionId) return reply(origin, 400, { code: "submission_required" });
 
     const current = await submission(identity.admin, body.submissionId);
     if (!current) return reply(origin, 404, { code: "submission_not_found" });
 
     if (action === "verify") {
+      stage = "verify";
       if (current.status !== "pending") return reply(origin, 409, { code: "submission_already_reviewed" });
       const result = await identity.admin.from("creator_submissions").update({ ownership_verified_at: new Date().toISOString() }).eq("id", body.submissionId).eq("status", "pending").is("ownership_verified_at", null);
       if (result.error) throw result.error;
@@ -131,6 +152,7 @@ Deno.serve(async (request) => {
     }
 
     if (action === "approve") {
+      stage = "approve";
       if (current.status !== "pending") return reply(origin, 409, { code: "submission_already_reviewed" });
       const { data, error } = await identity.admin.rpc("approve_creator_submission", { submission_uuid: body.submissionId });
       if (error) throw error;
@@ -138,6 +160,7 @@ Deno.serve(async (request) => {
     }
 
     if (action === "reject") {
+      stage = "reject";
       const note = body.reviewNote?.trim() ?? "";
       if (!note || note.length > MAX_REVIEW_NOTE_LENGTH) return reply(origin, 400, { code: "review_note_required" });
       if (current.status !== "pending") return reply(origin, 409, { code: "submission_already_reviewed" });
@@ -148,6 +171,7 @@ Deno.serve(async (request) => {
     }
 
     if (action === "cleanup") {
+      stage = "cleanup";
       if (current.status !== "rejected") return reply(origin, 409, { code: "submission_not_rejected" });
       const cleanup = current.reference_photo_path ? await identity.admin.storage.from(PHOTO_BUCKET).remove([current.reference_photo_path]) : { error: null };
       if (cleanup.error) throw cleanup.error;
@@ -155,7 +179,11 @@ Deno.serve(async (request) => {
     }
 
     return reply(origin, 400, { code: "unsupported_action" });
-  } catch {
+  } catch (error) {
+    const code = typeof error === "object" && error !== null && "code" in error
+      ? String(error.code)
+      : undefined;
+    console.error("admin-review request failed", { stage, code });
     return reply(origin, 500, { code: "unexpected_error" });
   }
 });

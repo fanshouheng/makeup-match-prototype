@@ -39,7 +39,11 @@ interface AdminRequest {
   reviewNote?: string;
 }
 
-export async function invokeAdmin<T>(request: AdminRequest): Promise<T> {
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+export async function invokeAdmin<T>(request: AdminRequest, retryList = true): Promise<T> {
   const { data, error } = await adminClient.functions.invoke("admin-review", {
     body: request,
   });
@@ -47,7 +51,9 @@ export async function invokeAdmin<T>(request: AdminRequest): Promise<T> {
   if (!error) return data as T;
 
   let code: string | undefined;
+  let status: number | undefined;
   if ("context" in error && error.context instanceof Response) {
+    status = error.context.status;
     const payload = await error.context
       .clone()
       .json()
@@ -55,11 +61,19 @@ export async function invokeAdmin<T>(request: AdminRequest): Promise<T> {
     code = payload?.code;
   }
 
+  if (request.action === "list" && retryList && (status === 500 || code === "unexpected_error")) {
+    await wait(600);
+    return invokeAdmin<T>(request, false);
+  }
+
   if (code === "not_admin") {
     throw new Error("这个账号没有管理台权限。");
   }
   if (code === "auth_required") {
     throw new Error("登录状态已失效，请重新登录。");
+  }
+  if (code === "service_not_configured") {
+    throw new Error("管理台服务配置不完整，请联系维护者。");
   }
   throw new Error("管理台请求失败，请稍后重试。");
 }

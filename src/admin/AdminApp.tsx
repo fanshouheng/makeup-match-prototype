@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
+import type { AuthError, Session } from "@supabase/supabase-js";
 import {
   ArrowUpRight,
   Check,
@@ -42,6 +42,17 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "请求失败，请稍后重试。";
 }
 
+function loginErrorMessage(error: AuthError): string {
+  if (
+    error.status === 429 ||
+    error.code === "over_email_send_rate_limit" ||
+    error.code === "over_request_rate_limit"
+  ) {
+    return "登录邮件发送过于频繁。管理员邮箱仍已授权，请使用最近一封邮件中的链接，或约 1 小时后再试。";
+  }
+  return "无法发送登录链接。请稍后重试；如果持续失败，请联系维护者检查邮件服务。";
+}
+
 function LoginScreen() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
@@ -61,7 +72,7 @@ function LoginScreen() {
     });
     setBusy(false);
     if (signInError) {
-      setError("无法发送登录链接。请确认这个邮箱已被授权为管理员。");
+      setError(loginErrorMessage(signInError));
       return;
     }
     setSent(true);
