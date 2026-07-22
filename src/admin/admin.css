@@ -68,6 +68,17 @@
 .admin-empty svg { color: var(--admin-green); }
 .admin-empty h3 { color: var(--admin-ink); font-size: 18px; }
 .admin-empty p { margin: 0; font-size: 13px; }
+.admin-metrics { padding: 6px 0 0; }
+.admin-metrics-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
+.admin-metrics-heading h2 { margin: 0; font-size: 24px; }
+.admin-metrics-heading > p { max-width: 430px; margin: 0; color: var(--admin-muted); font-size: 12px; line-height: 1.6; text-align: right; }
+.admin-metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.admin-metric { min-width: 0; padding: 18px; border: 1px solid var(--admin-line); border-radius: 8px; background: var(--admin-surface); }
+.admin-metric svg { color: var(--admin-green); }
+.admin-metric span { display: block; margin-top: 18px; color: var(--admin-muted); font-size: 12px; font-weight: 700; }
+.admin-metric strong { display: block; margin-top: 7px; font-size: 30px; line-height: 1; letter-spacing: 0; }
+.admin-metric p { min-height: 36px; margin: 12px 0 0; color: var(--admin-muted); font-size: 12px; line-height: 1.5; }
+.admin-metrics-note { margin: 14px 0 0; color: var(--admin-muted); font-size: 12px; }
 .admin-alert { gap: 8px; margin-bottom: 16px; padding: 11px 13px; border: 1px solid #efc4bd; border-radius: 9px; background: var(--admin-coral-soft); color: #9b3c30; font-size: 13px; }
 .admin-loading-inline { min-height: 180px; }
 .admin-spin { animation: admin-spin 1s linear infinite; }
@@ -110,4 +121,14 @@
   .admin-row-actions button { width: 100%; }
   .admin-user-email { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .admin-auth-panel { padding: 28px 22px; }
+  .admin-tabs { overflow-x: auto; }
+  .admin-tab { flex: 0 0 auto; }
+  .admin-metrics-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .admin-metrics-heading > p { text-align: left; }
+  .admin-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 430px) {
+  .admin-metric-grid { grid-template-columns: 1fr; }
+  .admin-metric p { min-height: 0; }
 }

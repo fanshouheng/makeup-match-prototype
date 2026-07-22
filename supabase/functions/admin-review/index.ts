@@ -5,6 +5,16 @@ const SIGNED_URL_TTL_SECONDS = 300;
 const MAX_REVIEW_NOTE_LENGTH = 500;
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const CONSENT_VERSION = "2026-07-21";
+const PRODUCT_METRICS_DAYS = 7;
+const PRODUCT_EVENT_NAMES = [
+  "photo_selected",
+  "analysis_succeeded",
+  "analysis_failed",
+  "match_result_view",
+  "feedback_yes",
+  "feedback_no",
+  "share_succeeded",
+] as const;
 const FEATURE_KEYS = [
   "faceAspectRatio", "jawToCheekRatio", "foreheadToCheekRatio",
   "lowerThirdRatio", "eyeSpacingRatio", "eyeAspectRatio",
@@ -145,8 +155,22 @@ async function signedPhotoMap(admin: SupabaseClient, paths: string[]): Promise<M
   return new Map((data ?? []).flatMap((item) => item.signedUrl ? [[item.path, item.signedUrl] as const] : []));
 }
 
+async function productMetrics(admin: SupabaseClient): Promise<Record<string, string | number>> {
+  const periodStart = new Date(Date.now() - PRODUCT_METRICS_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const counts = await Promise.all(PRODUCT_EVENT_NAMES.map(async (eventName) => {
+    const result = await admin.from("product_events")
+      .select("session_id", { count: "exact", head: true })
+      .eq("event_name", eventName)
+      .gte("created_at", periodStart);
+    if (result.error) throw result.error;
+    return [eventName, result.count ?? 0] as const;
+  }));
+
+  return { period_start: periodStart, ...Object.fromEntries(counts) };
+}
+
 async function listData(admin: SupabaseClient): Promise<Record<string, unknown>> {
-  const [submissionsResult, creatorsResult] = await Promise.all([
+  const [submissionsResult, creatorsResult, metrics] = await Promise.all([
     admin.from("creator_submissions")
       .select("id,name,contact_email,douyin_url,tutorial_url,reference_photo_path,quality_metrics,status,submitted_at,ownership_verified_at,reviewed_at,review_note")
       .eq("status", "pending")
@@ -154,6 +178,7 @@ async function listData(admin: SupabaseClient): Promise<Record<string, unknown>>
     admin.from("creators")
       .select("id,submission_id,name,douyin_url,tutorial_url,reference_photo_path,is_active,created_at,updated_at")
       .order("created_at", { ascending: false }),
+    productMetrics(admin),
   ]);
   if (submissionsResult.error) throw submissionsResult.error;
   if (creatorsResult.error) throw creatorsResult.error;
@@ -163,6 +188,7 @@ async function listData(admin: SupabaseClient): Promise<Record<string, unknown>>
   return {
     submissions: submissions.map(({ reference_photo_path, ...row }) => ({ ...row, reference_photo_url: photos.get(reference_photo_path) ?? null })),
     creators: creators.map(({ reference_photo_path, ...row }) => ({ ...row, reference_photo_url: photos.get(reference_photo_path) ?? null })),
+    product_metrics: metrics,
   };
 }
 

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AuthError, Session } from "@supabase/supabase-js";
 import {
   ArrowUpRight,
+  BarChart3,
+  Camera,
   Check,
   CheckCircle2,
   Clock3,
@@ -13,7 +15,9 @@ import {
   Plus,
   Power,
   RefreshCw,
+  Share2,
   ShieldCheck,
+  ThumbsUp,
   Trash2,
   X,
 } from "lucide-react";
@@ -26,11 +30,12 @@ import {
   type AdminCreator,
   type AdminCreatorSubmissionInput,
   type AdminListResponse,
+  type AdminProductMetrics,
   type AdminSubmission,
 } from "./adminApi";
 import "./admin.css";
 
-type View = "pending" | "creators";
+type View = "pending" | "creators" | "metrics";
 type ConfirmAction =
   | { type: "verify" | "approve" | "reject" | "cleanup"; submission: AdminSubmission }
   | { type: "set_active" | "delete_creator"; creator: AdminCreator }
@@ -221,6 +226,58 @@ function CreatorRow({
   );
 }
 
+function formatRate(numerator: number, denominator: number): string {
+  if (denominator === 0) return "—";
+  return new Intl.NumberFormat("zh-CN", {
+    style: "percent",
+    maximumFractionDigits: 1,
+  }).format(numerator / denominator);
+}
+
+function MetricsPanel({ metrics }: { metrics: AdminProductMetrics }) {
+  const feedbackTotal = metrics.feedback_yes + metrics.feedback_no;
+  return (
+    <section className="admin-metrics" aria-labelledby="admin-metrics-title">
+      <div className="admin-metrics-heading">
+        <div>
+          <p className="admin-kicker">LAST 7 DAYS</p>
+          <h2 id="admin-metrics-title">产品数据</h2>
+        </div>
+        <p>按匿名浏览器会话去重，不代表可识别的真实用户人数。</p>
+      </div>
+      <div className="admin-metric-grid">
+        <article className="admin-metric">
+          <Camera size={19} />
+          <span>选择照片会话</span>
+          <strong>{metrics.photo_selected}</strong>
+          <p>照片仍只在用户浏览器本地处理</p>
+        </article>
+        <article className="admin-metric">
+          <CheckCircle2 size={19} />
+          <span>识别完成率</span>
+          <strong>{formatRate(metrics.analysis_succeeded, metrics.photo_selected)}</strong>
+          <p>{metrics.analysis_succeeded} 次成功 · {metrics.analysis_failed} 次失败</p>
+        </article>
+        <article className="admin-metric">
+          <ThumbsUp size={19} />
+          <span>结果符合率</span>
+          <strong>{formatRate(metrics.feedback_yes, feedbackTotal)}</strong>
+          <p>{metrics.feedback_yes} 次符合 · {metrics.feedback_no} 次不符合</p>
+        </article>
+        <article className="admin-metric">
+          <Share2 size={19} />
+          <span>分享率</span>
+          <strong>{formatRate(metrics.share_succeeded, metrics.match_result_view)}</strong>
+          <p>{metrics.share_succeeded} 次分享 · {metrics.match_result_view} 次结果展示</p>
+        </article>
+      </div>
+      <p className="admin-metrics-note">
+        统计窗口从 {formatDate(metrics.period_start)} 起；同一会话重复点击同一动作只计一次。
+      </p>
+    </section>
+  );
+}
+
 function ConfirmDialog({
   action,
   busy,
@@ -380,18 +437,18 @@ export default function AdminApp() {
   return (
     <main className="admin-shell">
       <header className="admin-topbar">
-        <div className="admin-topbar-brand"><div className="admin-brand-mark" aria-hidden="true"><ShieldCheck size={20} /></div><div><p className="admin-kicker">LOOK AI / PRIVATE CONSOLE</p><h1>创作者管理台</h1></div></div>
+        <div className="admin-topbar-brand"><div className="admin-brand-mark" aria-hidden="true"><ShieldCheck size={20} /></div><div><p className="admin-kicker">LOOK AI / PRIVATE CONSOLE</p><h1>LOOK AI 管理台</h1></div></div>
         <div className="admin-topbar-actions"><span className="admin-user-email">{session.user.email}</span><button className="admin-icon-button" type="button" onClick={() => void loadDashboard()} aria-label="刷新数据" title="刷新数据"><RefreshCw size={17} /></button><button className="admin-icon-button" type="button" onClick={() => void adminClient.auth.signOut()} aria-label="退出登录" title="退出登录"><LogOut size={17} /></button></div>
       </header>
-      <section className="admin-content" aria-label="创作者审核与库管理">
-        <div className="admin-page-intro"><div><p className="admin-kicker">PRODUCTION DATA</p><h2>先核验，再公开</h2><p>申请资料只在管理台可见，公开库只展示已批准的创作者。</p></div><div className="admin-intro-actions"><button className="admin-primary-button" type="button" onClick={() => setShowCreate(true)}><Plus size={16} />新建待审申请</button><div className="admin-data-badge"><Database size={18} /><span>{pending.length} 条待审核<br /><small>{creators.length} 条库内记录</small></span></div></div></div>
-        <nav className="admin-tabs" aria-label="管理台视图"><button className={view === "pending" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("pending")}><Clock3 size={16} />待审核 <span>{pending.length}</span></button><button className={view === "creators" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("creators")}><Database size={16} />公开博主库 <span>{creators.length}</span></button></nav>
+      <section className="admin-content" aria-label="产品数据、创作者审核与库管理">
+        <div className="admin-page-intro"><div><p className="admin-kicker">PRODUCTION DATA</p><h2>产品与创作者管理</h2><p>查看匿名产品指标，并管理已获授权的创作者资料。</p></div><div className="admin-intro-actions"><button className="admin-primary-button" type="button" onClick={() => setShowCreate(true)}><Plus size={16} />新建待审申请</button><div className="admin-data-badge"><Database size={18} /><span>{pending.length} 条待审核<br /><small>{creators.length} 条库内记录</small></span></div></div></div>
+        <nav className="admin-tabs" aria-label="管理台视图"><button className={view === "pending" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("pending")}><Clock3 size={16} />待审核 <span>{pending.length}</span></button><button className={view === "creators" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("creators")}><Database size={16} />公开博主库 <span>{creators.length}</span></button><button className={view === "metrics" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("metrics")}><BarChart3 size={16} />产品数据</button></nav>
         {error && <div className="admin-alert" role="alert"><X size={17} />{error}</div>}
         {loading ? <div className="admin-loading admin-loading-inline"><LoaderCircle className="admin-spin" size={22} />正在读取受保护数据…</div> : view === "pending" ? (
           <div className="admin-list">{pending.length === 0 ? <div className="admin-empty"><CheckCircle2 size={28} /><h3>当前没有待审核申请</h3><p>新的投稿会先停留在这里，不会自动公开。</p></div> : pending.map((submission) => <PendingRow key={submission.id} submission={submission} onAction={openAction} />)}</div>
-        ) : (
+        ) : view === "creators" ? (
           <div className="admin-list">{creators.length === 0 ? <div className="admin-empty"><Database size={28} /><h3>公开库暂无记录</h3></div> : creators.map((creator) => <CreatorRow key={creator.id} creator={creator} onAction={openAction} />)}</div>
-        )}
+        ) : data?.product_metrics ? <MetricsPanel metrics={data.product_metrics} /> : null}
       </section>
       {showCreate && <AdminCreateSubmissionDialog onClose={() => setShowCreate(false)} onSubmit={handleCreate} />}
       {confirmAction && <ConfirmDialog action={confirmAction} busy={actionBusy} reviewNote={reviewNote} setReviewNote={setReviewNote} confirmText={confirmText} setConfirmText={setConfirmText} onCancel={() => setConfirmAction(null)} onConfirm={() => void handleConfirm()} />}

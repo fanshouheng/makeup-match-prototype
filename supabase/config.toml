@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.admin-review]
 verify_jwt = true
+
+[functions.record-product-event]
+verify_jwt = false

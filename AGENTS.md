@@ -48,7 +48,8 @@ npm run build
 and Speed Insights, Supabase for consent-backed creator intake, Cloudflare
 Turnstile for submission protection, and manual review before publication.
 The result page supports login-free yes/no feedback and local share-poster
-generation. Feedback and share telemetry must remain aggregate and must not
+generation. The private admin console shows a seven-day, session-deduplicated
+product funnel. Feedback and share telemetry must remain aggregate and must not
 include user photos, face proportions, match scores, creator names, or rankings.
 Read `README.md`, `SUPABASE_SETUP.md`, and `docs/ADMIN_REVIEW.md` before changing
 the public data flow or deployment contract.

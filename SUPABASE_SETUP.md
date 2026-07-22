@@ -9,6 +9,7 @@
 1. `supabase/migrations/202607170001_public_creator_library.sql`
 2. `supabase/migrations/202607170002_creator_submission_rate_limit.sql`
 3. `supabase/migrations/202607170004_explicit_rate_limit_denial.sql`
+4. `supabase/migrations/20260722173428_product_event_metrics.sql`
 
 第二、三个迁移只增加私有限流能力并显式拒绝客户端访问，不会关闭现有提交入口。
 
@@ -83,7 +84,18 @@ Edge Function 验证通过后，执行：
 - 浏览器直接上传 `creator-photos/submissions/` 被拒绝。
 - 通过 `submit-creator` Edge Function 仍能正常提交。
 
-## 7. 审核与维护
+## 7. 产品事件与管理台指标
+
+部署 `supabase/functions/record-product-event/index.ts`，并保持 `verify_jwt = false`。该函数仅接受允许来源提交的随机会话 UUID 和固定事件名；`product_events` 不向 `anon` 或 `authenticated` 开放读取或直写权限。
+
+重新部署 `supabase/functions/admin-review/index.ts`，让受保护的 `/admin` 管理台可以读取近 7 天汇总指标。验证：
+
+1. 允许来源的合法事件返回 `recorded`。
+2. 非法事件名、额外字段和非 UUID 会话标识被拒绝。
+3. 匿名客户端不能直接读取 `product_events`。
+4. 同一会话重复提交同一事件时，表中仍只有一条记录。
+
+## 8. 审核与维护
 
 申请默认进入 `pending`，不会自动公开。身份核验、批准、拒绝、撤回和删除步骤见 `docs/ADMIN_REVIEW.md`。
 

@@ -29,6 +29,7 @@ import { listCreators } from "./services/creatorRepository";
 import { detectFace } from "./services/faceLandmarker";
 import { loadImageBlob } from "./services/imageFile";
 import { measureAverageLuminance } from "./services/imageQuality";
+import { recordProductEvent } from "./services/productMetrics";
 import { shareMatchResult } from "./services/resultSharing";
 
 interface LoadedPhoto {
@@ -142,6 +143,7 @@ function App() {
     setMatchFeedback(null);
     setShareStatus("idle");
     track("match_result_view", { creator_count: creatorsCount });
+    void recordProductEvent("match_result_view");
   }, [creatorsCount, matches, result, showMatchScene]);
 
   useEffect(() => {
@@ -194,6 +196,7 @@ function App() {
     event.target.value = "";
     if (!file) return;
 
+    void recordProductEvent("photo_selected");
     resetAnalysis();
     try {
       const nextPhoto = await loadImage(file);
@@ -218,6 +221,7 @@ function App() {
       accurate: feedback === "yes",
       creator_count: creatorsCount,
     });
+    void recordProductEvent(feedback === "yes" ? "feedback_yes" : "feedback_no");
   };
 
   const shareCurrentResult = async () => {
@@ -239,6 +243,7 @@ function App() {
         first_share: firstShare,
         method,
       });
+      if (firstShare) void recordProductEvent("share_succeeded");
     } catch (shareError) {
       if (shareError instanceof Error && shareError.name === "AbortError") {
         setShareStatus("idle");
@@ -285,6 +290,10 @@ function App() {
         pose: analysis?.pose,
       });
 
+      void recordProductEvent(
+        analysis && issues.length === 0 ? "analysis_succeeded" : "analysis_failed",
+      );
+
       setResult({
         analysis,
         issues,
@@ -294,6 +303,7 @@ function App() {
       setStatus("complete");
     } catch (analysisError) {
       console.error(analysisError);
+      void recordProductEvent("analysis_failed");
       setError("分析组件加载失败，请刷新页面后重试。");
       setStatus("error");
     }

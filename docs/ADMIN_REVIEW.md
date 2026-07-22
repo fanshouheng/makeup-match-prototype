@@ -100,7 +100,28 @@ delete from public.creator_submissions
 where id = '申请 UUID';
 ```
 
-## 6. 日常维护
+## 6. 查看产品数据
+
+打开生产站点的 `/admin`，使用已授权管理员邮箱登录，再切换到“产品数据”页签。页面默认显示最近 7 天的匿名浏览器会话指标：
+
+- 选择照片会话：至少选择过一次本地照片的会话数，不是上传到服务器的照片数。
+- 识别完成率：`识别成功会话 / 选择照片会话`。
+- 结果符合率：`符合反馈 /（符合反馈 + 不符合反馈）`。
+- 分享率：`首次成功分享会话 / 结果页展示会话`。
+
+同一会话的同一事件只计一次。统计不包含照片、面部比例、匹配分数、博主名称、排序或邮箱，也不能用于识别具体用户。指标从记录功能上线后开始累计，没有历史补录。
+
+需要在 Supabase SQL Editor 复核原始事件数量时，可以运行：
+
+```sql
+select event_name, count(*) as sessions
+from public.product_events
+where created_at >= now() - interval '7 days'
+group by event_name
+order by event_name;
+```
+
+## 7. 日常维护
 
 每周检查：
 
@@ -115,5 +136,7 @@ where id = '申请 UUID';
 delete from public.creator_submission_rate_limits
 where window_started_at < now() - interval '24 hours';
 ```
+
+产品事件只用于短期产品验证。需要延长统计周期或导出数据前，先复核隐私说明和最小化原则，不要加入会话以外的用户标识或任何匹配内容。
 
 审核记录只写完成判断所需的信息，不额外收集身份证、手机号、住址等资料。

@@ -44,9 +44,21 @@ export interface AdminCreator {
   reference_photo_url: string | null;
 }
 
+export interface AdminProductMetrics {
+  period_start: string;
+  photo_selected: number;
+  analysis_succeeded: number;
+  analysis_failed: number;
+  match_result_view: number;
+  feedback_yes: number;
+  feedback_no: number;
+  share_succeeded: number;
+}
+
 export interface AdminListResponse {
   submissions: AdminSubmission[];
   creators: AdminCreator[];
+  product_metrics: AdminProductMetrics;
 }
 
 interface AdminRequest {
