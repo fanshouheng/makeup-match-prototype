@@ -6,7 +6,7 @@ export function PrivacyPolicy() {
     <main className="privacy-page">
       <div className="page-heading privacy-heading">
         <div>
-          <p className="eyebrow">PRIVACY / 最后更新：2026-07-17</p>
+          <p className="eyebrow">PRIVACY / 最后更新：2026-07-22</p>
           <h1>隐私说明</h1>
         </div>
         <p className="heading-note">普通匹配与博主申请是两条独立的数据流程</p>
@@ -28,6 +28,9 @@ export function PrivacyPolicy() {
           <h2>访问公开博主库时</h2>
           <p>
             应用会从服务器下载已审核博主的公开资料、授权照片和面部比例，用于在你的设备上完成比较。服务器和托管服务可能记录常规的 IP、请求时间、浏览器类型和错误信息，但请求中不包含你的匹配照片或面部比例。
+          </p>
+          <p>
+            为评估结果是否有用，应用会通过 Vercel Analytics 记录结果展示、你主动选择的“符合/不太符合”，以及成功发起分享或生成分享图。事件只包含博主库样本量、反馈选项和分享方式，不包含照片、面部比例、匹配分数、博主名称或完整排序。分享图片只在你点击后于本机生成，本站不会保存分享内容。
           </p>
         </div>
       </section>

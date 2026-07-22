@@ -2,27 +2,60 @@ import {
   AlertCircle,
   CheckCircle2,
   ExternalLink,
+  ImageDown,
   Library,
+  LoaderCircle,
+  Share2,
+  ThumbsDown,
+  ThumbsUp,
 } from "lucide-react";
 import type { CreatorMatch } from "../domain/matching";
 import { CreatorPhoto } from "./CreatorPhoto";
 
+export type MatchFeedback = "yes" | "no";
+export type MatchShareStatus = "idle" | "sharing" | "shared" | "downloaded" | "error";
+
 interface MatchResultsProps {
   creatorsCount: number;
+  feedback: MatchFeedback | null;
   matches: CreatorMatch[];
   mode?: "all" | "primary" | "more";
+  shareStatus: MatchShareStatus;
+  onFeedback: (feedback: MatchFeedback) => void;
+  onShare: () => void;
   onViewCreators: () => void;
 }
 
 export function MatchResults({
   creatorsCount,
+  feedback,
   matches,
   mode = "all",
+  shareStatus,
+  onFeedback,
+  onShare,
   onViewCreators,
 }: MatchResultsProps) {
   const [primaryMatch, ...otherMatches] = matches;
   const showPrimary = mode !== "more";
   const showMore = mode !== "primary";
+  const feedbackSubmitted = feedback !== null;
+  const shareButtonLabel = shareStatus === "sharing"
+    ? "正在分享"
+    : shareStatus === "error"
+      ? "重试分享"
+      : shareStatus === "shared"
+        ? "已分享"
+        : shareStatus === "downloaded"
+          ? "图片已下载"
+          : "分享结果";
+  const shareStatusMessage = shareStatus === "shared"
+    ? "分享已完成"
+    : shareStatus === "downloaded"
+      ? "分享图已下载，发送图片即可分享"
+      : shareStatus === "error"
+        ? "分享失败，请重试"
+        : "";
 
   return (
     <section className={`matches-section matches-${mode}`} aria-labelledby={`matches-title-${mode}`}>
@@ -84,6 +117,59 @@ export function MatchResults({
                 </div>
               </div>
             </article>
+          )}
+          {showPrimary && primaryMatch && (
+            <section
+              className="match-engagement"
+              aria-labelledby={`match-feedback-title-${mode}`}
+            >
+              <div className="match-engagement-copy">
+                <p className="eyebrow">FEEDBACK / 结果反馈</p>
+                <h3 id={`match-feedback-title-${mode}`}>这个结果是否符合你的感觉？</h3>
+              </div>
+              <div className="match-engagement-actions">
+                <div className="match-feedback-actions" role="group" aria-label="匹配结果反馈">
+                  <button
+                    aria-pressed={feedback === "yes"}
+                    data-selected={feedback === "yes"}
+                    disabled={feedbackSubmitted}
+                    onClick={() => onFeedback("yes")}
+                    type="button"
+                  >
+                    <ThumbsUp size={16} />
+                    符合
+                  </button>
+                  <button
+                    aria-pressed={feedback === "no"}
+                    data-selected={feedback === "no"}
+                    disabled={feedbackSubmitted}
+                    onClick={() => onFeedback("no")}
+                    type="button"
+                  >
+                    <ThumbsDown size={16} />
+                    不太符合
+                  </button>
+                </div>
+                <button
+                  className="button button-secondary match-share-button"
+                  disabled={shareStatus === "sharing"}
+                  onClick={onShare}
+                  type="button"
+                >
+                  {shareStatus === "sharing"
+                    ? <LoaderCircle className="spin" size={16} />
+                    : shareStatus === "downloaded"
+                      ? <ImageDown size={16} />
+                      : <Share2 size={16} />}
+                  {shareButtonLabel}
+                </button>
+                <span className="match-engagement-status" role="status">
+                  {[feedbackSubmitted ? "反馈已记录" : "", shareStatusMessage]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              </div>
+            </section>
           )}
           {mode === "all" && otherMatches.length > 0 && (
             <div className="more-matches-heading">

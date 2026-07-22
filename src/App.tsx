@@ -1,4 +1,5 @@
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
+import { track } from "@vercel/analytics";
 import {
   AlertCircle,
   Camera,
@@ -13,7 +14,11 @@ import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { CreatorLibrary } from "./components/CreatorLibrary";
 import { FacePreview } from "./components/FacePreview";
 import { LandingPage } from "./components/LandingPage";
-import { MatchResults } from "./components/MatchResults";
+import {
+  MatchResults,
+  type MatchFeedback,
+  type MatchShareStatus,
+} from "./components/MatchResults";
 import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import { SiteHeader, type SiteView } from "./components/SiteHeader";
 import { extractFaceAnalysis, type FaceAnalysis } from "./domain/faceFeatures";
@@ -24,6 +29,7 @@ import { listCreators } from "./services/creatorRepository";
 import { detectFace } from "./services/faceLandmarker";
 import { loadImageBlob } from "./services/imageFile";
 import { measureAverageLuminance } from "./services/imageQuality";
+import { shareMatchResult } from "./services/resultSharing";
 
 interface LoadedPhoto {
   fileName: string;
@@ -68,6 +74,11 @@ function App() {
   const [creatorsCount, setCreatorsCount] = useState(0);
   const [matching, setMatching] = useState(false);
   const [matchError, setMatchError] = useState<string>();
+  const [matchFeedback, setMatchFeedback] = useState<MatchFeedback | null>(null);
+  const [shareStatus, setShareStatus] = useState<MatchShareStatus>("idle");
+  const trackedResultRef = useRef<AnalysisResult | undefined>(undefined);
+  const feedbackSubmittedRef = useRef(false);
+  const sharedResultRef = useRef(false);
 
   const showMatchScene = Boolean(
     status === "complete" &&
@@ -122,6 +133,18 @@ function App() {
   }, [result, status, view]);
 
   useEffect(() => {
+    if (!showMatchScene || !result || !matches?.length) return;
+    if (trackedResultRef.current === result) return;
+
+    trackedResultRef.current = result;
+    feedbackSubmittedRef.current = false;
+    sharedResultRef.current = false;
+    setMatchFeedback(null);
+    setShareStatus("idle");
+    track("match_result_view", { creator_count: creatorsCount });
+  }, [creatorsCount, matches, result, showMatchScene]);
+
+  useEffect(() => {
     const scene = sceneRef.current;
     if (!showMatchScene || !scene) return;
 
@@ -159,6 +182,11 @@ function App() {
     setCreatorsCount(0);
     setMatching(false);
     setMatchError(undefined);
+    setMatchFeedback(null);
+    setShareStatus("idle");
+    trackedResultRef.current = undefined;
+    feedbackSubmittedRef.current = false;
+    sharedResultRef.current = false;
   };
 
   const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -179,6 +207,46 @@ function App() {
   const clearPhoto = () => {
     setPhoto(undefined);
     resetAnalysis();
+  };
+
+  const submitMatchFeedback = (feedback: MatchFeedback) => {
+    if (feedbackSubmittedRef.current || !matches?.length) return;
+
+    feedbackSubmittedRef.current = true;
+    setMatchFeedback(feedback);
+    track("match_feedback", {
+      accurate: feedback === "yes",
+      creator_count: creatorsCount,
+    });
+  };
+
+  const shareCurrentResult = async () => {
+    const primaryMatch = matches?.[0];
+    if (!primaryMatch || !photo || shareStatus === "sharing") return;
+
+    setShareStatus("sharing");
+    try {
+      const method = await shareMatchResult({
+        creatorName: primaryMatch.creator.name,
+        creatorPhotoUrl: primaryMatch.creator.referencePhotoUrl,
+        userPhotoUrl: photo.objectUrl,
+      });
+      const firstShare = !sharedResultRef.current;
+      sharedResultRef.current = true;
+      setShareStatus(method === "native" ? "shared" : "downloaded");
+      track("match_result_share", {
+        creator_count: creatorsCount,
+        first_share: firstShare,
+        method,
+      });
+    } catch (shareError) {
+      if (shareError instanceof Error && shareError.name === "AbortError") {
+        setShareStatus("idle");
+        return;
+      }
+      console.error(shareError);
+      setShareStatus("error");
+    }
   };
 
   const navigate = (nextView: SiteView) => {
@@ -378,9 +446,13 @@ function App() {
                     <div className="match-reveal">
                       <MatchResults
                         creatorsCount={creatorsCount}
+                        feedback={matchFeedback}
                         matches={matches}
                         mode="primary"
+                        onFeedback={submitMatchFeedback}
+                        onShare={shareCurrentResult}
                         onViewCreators={() => navigate("creators")}
+                        shareStatus={shareStatus}
                       />
                     </div>
                   )}
@@ -393,9 +465,13 @@ function App() {
               {showMatchScene && matches && matches.length > 1 && (
                 <MatchResults
                   creatorsCount={creatorsCount}
+                  feedback={matchFeedback}
                   matches={matches}
                   mode="more"
+                  onFeedback={submitMatchFeedback}
+                  onShare={shareCurrentResult}
                   onViewCreators={() => navigate("creators")}
+                  shareStatus={shareStatus}
                 />
               )}
 
@@ -412,8 +488,12 @@ function App() {
                 ) : matches ? (
                   <MatchResults
                     creatorsCount={creatorsCount}
+                    feedback={matchFeedback}
                     matches={matches}
+                    onFeedback={submitMatchFeedback}
+                    onShare={shareCurrentResult}
                     onViewCreators={() => navigate("creators")}
+                    shareStatus={shareStatus}
                   />
                 ) : null
               )}
