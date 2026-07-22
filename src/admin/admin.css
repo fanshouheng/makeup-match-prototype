@@ -27,6 +27,7 @@
 .admin-page-intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 30px; }
 .admin-page-intro h2 { font-size: clamp(28px, 4vw, 42px); }
 .admin-page-intro p:not(.admin-kicker) { margin: 10px 0 0; color: var(--admin-muted); }
+.admin-intro-actions { display: flex; align-items: center; gap: 10px; }
 .admin-data-badge { gap: 10px; padding: 12px 15px; border: 1px solid #b9d7c7; border-radius: 11px; background: #eef8f1; color: var(--admin-green-dark); font-size: 13px; font-weight: 700; line-height: 1.45; }
 .admin-data-badge small { color: var(--admin-muted); font-weight: 500; }
 .admin-tabs { display: flex; gap: 4px; margin-bottom: 18px; padding-bottom: 8px; border-bottom: 1px solid var(--admin-line); }
@@ -76,9 +77,10 @@
 .admin-auth-panel h1 { margin-top: 15px; font-size: 30px; }
 .admin-auth-form { display: grid; gap: 9px; margin-top: 28px; }
 .admin-auth-form label, .admin-dialog-label { color: var(--admin-muted); font-size: 12px; font-weight: 700; }
-.admin-auth-form input, .admin-dialog textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--admin-line); border-radius: 8px; background: #fff; color: var(--admin-ink); font: inherit; outline: none; }
+.admin-auth-form input, .admin-dialog textarea, .admin-dialog input { width: 100%; box-sizing: border-box; border: 1px solid var(--admin-line); border-radius: 8px; background: #fff; color: var(--admin-ink); font: inherit; outline: none; }
 .admin-auth-form input { height: 44px; padding: 0 12px; }
-.admin-auth-form input:focus, .admin-dialog textarea:focus { border-color: var(--admin-green); box-shadow: 0 0 0 3px #dff0e5; }
+.admin-dialog input { height: 40px; padding: 0 10px; }
+.admin-auth-form input:focus, .admin-dialog textarea:focus, .admin-dialog input:focus { border-color: var(--admin-green); box-shadow: 0 0 0 3px #dff0e5; }
 .admin-form-error { margin: 2px 0 0; color: var(--admin-coral); font-size: 12px; }
 .admin-auth-form .admin-primary-button { margin-top: 8px; min-height: 44px; }
 .admin-auth-note { margin: 24px 0 0; color: var(--admin-muted); font-size: 12px; line-height: 1.6; }
@@ -92,12 +94,13 @@
 .admin-dialog-label { display: grid; gap: 7px; margin-bottom: 18px; }
 .admin-dialog textarea { resize: vertical; padding: 10px; font-size: 13px; line-height: 1.5; }
 .admin-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
-
 @media (max-width: 760px) {
   .admin-topbar { align-items: flex-start; flex-direction: column; }
   .admin-topbar-actions { width: 100%; justify-content: flex-end; }
   .admin-content { width: min(100% - 28px, 600px); padding-top: 28px; }
   .admin-page-intro { align-items: flex-start; flex-direction: column; }
+  .admin-intro-actions { width: 100%; align-items: stretch; flex-direction: column; }
+  .admin-intro-actions > .admin-primary-button { width: 100%; }
   .admin-review-row, .admin-creator-row { grid-template-columns: 80px minmax(0, 1fr); gap: 13px; padding: 14px; }
   .admin-photo-frame, .admin-creator-photo, .admin-photo-placeholder { width: 80px; height: 108px; }
   .admin-meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 17px 0; }

@@ -10,16 +10,21 @@ import {
   ImageOff,
   LoaderCircle,
   LogOut,
+  Plus,
+  Power,
   RefreshCw,
   ShieldCheck,
   Trash2,
   X,
 } from "lucide-react";
 import { adminClient } from "./adminClient";
+import { AdminCreateSubmissionDialog } from "./AdminCreateSubmissionDialog";
 import {
+  createAdminSubmission,
   getAdminSession,
   invokeAdmin,
   type AdminCreator,
+  type AdminCreatorSubmissionInput,
   type AdminListResponse,
   type AdminSubmission,
 } from "./adminApi";
@@ -28,6 +33,7 @@ import "./admin.css";
 type View = "pending" | "creators";
 type ConfirmAction =
   | { type: "verify" | "approve" | "reject" | "cleanup"; submission: AdminSubmission }
+  | { type: "set_active" | "delete_creator"; creator: AdminCreator }
   | null;
 
 function formatDate(value: string | null): string {
@@ -175,7 +181,13 @@ function PendingRow({
   );
 }
 
-function CreatorRow({ creator }: { creator: AdminCreator }) {
+function CreatorRow({
+  creator,
+  onAction,
+}: {
+  creator: AdminCreator;
+  onAction: (action: ConfirmAction) => void;
+}) {
   return (
     <article className="admin-creator-row">
       {creator.reference_photo_url ? (
@@ -196,6 +208,14 @@ function CreatorRow({ creator }: { creator: AdminCreator }) {
           <div><dt>主页</dt><dd><a href={creator.douyin_url} target="_blank" rel="noreferrer">打开主页 <ExternalLink size={13} /></a></dd></div>
           <div><dt>代表教程</dt><dd>{creator.tutorial_url ? <a href={creator.tutorial_url} target="_blank" rel="noreferrer">打开链接 <ExternalLink size={13} /></a> : "未设置"}</dd></div>
         </dl>
+        <div className="admin-row-actions">
+          <button className="admin-secondary-button" type="button" onClick={() => onAction({ type: "set_active", creator })}>
+            <Power size={16} />{creator.is_active ? "下架" : "恢复展示"}
+          </button>
+          <button className="admin-danger-button" type="button" onClick={() => onAction({ type: "delete_creator", creator })}>
+            <Trash2 size={16} />永久删除
+          </button>
+        </div>
       </div>
     </article>
   );
@@ -206,6 +226,8 @@ function ConfirmDialog({
   busy,
   reviewNote,
   setReviewNote,
+  confirmText,
+  setConfirmText,
   onCancel,
   onConfirm,
 }: {
@@ -213,32 +235,49 @@ function ConfirmDialog({
   busy: boolean;
   reviewNote: string;
   setReviewNote: (value: string) => void;
+  confirmText: string;
+  setConfirmText: (value: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
   const isReject = action.type === "reject";
-  const titles = { verify: "确认完成归属核验？", approve: "确认批准入库？", reject: "确认拒绝申请？", cleanup: "确认重试照片清理？" };
+  const isDelete = action.type === "delete_creator";
+  const isSetActive = action.type === "set_active";
+  const creatorName = "creator" in action ? action.creator.name : "";
+  const titles = { verify: "确认完成归属核验？", approve: "确认批准入库？", reject: "确认拒绝申请？", cleanup: "确认重试照片清理？", set_active: "确认修改展示状态？", delete_creator: "确认永久删除？" };
   const descriptions = {
     verify: "请确认你已经核验主页归属、本人照片和授权范围。",
     approve: "批准后，这条申请会进入公开创作者库。联系邮箱不会公开。",
     reject: "拒绝后申请不会进入公开库，系统会尝试删除申请照片。",
     cleanup: "系统会再次删除这条已拒绝申请的 Storage 照片。",
+    set_active: "下架后会立即停止公开展示和匹配；已下架的创作者可随时恢复。",
+    delete_creator: "系统会先下架，再删除授权照片、公开记录和原申请。此操作不可恢复。",
   };
   return (
     <div className="admin-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onCancel(); }}>
       <section className="admin-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-dialog-title">
         <div className="admin-dialog-icon"><ShieldCheck size={20} /></div>
         <h2 id="admin-dialog-title">{titles[action.type]}</h2>
-        <p>{descriptions[action.type]}</p>
+        <p>{isSetActive && "creator" in action
+          ? action.creator.is_active
+            ? "下架后会立即停止公开展示和匹配，之后可以恢复。"
+            : "恢复后会重新进入公开展示和匹配。"
+          : descriptions[action.type]}</p>
         {isReject && (
           <label className="admin-dialog-label" htmlFor="review-note">
             拒绝原因（必填）
             <textarea id="review-note" value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} maxLength={500} rows={3} placeholder="例如：无法核验主页归属" />
           </label>
         )}
+        {isDelete && (
+          <label className="admin-dialog-label" htmlFor="delete-confirm-name">
+            输入“{creatorName}”确认删除
+            <input id="delete-confirm-name" value={confirmText} onChange={(event) => setConfirmText(event.target.value)} autoComplete="off" />
+          </label>
+        )}
         <div className="admin-dialog-actions">
           <button className="admin-secondary-button" type="button" onClick={onCancel} disabled={busy}>取消</button>
-          <button className={isReject ? "admin-danger-button" : "admin-primary-button"} type="button" onClick={onConfirm} disabled={busy || (isReject && !reviewNote.trim())}>
+          <button className={isReject || isDelete ? "admin-danger-button" : "admin-primary-button"} type="button" onClick={onConfirm} disabled={busy || (isReject && !reviewNote.trim()) || (isDelete && confirmText !== creatorName)}>
             {busy ? <LoaderCircle className="admin-spin" size={16} /> : <Check size={16} />}
             确认执行
           </button>
@@ -257,7 +296,9 @@ export default function AdminApp() {
   const [error, setError] = useState("");
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [reviewNote, setReviewNote] = useState("");
+  const [confirmText, setConfirmText] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -295,13 +336,23 @@ export default function AdminApp() {
     setActionBusy(true);
     setError("");
     try {
-      await invokeAdmin({
-        action: confirmAction.type,
-        submissionId: confirmAction.submission.id,
-        reviewNote: confirmAction.type === "reject" ? reviewNote.trim() : undefined,
-      });
+      if ("submission" in confirmAction) {
+        await invokeAdmin({
+          action: confirmAction.type,
+          submissionId: confirmAction.submission.id,
+          reviewNote: confirmAction.type === "reject" ? reviewNote.trim() : undefined,
+        });
+      } else {
+        await invokeAdmin({
+          action: confirmAction.type,
+          creatorId: confirmAction.creator.id,
+          isActive: confirmAction.type === "set_active" ? !confirmAction.creator.is_active : undefined,
+          confirmName: confirmAction.type === "delete_creator" ? confirmText : undefined,
+        });
+      }
       setConfirmAction(null);
       setReviewNote("");
+      setConfirmText("");
       await loadDashboard();
     } catch (nextError) {
       setError(errorMessage(nextError));
@@ -312,7 +363,13 @@ export default function AdminApp() {
 
   function openAction(action: ConfirmAction) {
     setReviewNote("");
+    setConfirmText("");
     setConfirmAction(action);
+  }
+
+  async function handleCreate(input: AdminCreatorSubmissionInput) {
+    await createAdminSubmission(input);
+    await loadDashboard();
   }
 
   if (!authReady) {
@@ -327,16 +384,17 @@ export default function AdminApp() {
         <div className="admin-topbar-actions"><span className="admin-user-email">{session.user.email}</span><button className="admin-icon-button" type="button" onClick={() => void loadDashboard()} aria-label="刷新数据" title="刷新数据"><RefreshCw size={17} /></button><button className="admin-icon-button" type="button" onClick={() => void adminClient.auth.signOut()} aria-label="退出登录" title="退出登录"><LogOut size={17} /></button></div>
       </header>
       <section className="admin-content" aria-label="创作者审核与库管理">
-        <div className="admin-page-intro"><div><p className="admin-kicker">PRODUCTION DATA</p><h2>先核验，再公开</h2><p>申请资料只在管理台可见，公开库只展示已批准的创作者。</p></div><div className="admin-data-badge"><Database size={18} /><span>{pending.length} 条待审核<br /><small>{creators.length} 条库内记录</small></span></div></div>
+        <div className="admin-page-intro"><div><p className="admin-kicker">PRODUCTION DATA</p><h2>先核验，再公开</h2><p>申请资料只在管理台可见，公开库只展示已批准的创作者。</p></div><div className="admin-intro-actions"><button className="admin-primary-button" type="button" onClick={() => setShowCreate(true)}><Plus size={16} />新建待审申请</button><div className="admin-data-badge"><Database size={18} /><span>{pending.length} 条待审核<br /><small>{creators.length} 条库内记录</small></span></div></div></div>
         <nav className="admin-tabs" aria-label="管理台视图"><button className={view === "pending" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("pending")}><Clock3 size={16} />待审核 <span>{pending.length}</span></button><button className={view === "creators" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("creators")}><Database size={16} />公开博主库 <span>{creators.length}</span></button></nav>
         {error && <div className="admin-alert" role="alert"><X size={17} />{error}</div>}
         {loading ? <div className="admin-loading admin-loading-inline"><LoaderCircle className="admin-spin" size={22} />正在读取受保护数据…</div> : view === "pending" ? (
           <div className="admin-list">{pending.length === 0 ? <div className="admin-empty"><CheckCircle2 size={28} /><h3>当前没有待审核申请</h3><p>新的投稿会先停留在这里，不会自动公开。</p></div> : pending.map((submission) => <PendingRow key={submission.id} submission={submission} onAction={openAction} />)}</div>
         ) : (
-          <div className="admin-list">{creators.length === 0 ? <div className="admin-empty"><Database size={28} /><h3>公开库暂无记录</h3></div> : creators.map((creator) => <CreatorRow key={creator.id} creator={creator} />)}</div>
+          <div className="admin-list">{creators.length === 0 ? <div className="admin-empty"><Database size={28} /><h3>公开库暂无记录</h3></div> : creators.map((creator) => <CreatorRow key={creator.id} creator={creator} onAction={openAction} />)}</div>
         )}
       </section>
-      {confirmAction && <ConfirmDialog action={confirmAction} busy={actionBusy} reviewNote={reviewNote} setReviewNote={setReviewNote} onCancel={() => setConfirmAction(null)} onConfirm={() => void handleConfirm()} />}
+      {showCreate && <AdminCreateSubmissionDialog onClose={() => setShowCreate(false)} onSubmit={handleCreate} />}
+      {confirmAction && <ConfirmDialog action={confirmAction} busy={actionBusy} reviewNote={reviewNote} setReviewNote={setReviewNote} confirmText={confirmText} setConfirmText={setConfirmText} onCancel={() => setConfirmAction(null)} onConfirm={() => void handleConfirm()} />}
     </main>
   );
 }

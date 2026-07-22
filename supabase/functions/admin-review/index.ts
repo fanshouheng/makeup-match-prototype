@@ -3,9 +3,23 @@ import { createClient, type SupabaseClient, type User } from "npm:@supabase/supa
 const PHOTO_BUCKET = "creator-photos";
 const SIGNED_URL_TTL_SECONDS = 300;
 const MAX_REVIEW_NOTE_LENGTH = 500;
-
-type Action = "list" | "verify" | "approve" | "reject" | "cleanup";
-interface RequestBody { action?: Action; submissionId?: string; reviewNote?: string; }
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const CONSENT_VERSION = "2026-07-21";
+const FEATURE_KEYS = [
+  "faceAspectRatio", "jawToCheekRatio", "foreheadToCheekRatio",
+  "lowerThirdRatio", "eyeSpacingRatio", "eyeAspectRatio",
+  "noseWidthRatio", "lipWidthRatio", "lipAspectRatio",
+] as const;
+const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+type Action = "list" | "create" | "verify" | "approve" | "reject" | "cleanup" | "set_active" | "delete_creator";
+interface RequestBody {
+  action?: Action;
+  submissionId?: string;
+  creatorId?: string;
+  isActive?: boolean;
+  confirmName?: string;
+  reviewNote?: string;
+}
 
 function configuredOrigins(): string[] {
   return (Deno.env.get("ALLOWED_ORIGINS") ?? "").split(",").map((value) => value.trim()).filter(Boolean);
@@ -64,6 +78,45 @@ function adminEmails(): Set<string> {
   return new Set((Deno.env.get("ADMIN_EMAILS") ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean));
 }
 
+function requiredText(formData: FormData, key: string, maxLength: number): string | undefined {
+  const value = formData.get(key);
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed && trimmed.length <= maxLength ? trimmed : undefined;
+}
+
+function parseObject(value: FormDataEntryValue | null): Record<string, unknown> | undefined {
+  if (typeof value !== "string") return undefined;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function isFeatureVector(value: Record<string, unknown> | undefined): boolean {
+  return Boolean(value && FEATURE_KEYS.every((key) => typeof value[key] === "number" && Number.isFinite(value[key])));
+}
+
+function isDouyinUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (url.protocol === "http:" || url.protocol === "https:") &&
+      (url.hostname === "douyin.com" || url.hostname.endsWith(".douyin.com"));
+  } catch {
+    return false;
+  }
+}
+
+function extensionForMimeType(type: string): string {
+  if (type === "image/png") return "png";
+  if (type === "image/webp") return "webp";
+  return "jpg";
+}
+
 async function authenticate(request: Request, origin: string): Promise<{ user: User; admin: SupabaseClient } | Response> {
   const authorization = request.headers.get("authorization");
   const url = Deno.env.get("SUPABASE_URL");
@@ -113,6 +166,65 @@ async function listData(admin: SupabaseClient): Promise<Record<string, unknown>>
   };
 }
 
+async function createSubmission(admin: SupabaseClient, user: User, formData: FormData, origin: string): Promise<Response> {
+  const name = requiredText(formData, "name", 60);
+  const contactEmail = requiredText(formData, "contactEmail", 320);
+  const douyinUrl = requiredText(formData, "douyinUrl", 2048);
+  const tutorialValue = formData.get("tutorialUrl");
+  const tutorialUrl = typeof tutorialValue === "string" ? tutorialValue.trim() : "";
+  const referencePhoto = formData.get("referencePhoto");
+  const featureVector = parseObject(formData.get("featureVector"));
+  const qualityMetrics = parseObject(formData.get("qualityMetrics"));
+  const consentVersion = requiredText(formData, "consentVersion", 40);
+
+  if (
+    !name || !contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail) ||
+    !douyinUrl || !isDouyinUrl(douyinUrl) || (tutorialUrl && !isDouyinUrl(tutorialUrl)) ||
+    !(referencePhoto instanceof File) || referencePhoto.size > MAX_PHOTO_BYTES ||
+    !ALLOWED_MIME_TYPES.has(referencePhoto.type) || !isFeatureVector(featureVector) ||
+    !qualityMetrics || consentVersion !== CONSENT_VERSION
+  ) {
+    return reply(origin, 400, { code: "invalid_submission" });
+  }
+
+  const [emailMatch, profileMatch] = await Promise.all([
+    admin.from("creator_submissions").select("id").eq("contact_email", contactEmail).in("status", ["pending", "approved"]).limit(1),
+    admin.from("creator_submissions").select("id").eq("douyin_url", douyinUrl).in("status", ["pending", "approved"]).limit(1),
+  ]);
+  if (emailMatch.error) throw emailMatch.error;
+  if (profileMatch.error) throw profileMatch.error;
+  if ((emailMatch.data?.length ?? 0) > 0 || (profileMatch.data?.length ?? 0) > 0) {
+    return reply(origin, 409, { code: "duplicate_submission" });
+  }
+
+  const submissionId = crypto.randomUUID();
+  const photoPath = `submissions/${submissionId}/reference.${extensionForMimeType(referencePhoto.type)}`;
+  const upload = await admin.storage.from(PHOTO_BUCKET).upload(photoPath, referencePhoto, {
+    cacheControl: "3600",
+    contentType: referencePhoto.type,
+    upsert: false,
+  });
+  if (upload.error) throw upload.error;
+
+  const inserted = await admin.from("creator_submissions").insert({
+    id: submissionId,
+    name,
+    contact_email: contactEmail,
+    douyin_url: douyinUrl,
+    tutorial_url: tutorialUrl || null,
+    reference_photo_path: photoPath,
+    feature_vector: featureVector,
+    quality_metrics: qualityMetrics,
+    consent_version: consentVersion,
+    review_note: `管理员 ${user.email ?? user.id} 代录：资料由创作者本人提供并授权使用，待归属核验。`,
+  });
+  if (inserted.error) {
+    await admin.storage.from(PHOTO_BUCKET).remove([photoPath]);
+    throw inserted.error;
+  }
+  return reply(origin, 201, { submissionId });
+}
+
 async function submission(admin: SupabaseClient, id: string) {
   const result = await admin.from("creator_submissions").select("id,status,reference_photo_path").eq("id", id).maybeSingle();
   if (result.error) throw result.error;
@@ -130,6 +242,12 @@ Deno.serve(async (request) => {
     const identity = await authenticate(request, origin);
     if (identity instanceof Response) return identity;
     stage = "parse_request";
+    if ((request.headers.get("content-type") ?? "").includes("multipart/form-data")) {
+      const formData = await request.formData();
+      if (formData.get("action") !== "create") return reply(origin, 400, { code: "unsupported_action" });
+      stage = "create";
+      return await createSubmission(identity.admin, identity.user, formData, origin);
+    }
     const body = await request.json() as RequestBody;
     const action = body.action;
     if (!action) return reply(origin, 400, { code: "action_required" });
@@ -138,6 +256,57 @@ Deno.serve(async (request) => {
       stage = "list";
       return new Response(JSON.stringify(await listData(identity.admin)), { status: 200, headers: headers(origin) });
     }
+
+    if (action === "set_active") {
+      stage = "set_active";
+      if (!body.creatorId || typeof body.isActive !== "boolean") {
+        return reply(origin, 400, { code: "creator_action_invalid" });
+      }
+      const result = await identity.admin.from("creators")
+        .update({ is_active: body.isActive, updated_at: new Date().toISOString() })
+        .eq("id", body.creatorId)
+        .select("id")
+        .maybeSingle();
+      if (result.error) throw result.error;
+      if (!result.data) return reply(origin, 404, { code: "creator_not_found" });
+      return reply(origin, 200, { ok: true });
+    }
+
+    if (action === "delete_creator") {
+      stage = "delete_lookup";
+      if (!body.creatorId || !body.confirmName) return reply(origin, 400, { code: "creator_action_invalid" });
+      const creatorResult = await identity.admin.from("creators")
+        .select("id,submission_id,name,reference_photo_path")
+        .eq("id", body.creatorId)
+        .maybeSingle();
+      if (creatorResult.error) throw creatorResult.error;
+      const creator = creatorResult.data;
+      if (!creator) return reply(origin, 404, { code: "creator_not_found" });
+      if (body.confirmName !== creator.name) return reply(origin, 400, { code: "confirmation_mismatch" });
+
+      stage = "delete_deactivate";
+      const deactivated = await identity.admin.from("creators")
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq("id", creator.id);
+      if (deactivated.error) throw deactivated.error;
+
+      stage = "delete_photo";
+      const photoCleanup = await identity.admin.storage.from(PHOTO_BUCKET).remove([creator.reference_photo_path]);
+      if (photoCleanup.error) throw photoCleanup.error;
+
+      stage = "delete_creator";
+      const creatorDelete = await identity.admin.from("creators").delete().eq("id", creator.id);
+      if (creatorDelete.error) throw creatorDelete.error;
+
+      stage = "delete_submission";
+      const submissionDelete = await identity.admin.from("creator_submissions")
+        .delete()
+        .eq("id", creator.submission_id)
+        .eq("status", "approved");
+      if (submissionDelete.error) throw submissionDelete.error;
+      return reply(origin, 200, { ok: true });
+    }
+
     if (!body.submissionId) return reply(origin, 400, { code: "submission_required" });
 
     const current = await submission(identity.admin, body.submissionId);

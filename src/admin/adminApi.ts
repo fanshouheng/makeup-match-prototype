@@ -1,5 +1,21 @@
 import type { Session } from "@supabase/supabase-js";
+import type { FaceFeatureVector, PoseMetrics } from "../domain/faceFeatures";
 import { adminClient } from "./adminClient";
+
+const ADMIN_CONSENT_VERSION = "2026-07-21";
+
+export interface AdminCreatorSubmissionInput {
+  name: string;
+  contactEmail: string;
+  douyinUrl: string;
+  tutorialUrl: string;
+  referencePhoto: File;
+  featureVector: FaceFeatureVector;
+  qualityMetrics: {
+    averageLuminance: number;
+    pose: PoseMetrics;
+  };
+}
 
 export interface AdminSubmission {
   id: string;
@@ -34,8 +50,11 @@ export interface AdminListResponse {
 }
 
 interface AdminRequest {
-  action: "list" | "verify" | "approve" | "reject" | "cleanup";
+  action: "list" | "verify" | "approve" | "reject" | "cleanup" | "set_active" | "delete_creator";
   submissionId?: string;
+  creatorId?: string;
+  isActive?: boolean;
+  confirmName?: string;
   reviewNote?: string;
 }
 
@@ -76,6 +95,40 @@ export async function invokeAdmin<T>(request: AdminRequest, retryList = true): P
     throw new Error("管理台服务配置不完整，请联系维护者。");
   }
   throw new Error("管理台请求失败，请稍后重试。");
+}
+
+export async function createAdminSubmission(
+  input: AdminCreatorSubmissionInput,
+): Promise<void> {
+  const body = new FormData();
+  body.set("action", "create");
+  body.set("name", input.name);
+  body.set("contactEmail", input.contactEmail);
+  body.set("douyinUrl", input.douyinUrl);
+  body.set("tutorialUrl", input.tutorialUrl);
+  body.set("referencePhoto", input.referencePhoto);
+  body.set("featureVector", JSON.stringify(input.featureVector));
+  body.set("qualityMetrics", JSON.stringify(input.qualityMetrics));
+  body.set("consentVersion", ADMIN_CONSENT_VERSION);
+
+  const { error } = await adminClient.functions.invoke("admin-review", { body });
+  if (!error) return;
+
+  let code: string | undefined;
+  if ("context" in error && error.context instanceof Response) {
+    const payload = await error.context
+      .clone()
+      .json()
+      .catch(() => undefined) as { code?: string } | undefined;
+    code = payload?.code;
+  }
+  if (code === "duplicate_submission") {
+    throw new Error("这个主页或联系邮箱已有待审申请。");
+  }
+  if (code === "invalid_submission") {
+    throw new Error("录入资料格式不完整，请检查后重试。");
+  }
+  throw new Error("创建待审申请失败，请稍后重试。");
 }
 
 export async function getAdminSession(): Promise<Session | null> {
