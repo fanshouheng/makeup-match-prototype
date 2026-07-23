@@ -2,8 +2,10 @@ import {
   CREATOR_CONTENT_TYPES,
   FEATURE_KEYS,
   type CreatorContentType,
+  type CreatorPlatform,
   type CreatorProfile,
   type ReferenceAudience,
+  isCreatorPlatform,
 } from "../domain/creator";
 import type { FaceFeatureVector, PoseMetrics } from "../domain/faceFeatures";
 import { getSupabaseClient } from "./supabaseClient";
@@ -15,7 +17,9 @@ export const CONSENT_VERSION = "2026-07-21";
 interface PublicCreatorRow {
   id: string;
   name: string;
-  douyin_url: string;
+  platform: unknown;
+  profile_url: string | null;
+  douyin_url: string | null;
   tutorial_url: string | null;
   reference_audience: unknown;
   content_types: unknown;
@@ -28,7 +32,8 @@ interface PublicCreatorRow {
 export interface CreatorSubmissionInput {
   name: string;
   contactEmail: string;
-  douyinUrl: string;
+  platform: CreatorPlatform;
+  profileUrl: string;
   tutorialUrl: string;
   referenceAudience: ReferenceAudience;
   contentTypes: CreatorContentType[];
@@ -82,11 +87,18 @@ export function mapPublicCreatorRow(
   row: PublicCreatorRow,
   referencePhotoUrl: string,
 ): CreatorProfile {
+  if (!isCreatorPlatform(row.platform)) {
+    throw new Error("博主平台数据无效");
+  }
+  const profileUrl = row.profile_url ?? row.douyin_url;
+  if (!profileUrl) throw new Error("博主主页数据无效");
+
   return {
     id: row.id,
     name: row.name,
     referencePhotoUrl,
-    douyinUrl: row.douyin_url,
+    platform: row.platform,
+    profileUrl,
     tutorialUrl: row.tutorial_url ?? "",
     referenceAudience: parseReferenceAudience(row.reference_audience),
     contentTypes: parseContentTypes(row.content_types),
@@ -103,7 +115,7 @@ export async function listCreators(
   const { data, error } = await supabase
     .from("creators")
     .select(
-      "id,name,douyin_url,tutorial_url,reference_audience,content_types,reference_photo_path,feature_vector,created_at,updated_at",
+      "id,name,platform,profile_url,douyin_url,tutorial_url,reference_audience,content_types,reference_photo_path,feature_vector,created_at,updated_at",
     )
     .eq("is_active", true)
     .eq("reference_audience", referenceAudience)
@@ -139,7 +151,9 @@ export async function submitCreator(
   const body = new FormData();
   body.set("name", input.name);
   body.set("contactEmail", input.contactEmail);
-  body.set("douyinUrl", input.douyinUrl);
+  body.set("platform", input.platform);
+  body.set("profileUrl", input.profileUrl);
+  if (input.platform === "douyin") body.set("douyinUrl", input.profileUrl);
   body.set("tutorialUrl", input.tutorialUrl);
   body.set("referenceAudience", input.referenceAudience);
   body.set("contentTypes", JSON.stringify(input.contentTypes));

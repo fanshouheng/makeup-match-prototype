@@ -9,7 +9,8 @@ select
   id,
   name,
   contact_email,
-  douyin_url,
+  platform,
+  profile_url,
   tutorial_url,
   reference_audience,
   content_types,
@@ -26,9 +27,9 @@ order by submitted_at asc;
 
 至少完成以下一项：
 
-1. 使用申请邮箱联系申请人，请对方从抖音主页公开联系方式回复。
+1. 使用申请邮箱联系申请人，请对方从所选平台主页的公开联系方式回复。
 2. 请申请人在主页简介中临时放置一次性核验文字，核验后删除。
-3. 已经建立直接联系时，通过抖音账号私信确认申请编号。
+3. 已经建立直接联系时，通过对应平台账号私信确认申请编号。
 
 同时检查：
 
@@ -138,7 +139,7 @@ order by event_name, failure_reason;
 
 - 是否存在超过 7 天未处理的待审申请。
 - 是否存在数据库写入失败后留下的孤立照片。
-- 是否有失效的抖音主页或代表内容链接。
+- 是否有失效的抖音、小红书主页或代表内容链接。
 - Edge Function 是否出现大量 `captcha_failed`、`rate_limited` 或上传失败日志。
 
 限流表只保存加盐哈希，可以清理超过 24 小时的窗口：

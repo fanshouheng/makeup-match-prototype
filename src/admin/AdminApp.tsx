@@ -27,6 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { adminClient } from "./adminClient";
+import { CREATOR_PLATFORM_LABELS } from "../domain/creator";
 import { AdminCreateSubmissionDialog } from "./AdminCreateSubmissionDialog";
 import { AdminOutreachPanel } from "./AdminOutreachPanel";
 import {
@@ -192,8 +193,9 @@ function PendingRow({
           <div><dt>联系邮箱</dt><dd>{submission.contact_email}</dd></div>
           <div><dt>参考页面</dt><dd>{REFERENCE_AUDIENCE_LABELS[submission.reference_audience]}</dd></div>
           <div><dt>内容方向</dt><dd>{formatContentTypes(submission.content_types)}</dd></div>
+          <div><dt>主平台</dt><dd>{CREATOR_PLATFORM_LABELS[submission.platform]}</dd></div>
           <div><dt>代表内容</dt><dd>{submission.tutorial_url ? "已提供" : "未提供"}</dd></div>
-          <div><dt>公开主页</dt><dd><a href={submission.douyin_url} target="_blank" rel="noreferrer">打开主页 <ExternalLink size={13} /></a></dd></div>
+          <div><dt>公开主页</dt><dd><a href={submission.profile_url} target="_blank" rel="noreferrer">打开主页 <ExternalLink size={13} /></a></dd></div>
         </dl>
         {submission.review_note && <p className="admin-review-note">备注：{submission.review_note}</p>}
         <div className="admin-row-actions">
@@ -238,7 +240,8 @@ function CreatorRow({
           <div><dt>更新时间</dt><dd>{formatDate(creator.updated_at)}</dd></div>
           <div><dt>参考页面</dt><dd>{REFERENCE_AUDIENCE_LABELS[creator.reference_audience]}</dd></div>
           <div><dt>内容方向</dt><dd>{formatContentTypes(creator.content_types)}</dd></div>
-          <div><dt>主页</dt><dd><a href={creator.douyin_url} target="_blank" rel="noreferrer">打开主页 <ExternalLink size={13} /></a></dd></div>
+          <div><dt>主平台</dt><dd>{CREATOR_PLATFORM_LABELS[creator.platform]}</dd></div>
+          <div><dt>主页</dt><dd><a href={creator.profile_url} target="_blank" rel="noreferrer">打开主页 <ExternalLink size={13} /></a></dd></div>
           <div><dt>代表内容</dt><dd>{creator.tutorial_url ? <a href={creator.tutorial_url} target="_blank" rel="noreferrer">打开链接 <ExternalLink size={13} /></a> : "未设置"}</dd></div>
         </dl>
         <div className="admin-row-actions">

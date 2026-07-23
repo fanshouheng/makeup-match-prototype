@@ -22,9 +22,13 @@ import {
   hasTurnstileConfig,
   turnstileSiteKey,
 } from "../config";
-import type {
-  CreatorContentType,
-  ReferenceAudience,
+import {
+  CREATOR_PLATFORMS,
+  CREATOR_PLATFORM_LABELS,
+  isCreatorPlatformUrl,
+  type CreatorContentType,
+  type CreatorPlatform,
+  type ReferenceAudience,
 } from "../domain/creator";
 import {
   extractFaceAnalysis,
@@ -48,18 +52,6 @@ const MEN_CONTENT_OPTIONS: Array<{
   { value: "makeup", label: "妆容" },
 ];
 
-function isDouyinUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return (
-      (url.protocol === "http:" || url.protocol === "https:") &&
-      (url.hostname === "douyin.com" || url.hostname.endsWith(".douyin.com"))
-    );
-  } catch {
-    return false;
-  }
-}
-
 function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
@@ -75,7 +67,8 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
   const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
   const [name, setName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
-  const [douyinUrl, setDouyinUrl] = useState("");
+  const [platform, setPlatform] = useState<CreatorPlatform>("douyin");
+  const [profileUrl, setProfileUrl] = useState("");
   const [tutorialUrl, setTutorialUrl] = useState("");
   const [referenceAudience, setReferenceAudience] =
     useState<ReferenceAudience>("women");
@@ -169,9 +162,12 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
 
     if (!name.trim()) return setError("请填写博主名称。");
     if (!isEmail(contactEmail.trim())) return setError("请填写有效的联系邮箱。");
-    if (!isDouyinUrl(douyinUrl.trim())) return setError("请填写有效的抖音主页链接。");
-    if (tutorialUrl.trim() && !isDouyinUrl(tutorialUrl.trim())) {
-      return setError("代表内容需要填写抖音链接。");
+    const platformLabel = CREATOR_PLATFORM_LABELS[platform];
+    if (!isCreatorPlatformUrl(platform, profileUrl.trim())) {
+      return setError(`请填写有效的${platformLabel}主页链接。`);
+    }
+    if (tutorialUrl.trim() && !isCreatorPlatformUrl(platform, tutorialUrl.trim())) {
+      return setError(`代表内容需要填写${platformLabel}链接。`);
     }
     if (contentTypes.length === 0) return setError("请至少选择一个内容方向。");
     if (!analyzedPhoto) return setError("请上传一张通过质量检查的本人正脸照。");
@@ -185,7 +181,8 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
       await submitCreator({
         name: name.trim(),
         contactEmail: contactEmail.trim(),
-        douyinUrl: douyinUrl.trim(),
+        platform,
+        profileUrl: profileUrl.trim(),
         tutorialUrl: tutorialUrl.trim(),
         referenceAudience,
         contentTypes,
@@ -318,6 +315,24 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
                   </div>
                 </fieldset>
               )}
+              <fieldset className="creator-choice-field">
+                <legend>主平台</legend>
+                <div className="creator-choice-options">
+                  {CREATOR_PLATFORMS.map((option) => (
+                    <label data-selected={platform === option} key={option}>
+                      <input
+                        checked={platform === option}
+                        className="visually-hidden"
+                        name="creatorPlatform"
+                        onChange={() => setPlatform(option)}
+                        type="radio"
+                        value={option}
+                      />
+                      <span>{CREATOR_PLATFORM_LABELS[option]}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
               <label>
                 <span>博主名称</span>
                 <input required value={name} onChange={(event) => setName(event.target.value)} maxLength={60} />
@@ -327,14 +342,31 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
                 <input required type="email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} maxLength={320} placeholder="仅用于身份核验，不会公开" />
               </label>
               <label>
-                <span>抖音主页</span>
-                <input required value={douyinUrl} onChange={(event) => setDouyinUrl(event.target.value)} inputMode="url" placeholder="https://www.douyin.com/user/..." />
+                <span>{CREATOR_PLATFORM_LABELS[platform]}主页</span>
+                <input
+                  required
+                  value={profileUrl}
+                  onChange={(event) => setProfileUrl(event.target.value)}
+                  inputMode="url"
+                  maxLength={2048}
+                  placeholder={platform === "douyin"
+                    ? "https://www.douyin.com/user/..."
+                    : "https://www.xiaohongshu.com/user/profile/..."}
+                />
               </label>
               <label>
                 <span>
                   {referenceAudience === "men" ? "代表内容" : "代表教程"} <small>选填</small>
                 </span>
-                <input value={tutorialUrl} onChange={(event) => setTutorialUrl(event.target.value)} inputMode="url" placeholder="https://www.douyin.com/video/..." />
+                <input
+                  value={tutorialUrl}
+                  onChange={(event) => setTutorialUrl(event.target.value)}
+                  inputMode="url"
+                  maxLength={2048}
+                  placeholder={platform === "douyin"
+                    ? "https://www.douyin.com/video/..."
+                    : "https://www.xiaohongshu.com/explore/..."}
+                />
               </label>
               <label className="consent-field">
                 <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />

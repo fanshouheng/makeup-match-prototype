@@ -8,7 +8,8 @@ const match: CreatorMatch = {
     id: "creator",
     name: "示例创作者",
     referencePhotoUrl: "https://example.com/creator.jpg",
-    douyinUrl: "https://www.douyin.com/user/creator",
+    platform: "douyin",
+    profileUrl: "https://www.douyin.com/user/creator",
     tutorialUrl: "",
     referenceAudience: "men",
     contentTypes: ["appearance", "hair"],
@@ -58,6 +59,32 @@ describe("MatchResults", () => {
     expect(html).toContain("形象参考");
     expect(html).toContain("这个结果是否符合你的感觉？");
     expect(html).toContain("分享结果");
+    expect(html).toContain("抖音主页");
+  });
+
+  it("labels and links a Xiaohongshu creator", () => {
+    const html = renderToStaticMarkup(
+      <MatchResults
+        creatorsCount={1}
+        feedback={null}
+        matches={[{
+          ...match,
+          creator: {
+            ...match.creator,
+            platform: "xiaohongshu",
+            profileUrl: "https://www.xiaohongshu.com/user/profile/creator",
+          },
+        }]}
+        onCreatorLinkClick={() => undefined}
+        onFeedback={() => undefined}
+        onShare={() => undefined}
+        onViewCreators={() => undefined}
+        shareStatus="idle"
+      />,
+    );
+
+    expect(html).toContain("小红书主页");
+    expect(html).toContain("https://www.xiaohongshu.com/user/profile/creator");
   });
 
   it("keeps the existing female makeup result copy", () => {

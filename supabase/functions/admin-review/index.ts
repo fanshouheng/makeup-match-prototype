@@ -1,4 +1,8 @@
 import { createClient, type SupabaseClient, type User } from "npm:@supabase/supabase-js@2.110.7";
+import {
+  isCreatorPlatform,
+  isCreatorPlatformUrl,
+} from "../_shared/creatorPlatform.ts";
 
 const PHOTO_BUCKET = "creator-photos";
 const SIGNED_URL_TTL_SECONDS = 300;
@@ -175,16 +179,6 @@ function isFeatureVector(value: Record<string, unknown> | undefined): boolean {
   return Boolean(value && FEATURE_KEYS.every((key) => typeof value[key] === "number" && Number.isFinite(value[key])));
 }
 
-function isDouyinUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return (url.protocol === "http:" || url.protocol === "https:") &&
-      (url.hostname === "douyin.com" || url.hostname.endsWith(".douyin.com"));
-  } catch {
-    return false;
-  }
-}
-
 function isHttpsUrl(value: string): boolean {
   try {
     return new URL(value).protocol === "https:";
@@ -278,11 +272,11 @@ async function productMetrics(admin: SupabaseClient): Promise<Record<string, unk
 async function listData(admin: SupabaseClient): Promise<Record<string, unknown>> {
   const [submissionsResult, creatorsResult, outreachResult, metrics] = await Promise.all([
     admin.from("creator_submissions")
-      .select("id,name,contact_email,douyin_url,tutorial_url,reference_audience,content_types,reference_photo_path,quality_metrics,status,submitted_at,ownership_verified_at,reviewed_at,review_note")
+      .select("id,name,contact_email,platform,profile_url,douyin_url,tutorial_url,reference_audience,content_types,reference_photo_path,quality_metrics,status,submitted_at,ownership_verified_at,reviewed_at,review_note")
       .eq("status", "pending")
       .order("submitted_at", { ascending: true }),
     admin.from("creators")
-      .select("id,submission_id,name,douyin_url,tutorial_url,reference_audience,content_types,reference_photo_path,is_active,created_at,updated_at")
+      .select("id,submission_id,name,platform,profile_url,douyin_url,tutorial_url,reference_audience,content_types,reference_photo_path,is_active,created_at,updated_at")
       .order("created_at", { ascending: false }),
     admin.from("creator_outreach")
       .select("id,candidate_no,display_name,profile_url,first_contacted_at,status,next_follow_up_at,loss_reason,notes,created_at,updated_at")
@@ -296,8 +290,16 @@ async function listData(admin: SupabaseClient): Promise<Record<string, unknown>>
   const creators = creatorsResult.data ?? [];
   const photos = await signedPhotoMap(admin, [...submissions, ...creators].map((row) => row.reference_photo_path));
   return {
-    submissions: submissions.map(({ reference_photo_path, ...row }) => ({ ...row, reference_photo_url: photos.get(reference_photo_path) ?? null })),
-    creators: creators.map(({ reference_photo_path, ...row }) => ({ ...row, reference_photo_url: photos.get(reference_photo_path) ?? null })),
+    submissions: submissions.map(({ reference_photo_path, ...row }) => ({
+      ...row,
+      profile_url: row.profile_url ?? row.douyin_url,
+      reference_photo_url: photos.get(reference_photo_path) ?? null,
+    })),
+    creators: creators.map(({ reference_photo_path, ...row }) => ({
+      ...row,
+      profile_url: row.profile_url ?? row.douyin_url,
+      reference_photo_url: photos.get(reference_photo_path) ?? null,
+    })),
     outreach: outreachResult.data ?? [],
     product_metrics: metrics,
   };
@@ -306,16 +308,25 @@ async function listData(admin: SupabaseClient): Promise<Record<string, unknown>>
 async function createSubmission(admin: SupabaseClient, user: User, formData: FormData, origin: string): Promise<Response> {
   const name = requiredText(formData, "name", 60);
   const contactEmail = requiredText(formData, "contactEmail", 320);
-  const douyinUrl = requiredText(formData, "douyinUrl", 2048);
+  const legacyDouyinUrl = requiredText(formData, "douyinUrl", 2048);
+  const platformValue = formData.get("platform");
+  const profileUrlValue = formData.get("profileUrl");
+  const isLegacyPlatformClient = platformValue === null && profileUrlValue === null;
+  const platform = isLegacyPlatformClient
+    ? "douyin"
+    : requiredText(formData, "platform", 20);
+  const profileUrl = isLegacyPlatformClient
+    ? legacyDouyinUrl
+    : requiredText(formData, "profileUrl", 2048);
   const tutorialValue = formData.get("tutorialUrl");
   const tutorialUrl = typeof tutorialValue === "string" ? tutorialValue.trim() : "";
   const referenceAudienceValue = formData.get("referenceAudience");
   const contentTypesValue = formData.get("contentTypes");
-  const isLegacyClient = referenceAudienceValue === null && contentTypesValue === null;
-  const referenceAudience = isLegacyClient
+  const isLegacyReferenceClient = referenceAudienceValue === null && contentTypesValue === null;
+  const referenceAudience = isLegacyReferenceClient
     ? "women"
     : requiredText(formData, "referenceAudience", 20);
-  const contentTypes = isLegacyClient
+  const contentTypes = isLegacyReferenceClient
     ? ["makeup"]
     : parseStringArray(contentTypesValue);
   const referencePhoto = formData.get("referencePhoto");
@@ -325,7 +336,9 @@ async function createSubmission(admin: SupabaseClient, user: User, formData: For
 
   if (
     !name || !contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail) ||
-    !douyinUrl || !isDouyinUrl(douyinUrl) || (tutorialUrl && !isDouyinUrl(tutorialUrl)) ||
+    !isCreatorPlatform(platform) || !profileUrl || !isCreatorPlatformUrl(platform, profileUrl) ||
+    tutorialUrl.length > 2048 ||
+    (tutorialUrl && !isCreatorPlatformUrl(platform, tutorialUrl)) ||
     !isValidReferenceSelection(referenceAudience, contentTypes) ||
     !(referencePhoto instanceof File) || referencePhoto.size > MAX_PHOTO_BYTES ||
     !ALLOWED_MIME_TYPES.has(referencePhoto.type) || !isFeatureVector(featureVector) ||
@@ -336,7 +349,7 @@ async function createSubmission(admin: SupabaseClient, user: User, formData: For
 
   const [emailMatch, profileMatch] = await Promise.all([
     admin.from("creator_submissions").select("id").eq("contact_email", contactEmail).in("status", ["pending", "approved"]).limit(1),
-    admin.from("creator_submissions").select("id").eq("douyin_url", douyinUrl).in("status", ["pending", "approved"]).limit(1),
+    admin.from("creator_submissions").select("id").eq("platform", platform).eq("profile_url", profileUrl).in("status", ["pending", "approved"]).limit(1),
   ]);
   if (emailMatch.error) throw emailMatch.error;
   if (profileMatch.error) throw profileMatch.error;
@@ -357,7 +370,9 @@ async function createSubmission(admin: SupabaseClient, user: User, formData: For
     id: submissionId,
     name,
     contact_email: contactEmail,
-    douyin_url: douyinUrl,
+    platform,
+    profile_url: profileUrl,
+    douyin_url: platform === "douyin" ? profileUrl : null,
     tutorial_url: tutorialUrl || null,
     reference_audience: referenceAudience,
     content_types: contentTypes,

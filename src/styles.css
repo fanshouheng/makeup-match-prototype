@@ -973,6 +973,18 @@ h3 {
   line-height: 1.2;
 }
 
+.creator-platform-label {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 3px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  color: #4d4d49;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+}
+
 .primary-match-intro {
   margin: 14px 0 22px;
   color: var(--muted);
@@ -1382,6 +1394,7 @@ h3 {
 
 .creator-fields {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 15px;
   padding: 22px;
@@ -1447,7 +1460,7 @@ h3 {
   font-weight: 400;
 }
 
-.creator-fields input {
+.creator-fields input:not(.visually-hidden) {
   width: 100%;
   min-height: 42px;
   padding: 9px 11px;
@@ -1458,7 +1471,7 @@ h3 {
   font-size: 12px;
 }
 
-.creator-fields input::placeholder {
+.creator-fields input:not(.visually-hidden)::placeholder {
   color: var(--faint);
 }
 

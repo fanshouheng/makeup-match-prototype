@@ -26,6 +26,8 @@ const featureVector = {
 const row = {
   id: "9d8707c9-b6ae-49fb-8ff6-02121cf5b640",
   name: "示例博主",
+  platform: "douyin",
+  profile_url: "https://www.douyin.com/user/example",
   douyin_url: "https://www.douyin.com/user/example",
   tutorial_url: null,
   reference_audience: "women",
@@ -42,7 +44,8 @@ describe("mapPublicCreatorRow", () => {
       id: row.id,
       name: row.name,
       referencePhotoUrl: "https://example.com/signed-photo",
-      douyinUrl: row.douyin_url,
+      platform: "douyin",
+      profileUrl: row.profile_url,
       tutorialUrl: "",
       referenceAudience: "women",
       contentTypes: ["makeup"],
@@ -69,6 +72,28 @@ describe("mapPublicCreatorRow", () => {
       ),
     ).toThrow("内容方向");
   });
+
+  it("maps a Xiaohongshu creator without a legacy Douyin URL", () => {
+    expect(mapPublicCreatorRow({
+      ...row,
+      platform: "xiaohongshu",
+      profile_url: "https://www.xiaohongshu.com/user/profile/example",
+      douyin_url: null,
+    }, "https://example.com/signed-photo")).toMatchObject({
+      platform: "xiaohongshu",
+      profileUrl: "https://www.xiaohongshu.com/user/profile/example",
+    });
+  });
+
+  it("falls back to the legacy Douyin URL during rolling deployment", () => {
+    expect(mapPublicCreatorRow({
+      ...row,
+      profile_url: null,
+    }, "https://example.com/signed-photo")).toMatchObject({
+      platform: "douyin",
+      profileUrl: row.douyin_url,
+    });
+  });
 });
 
 describe("submitCreator", () => {
@@ -83,7 +108,8 @@ describe("submitCreator", () => {
     await submitCreator({
       name: "示例博主",
       contactEmail: "creator@example.com",
-      douyinUrl: "https://www.douyin.com/user/example",
+      platform: "xiaohongshu",
+      profileUrl: "https://www.xiaohongshu.com/user/profile/example",
       tutorialUrl: "",
       referenceAudience: "men",
       contentTypes: ["appearance", "hair"],
@@ -110,6 +136,11 @@ describe("submitCreator", () => {
     expect(options.body.get("referencePhoto")).toBe(photo);
     expect(options.body.get("turnstileToken")).toBe("verified-token");
     expect(options.body.get("consentVersion")).toBe(CONSENT_VERSION);
+    expect(options.body.get("platform")).toBe("xiaohongshu");
+    expect(options.body.get("profileUrl")).toBe(
+      "https://www.xiaohongshu.com/user/profile/example",
+    );
+    expect(options.body.get("douyinUrl")).toBeNull();
     expect(options.body.get("referenceAudience")).toBe("men");
     expect(options.body.get("contentTypes")).toBe('["appearance","hair"]');
   });

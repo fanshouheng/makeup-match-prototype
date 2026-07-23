@@ -1,4 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2.110.7";
+import {
+  isCreatorPlatform,
+  isCreatorPlatformUrl,
+} from "../_shared/creatorPlatform.ts";
 
 const PHOTO_BUCKET = "creator-photos";
 const CONSENT_VERSION = "2026-07-21";
@@ -96,18 +100,6 @@ function requiredText(
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed && trimmed.length <= maxLength ? trimmed : undefined;
-}
-
-function isDouyinUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return (
-      (url.protocol === "http:" || url.protocol === "https:") &&
-      (url.hostname === "douyin.com" || url.hostname.endsWith(".douyin.com"))
-    );
-  } catch {
-    return false;
-  }
 }
 
 function parseObject(value: FormDataEntryValue | null): Record<string, unknown> | undefined {
@@ -211,18 +203,27 @@ Deno.serve(async (request) => {
     const formData = await request.formData();
     const name = requiredText(formData, "name", 60);
     const contactEmail = requiredText(formData, "contactEmail", 320);
-    const douyinUrl = requiredText(formData, "douyinUrl", 2048);
+    const legacyDouyinUrl = requiredText(formData, "douyinUrl", 2048);
+    const platformValue = formData.get("platform");
+    const profileUrlValue = formData.get("profileUrl");
+    const isLegacyPlatformClient = platformValue === null && profileUrlValue === null;
+    const platform = isLegacyPlatformClient
+      ? "douyin"
+      : requiredText(formData, "platform", 20);
+    const profileUrl = isLegacyPlatformClient
+      ? legacyDouyinUrl
+      : requiredText(formData, "profileUrl", 2048);
     const tutorialUrlValue = formData.get("tutorialUrl");
     const tutorialUrl = typeof tutorialUrlValue === "string"
       ? tutorialUrlValue.trim()
       : "";
     const referenceAudienceValue = formData.get("referenceAudience");
     const contentTypesValue = formData.get("contentTypes");
-    const isLegacyClient = referenceAudienceValue === null && contentTypesValue === null;
-    const referenceAudience = isLegacyClient
+    const isLegacyReferenceClient = referenceAudienceValue === null && contentTypesValue === null;
+    const referenceAudience = isLegacyReferenceClient
       ? "women"
       : requiredText(formData, "referenceAudience", 20);
-    const contentTypes = isLegacyClient
+    const contentTypes = isLegacyReferenceClient
       ? ["makeup"]
       : parseStringArray(contentTypesValue);
     const turnstileToken = requiredText(formData, "turnstileToken", 4096);
@@ -235,14 +236,16 @@ Deno.serve(async (request) => {
       !name ||
       !contactEmail ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail) ||
-      !douyinUrl ||
-      !isDouyinUrl(douyinUrl) ||
-      (tutorialUrl && !isDouyinUrl(tutorialUrl)) ||
+      !isCreatorPlatform(platform) ||
+      !profileUrl ||
+      !isCreatorPlatformUrl(platform, profileUrl) ||
+      tutorialUrl.length > 2048 ||
+      (tutorialUrl && !isCreatorPlatformUrl(platform, tutorialUrl)) ||
       !isValidReferenceSelection(referenceAudience, contentTypes) ||
       !turnstileToken ||
       (
         consentVersion !== CONSENT_VERSION &&
-        !(isLegacyClient && consentVersion === LEGACY_CONSENT_VERSION)
+        !(isLegacyReferenceClient && consentVersion === LEGACY_CONSENT_VERSION)
       ) ||
       !(referencePhoto instanceof File) ||
       referencePhoto.size > MAX_PHOTO_BYTES ||
@@ -309,7 +312,9 @@ Deno.serve(async (request) => {
       id: submissionId,
       name,
       contact_email: contactEmail,
-      douyin_url: douyinUrl,
+      platform,
+      profile_url: profileUrl,
+      douyin_url: platform === "douyin" ? profileUrl : null,
       tutorial_url: tutorialUrl || null,
       reference_audience: referenceAudience,
       content_types: contentTypes,

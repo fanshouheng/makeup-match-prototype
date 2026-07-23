@@ -1,6 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
 import type {
   CreatorContentType,
+  CreatorPlatform,
   ReferenceAudience,
 } from "../domain/creator";
 import type { FaceFeatureVector, PoseMetrics } from "../domain/faceFeatures";
@@ -11,7 +12,8 @@ const ADMIN_CONSENT_VERSION = "2026-07-21";
 export interface AdminCreatorSubmissionInput {
   name: string;
   contactEmail: string;
-  douyinUrl: string;
+  platform: CreatorPlatform;
+  profileUrl: string;
   tutorialUrl: string;
   referenceAudience: ReferenceAudience;
   contentTypes: CreatorContentType[];
@@ -27,7 +29,9 @@ export interface AdminSubmission {
   id: string;
   name: string;
   contact_email: string;
-  douyin_url: string;
+  platform: CreatorPlatform;
+  profile_url: string;
+  douyin_url: string | null;
   tutorial_url: string | null;
   reference_audience: ReferenceAudience;
   content_types: CreatorContentType[];
@@ -44,7 +48,9 @@ export interface AdminCreator {
   id: string;
   submission_id: string;
   name: string;
-  douyin_url: string;
+  platform: CreatorPlatform;
+  profile_url: string;
+  douyin_url: string | null;
   tutorial_url: string | null;
   reference_audience: ReferenceAudience;
   content_types: CreatorContentType[];
@@ -187,7 +193,9 @@ export async function createAdminSubmission(
   body.set("action", "create");
   body.set("name", input.name);
   body.set("contactEmail", input.contactEmail);
-  body.set("douyinUrl", input.douyinUrl);
+  body.set("platform", input.platform);
+  body.set("profileUrl", input.profileUrl);
+  if (input.platform === "douyin") body.set("douyinUrl", input.profileUrl);
   body.set("tutorialUrl", input.tutorialUrl);
   body.set("referenceAudience", input.referenceAudience);
   body.set("contentTypes", JSON.stringify(input.contentTypes));

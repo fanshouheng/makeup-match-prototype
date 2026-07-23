@@ -9,10 +9,11 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
-import type {
-  CreatorContentFilter,
-  CreatorContentType,
-  ReferenceAudience,
+import {
+  CREATOR_PLATFORM_LABELS,
+  type CreatorContentFilter,
+  type CreatorContentType,
+  type ReferenceAudience,
 } from "../domain/creator";
 import type { CreatorMatch } from "../domain/matching";
 import { CreatorPhoto } from "./CreatorPhoto";
@@ -148,9 +149,12 @@ export function MatchResults({
                 <CreatorPhoto creator={primaryMatch.creator} />
                 <span className="match-rank">最接近</span>
               </div>
-                <div className="primary-match-body">
-                  <p className="eyebrow">首选参照</p>
-                  <h3>{primaryMatch.creator.name}</h3>
+              <div className="primary-match-body">
+                <p className="eyebrow">首选参照</p>
+                <h3>{primaryMatch.creator.name}</h3>
+                <span className="creator-platform-label">
+                  {CREATOR_PLATFORM_LABELS[primaryMatch.creator.platform]}
+                </span>
                 {isMen && (
                   <div className="creator-content-tags" aria-label="内容方向">
                     {primaryMatch.creator.contentTypes.map((type) => (
@@ -186,12 +190,12 @@ export function MatchResults({
                   )}
                   <a
                     className="button button-secondary"
-                    href={primaryMatch.creator.douyinUrl}
+                    href={primaryMatch.creator.profileUrl}
                     onClick={() => onCreatorLinkClick("profile")}
                     rel="noreferrer"
                     target="_blank"
                   >
-                    博主主页
+                    {CREATOR_PLATFORM_LABELS[primaryMatch.creator.platform]}主页
                     <ExternalLink size={15} />
                   </a>
                 </div>
@@ -266,6 +270,9 @@ export function MatchResults({
                 </div>
                 <div className="match-card-body">
                   <h3>{match.creator.name}</h3>
+                  <span className="creator-platform-label">
+                    {CREATOR_PLATFORM_LABELS[match.creator.platform]}
+                  </span>
                   {isMen && (
                     <div className="creator-content-tags" aria-label="内容方向">
                       {match.creator.contentTypes.map((type) => (
@@ -296,12 +303,12 @@ export function MatchResults({
                     )}
                     <a
                       className="button button-secondary"
-                      href={match.creator.douyinUrl}
+                      href={match.creator.profileUrl}
                       onClick={() => onCreatorLinkClick("profile")}
                       rel="noreferrer"
                       target="_blank"
                     >
-                      博主主页
+                      {CREATOR_PLATFORM_LABELS[match.creator.platform]}主页
                       <ExternalLink size={15} />
                     </a>
                   </div>
