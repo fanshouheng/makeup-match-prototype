@@ -40,6 +40,7 @@ describe("MatchResults", () => {
       <MatchResults
         contentFilter="all"
         creatorsCount={1}
+        faceFeatures={match.creator.featureVector}
         feedback={null}
         matches={[match]}
         onContentFilterChange={() => undefined}
@@ -66,6 +67,7 @@ describe("MatchResults", () => {
     const html = renderToStaticMarkup(
       <MatchResults
         creatorsCount={1}
+        faceFeatures={match.creator.featureVector}
         feedback={null}
         matches={[{
           ...match,
@@ -91,6 +93,7 @@ describe("MatchResults", () => {
     const html = renderToStaticMarkup(
       <MatchResults
         creatorsCount={1}
+        faceFeatures={match.creator.featureVector}
         feedback={null}
         matches={[{
           ...match,
@@ -117,6 +120,7 @@ describe("MatchResults", () => {
     const html = renderToStaticMarkup(
       <MatchResults
         creatorsCount={1}
+        faceFeatures={match.creator.featureVector}
         feedback="yes"
         matches={[match]}
         onCreatorLinkClick={() => undefined}
@@ -130,5 +134,32 @@ describe("MatchResults", () => {
     expect(html).toContain("aria-pressed=\"true\"");
     expect(html).toContain("反馈已记录 · 分享图已下载，发送图片即可分享");
     expect(html).toContain("图片已下载");
+  });
+
+  it("shows a gentle search suggestion instead of a weak match", () => {
+    const html = renderToStaticMarkup(
+      <MatchResults
+        creatorsCount={10}
+        faceFeatures={{
+          ...match.creator.featureVector,
+          faceAspectRatio: 1.3,
+          jawToCheekRatio: 0.72,
+        }}
+        feedback={null}
+        matches={[]}
+        onCreatorLinkClick={() => undefined}
+        onFeedback={() => undefined}
+        onShare={() => undefined}
+        onViewCreators={() => undefined}
+        shareStatus="idle"
+      />,
+    );
+
+    expect(html).toContain("这次先不勉强推荐");
+    expect(html).toContain("已授权博主库仍在完善");
+    expect(html).toContain("面部纵向比例偏修长，下颌相对颧部更收窄");
+    expect(html).toContain("长脸 窄下颌 妆容博主");
+    expect(html).toContain("希望你天天开心");
+    expect(html).not.toContain("这个结果是否符合你的感觉？");
   });
 });

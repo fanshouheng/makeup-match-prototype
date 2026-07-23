@@ -600,10 +600,11 @@ function App() {
               >
                 <div className="analysis-sticky">
                   {analysisWorkspace}
-                  {showMatchScene && matches && (
+                  {showMatchScene && matches && result?.analysis && (
                     <div className="match-reveal">
                       <MatchResults
                         creatorsCount={creatorsCount}
+                        faceFeatures={result.analysis.features}
                         feedback={matchFeedback}
                         matches={matches}
                         mode="primary"
@@ -624,9 +625,10 @@ function App() {
                 </div>
               </section>
 
-              {showMatchScene && matches && matches.length > 1 && (
+              {showMatchScene && matches && matches.length > 1 && result?.analysis && (
                 <MatchResults
                   creatorsCount={creatorsCount}
+                  faceFeatures={result.analysis.features}
                   feedback={matchFeedback}
                   matches={matches}
                   mode="more"
@@ -657,6 +659,7 @@ function App() {
                 ) : matches ? (
                   <MatchResults
                     creatorsCount={creatorsCount}
+                    faceFeatures={result.analysis.features}
                     feedback={matchFeedback}
                     matches={matches}
                     referenceAudience={referenceAudience}

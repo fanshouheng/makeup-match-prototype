@@ -880,7 +880,8 @@ h3 {
 
 .matches-empty,
 .matches-loading,
-.library-empty {
+.library-empty,
+.no-match-result {
   display: flex;
   min-height: 280px;
   align-items: center;
@@ -907,6 +908,60 @@ h3 {
   font-size: 12px;
   line-height: 1.65;
   text-align: center;
+}
+
+.no-match-result {
+  min-height: 390px;
+  padding: 48px 28px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.no-match-result > svg {
+  color: var(--ink);
+}
+
+.no-match-copy {
+  max-width: 580px;
+}
+
+.no-match-copy h3 {
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.no-match-copy p,
+.no-match-guidance p,
+.no-match-wish {
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+.no-match-copy p {
+  margin-top: 10px;
+}
+
+.no-match-guidance {
+  width: min(100%, 580px);
+  margin: 10px 0 2px;
+  padding: 19px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: #4d4d49;
+}
+
+.no-match-keyword {
+  margin-top: 7px;
+}
+
+.no-match-keyword strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.no-match-wish {
+  color: var(--ink);
 }
 
 .matches-loading,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CreatorProfile } from "./creator";
 import type { FaceFeatureVector } from "./faceFeatures";
-import { rankCreators } from "./matching";
+import { buildFaceSearchSuggestion, rankCreators } from "./matching";
 
 const baseFeatures: FaceFeatureVector = {
   faceAspectRatio: 1.2,
@@ -41,7 +41,7 @@ function shiftFeatures(amount: number): FaceFeatureVector {
 }
 
 describe("rankCreators", () => {
-  it("sorts by weighted standardized distance and returns at most three", () => {
+  it("sorts acceptable matches and removes candidates beyond the threshold", () => {
     const creators = [
       createCreator("far", shiftFeatures(0.3)),
       createCreator("exact", { ...baseFeatures }),
@@ -52,7 +52,6 @@ describe("rankCreators", () => {
     expect(rankCreators(baseFeatures, creators).map((match) => match.creator.id)).toEqual([
       "exact",
       "near",
-      "far",
     ]);
   });
 
@@ -87,9 +86,18 @@ describe("rankCreators", () => {
       createCreator("second", { ...baseFeatures }),
     ];
 
-    const matches = rankCreators(shiftFeatures(0.05), creators);
+    const matches = rankCreators(shiftFeatures(0.02), creators);
     expect(matches.map((match) => match.creator.id)).toEqual(["first", "second"]);
     expect(matches.every((match) => Number.isFinite(match.distance))).toBe(true);
+  });
+
+  it("returns no result when every creator is beyond the match threshold", () => {
+    const creators = [
+      createCreator("first", { ...baseFeatures }),
+      createCreator("second", { ...baseFeatures }),
+    ];
+
+    expect(rankCreators(shiftFeatures(0.3), creators)).toEqual([]);
   });
 
   it("provides two facial-similarity explanations from different groups", () => {
@@ -122,5 +130,28 @@ describe("rankCreators", () => {
         ].includes(reason.feature),
       ),
     ).toBe(true);
+  });
+});
+
+describe("buildFaceSearchSuggestion", () => {
+  it("turns broad face proportions into a practical makeup search", () => {
+    expect(buildFaceSearchSuggestion(
+      {
+        ...baseFeatures,
+        faceAspectRatio: 1.3,
+        jawToCheekRatio: 0.72,
+      },
+      "women",
+      "all",
+    )).toEqual({
+      description: "面部纵向比例偏修长，下颌相对颧部更收窄",
+      keyword: "长脸 窄下颌 妆容博主",
+    });
+  });
+
+  it("adapts the search topic for men's hairstyle references", () => {
+    expect(buildFaceSearchSuggestion(baseFeatures, "men", "hair").keyword).toBe(
+      "均衡脸型 宽下颌 发型博主",
+    );
   });
 });

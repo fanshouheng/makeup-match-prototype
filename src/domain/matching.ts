@@ -1,4 +1,9 @@
-import { FEATURE_KEYS, type CreatorProfile } from "./creator";
+import {
+  FEATURE_KEYS,
+  type CreatorContentFilter,
+  type CreatorProfile,
+  type ReferenceAudience,
+} from "./creator";
 import type { FaceFeatureVector, FeatureKey } from "./faceFeatures";
 
 export type MatchProfile = "appearance" | "hair" | "makeup";
@@ -12,6 +17,11 @@ export interface CreatorMatch {
   creator: CreatorProfile;
   distance: number;
   reasons: MatchReason[];
+}
+
+export interface FaceSearchSuggestion {
+  description: string;
+  keyword: string;
 }
 
 interface FeatureConfig {
@@ -87,6 +97,55 @@ const FEATURE_WEIGHTS: Record<MatchProfile, Record<FeatureKey, number>> = {
 };
 
 const MIN_RELATIVE_STANDARD_DEVIATION = 0.08;
+// Distance is a weighted RMS of library-standardized feature differences.
+const MAX_ACCEPTABLE_MATCH_DISTANCE = 1.15;
+
+function describeFaceLength(value: number) {
+  if (value < 1.14) {
+    return { description: "面部纵向比例偏短", keyword: "短脸" };
+  }
+  if (value > 1.24) {
+    return { description: "面部纵向比例偏修长", keyword: "长脸" };
+  }
+  return { description: "面部长宽比例较均衡", keyword: "均衡脸型" };
+}
+
+function describeJawWidth(value: number) {
+  if (value < 0.74) {
+    return { description: "下颌相对颧部更收窄", keyword: "窄下颌" };
+  }
+  if (value > 0.79) {
+    return {
+      description: "下颌与颧部宽度比较接近，外轮廓更利落",
+      keyword: "宽下颌",
+    };
+  }
+  return {
+    description: "下颌与颧部宽度过渡较柔和",
+    keyword: "柔和下颌线",
+  };
+}
+
+export function buildFaceSearchSuggestion(
+  features: FaceFeatureVector,
+  referenceAudience: ReferenceAudience,
+  contentFilter: CreatorContentFilter,
+): FaceSearchSuggestion {
+  const faceLength = describeFaceLength(features.faceAspectRatio);
+  const jawWidth = describeJawWidth(features.jawToCheekRatio);
+  const topic = referenceAudience === "women"
+    ? "妆容"
+    : contentFilter === "hair"
+      ? "发型"
+      : contentFilter === "makeup"
+        ? "妆容"
+        : "男生形象";
+
+  return {
+    description: `${faceLength.description}，${jawWidth.description}`,
+    keyword: `${faceLength.keyword} ${jawWidth.keyword} ${topic}博主`,
+  };
+}
 
 function calculateFeatureScales(
   creators: CreatorProfile[],
@@ -174,6 +233,7 @@ export function rankCreators(
       ...compareCreator(target, creator, scales, profile),
       originalIndex: index,
     }))
+    .filter((match) => match.distance <= MAX_ACCEPTABLE_MATCH_DISTANCE)
     .sort(
       (left, right) =>
         left.distance - right.distance || left.originalIndex - right.originalIndex,

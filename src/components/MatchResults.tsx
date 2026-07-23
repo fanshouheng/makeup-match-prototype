@@ -5,6 +5,7 @@ import {
   ImageDown,
   Library,
   LoaderCircle,
+  Search,
   Share2,
   ThumbsDown,
   ThumbsUp,
@@ -15,7 +16,11 @@ import {
   type CreatorContentType,
   type ReferenceAudience,
 } from "../domain/creator";
-import type { CreatorMatch } from "../domain/matching";
+import type { FaceFeatureVector } from "../domain/faceFeatures";
+import {
+  buildFaceSearchSuggestion,
+  type CreatorMatch,
+} from "../domain/matching";
 import { CreatorPhoto } from "./CreatorPhoto";
 
 const CONTENT_LABELS: Record<CreatorContentType, string> = {
@@ -36,6 +41,7 @@ export type CreatorLinkDestination = "profile" | "content";
 
 interface MatchResultsProps {
   creatorsCount: number;
+  faceFeatures: FaceFeatureVector;
   feedback: MatchFeedback | null;
   matches: CreatorMatch[];
   mode?: "all" | "primary" | "more";
@@ -51,6 +57,7 @@ interface MatchResultsProps {
 
 export function MatchResults({
   creatorsCount,
+  faceFeatures,
   feedback,
   matches,
   mode = "all",
@@ -67,7 +74,13 @@ export function MatchResults({
   const isMen = referenceAudience === "men";
   const showPrimary = mode !== "more";
   const showMore = mode !== "primary";
+  const noSuitableMatch = creatorsCount > 0 && matches.length === 0;
   const feedbackSubmitted = feedback !== null;
+  const faceSuggestion = buildFaceSearchSuggestion(
+    faceFeatures,
+    referenceAudience,
+    contentFilter,
+  );
   const shareButtonLabel = shareStatus === "sharing"
     ? "正在分享"
     : shareStatus === "error"
@@ -94,9 +107,17 @@ export function MatchResults({
     <section className={`matches-section matches-${mode}`} aria-labelledby={`matches-title-${mode}`}>
       <div className="matches-heading">
         <div>
-          <p className="eyebrow">{mode === "more" ? "MORE / 更多参照" : "MATCH / 相似匹配"}</p>
+          <p className="eyebrow">
+            {noSuitableMatch
+              ? "RESULT / 暂无合适参照"
+              : mode === "more"
+                ? "MORE / 更多参照"
+                : "MATCH / 相似匹配"}
+          </p>
           <h2 id={`matches-title-${mode}`}>
-            {isMen
+            {noSuitableMatch
+              ? "这次先不勉强推荐"
+              : isMen
               ? mode === "more"
                 ? "更多男生形象参考"
                 : "和你面部结构更接近的男生创作者"
@@ -134,6 +155,26 @@ export function MatchResults({
           <button className="button button-primary" onClick={onViewCreators} type="button">
             博主入驻
           </button>
+        </div>
+      ) : noSuitableMatch ? (
+        <div className="no-match-result">
+          <Search aria-hidden="true" size={28} />
+          <div className="no-match-copy">
+            <h3>
+              暂未找到足够接近的{isMen ? "创作者" : "博主"}
+            </h3>
+            <p>
+              LOOK AI 还在初期阶段，{isMen ? "已授权男生创作者库" : "已授权博主库"}
+              仍在完善。与其给你一个勉强的答案，我们更愿意诚实地告诉你：这次还没有足够合适的参照。
+            </p>
+          </div>
+          <div className="no-match-guidance">
+            <p>从这张照片的面部比例来看，你的脸型特征是：{faceSuggestion.description}。</p>
+            <p className="no-match-keyword">
+              可以试试搜索 <strong>「{faceSuggestion.keyword}」</strong>，继续寻找更适合你的参考。
+            </p>
+          </div>
+          <p className="no-match-wish">谢谢你愿意来试试，也希望你天天开心。</p>
         </div>
       ) : (
         <>
