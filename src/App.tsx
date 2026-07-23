@@ -34,6 +34,10 @@ import {
   type MatchProfile,
 } from "./domain/matching";
 import { assessPhotoQuality, type QualityIssue } from "./domain/quality";
+import {
+  analysisComponentErrorMessage,
+  isLikelyInAppBrowser,
+} from "./services/browserCompatibility";
 import { listCreators } from "./services/creatorRepository";
 import { detectFace } from "./services/faceLandmarker";
 import { loadImageBlob } from "./services/imageFile";
@@ -113,6 +117,7 @@ function App() {
   >(undefined);
   const feedbackSubmittedRef = useRef(false);
   const sharedResultRef = useRef(false);
+  const inAppBrowser = isLikelyInAppBrowser(window.navigator.userAgent);
 
   const showMatchScene = Boolean(
     status === "complete" &&
@@ -419,7 +424,7 @@ function App() {
     } catch (analysisError) {
       console.error(analysisError);
       void recordProductEvent("analysis_failed", "component_error");
-      setError("分析组件加载失败，请刷新页面后重试。");
+      setError(analysisComponentErrorMessage(window.navigator.userAgent));
       setStatus("error");
     }
   };
@@ -440,7 +445,13 @@ function App() {
             type="button"
           >
             {status === "loading" && <LoaderCircle className="spin" size={17} />}
-            {status === "loading" ? "正在分析" : status === "complete" ? "重新分析" : "开始分析"}
+            {status === "loading"
+              ? "正在分析"
+              : status === "complete"
+                ? "重新分析"
+                : status === "error"
+                  ? "重新尝试"
+                  : "开始分析"}
           </button>
         </div>
       </div>
@@ -572,6 +583,12 @@ function App() {
                   <span>正面拍摄</span><span>无遮挡</span><span>光线均匀</span>
                 </div>
                 <p className="local-note"><ShieldCheck size={15} />照片仅在当前设备处理</p>
+                {inAppBrowser && (
+                  <div className="notice notice-warning browser-compatibility-notice" role="status">
+                    <AlertCircle size={18} />
+                    <p>当前是应用内置浏览器，照片分析可能无法启动。请点右上角“…”选择“在浏览器打开”，iPhone 用 Safari，安卓用 Chrome。</p>
+                  </div>
+                )}
               </div>
             </section>
           ) : (

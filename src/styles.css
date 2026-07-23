@@ -483,6 +483,15 @@ h3 {
   font-size: 11px;
 }
 
+.browser-compatibility-notice {
+  width: min(calc(100% - 48px), 440px);
+  margin-top: 20px;
+}
+
+.browser-compatibility-notice p {
+  margin: 0;
+}
+
 .button {
   display: inline-flex;
   min-height: 42px;
