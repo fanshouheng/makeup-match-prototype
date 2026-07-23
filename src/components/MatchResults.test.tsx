@@ -188,4 +188,25 @@ describe("MatchResults", () => {
     expect(html).toContain("希望你天天开心");
     expect(html).not.toContain("这个结果是否符合你的感觉？");
   });
+
+  it("offers optional AI discovery when the primary result has a user photo", () => {
+    const html = renderToStaticMarkup(
+      <MatchResults
+        creatorsCount={1}
+        faceFeatures={match.creator.featureVector}
+        feedback={null}
+        matches={[match]}
+        onCreatorLinkClick={() => undefined}
+        onFeedback={() => undefined}
+        onShare={() => undefined}
+        onViewCreators={() => undefined}
+        shareStatus="idle"
+        userPhoto={{} as HTMLImageElement}
+      />,
+    );
+
+    expect(html).toContain("AI 找更多参考");
+    expect(html).toContain("只返回博主名字");
+    expect(html).not.toContain("豆包");
+  });
 });

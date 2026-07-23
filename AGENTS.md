@@ -4,8 +4,10 @@
 
 LOOK AI is a free, privacy-first makeup-reference prototype. A user selects a
 front-facing photo, the browser compares face-structure proportions locally,
-and the app returns authorized creators and tutorial links. It is not identity
-recognition, appearance scoring, medical advice, or a full style generator.
+and the app returns authorized creators and tutorial links. An optional,
+separately consented AI flow sends a sanitized photo copy for names-only public
+creator discovery. It is not identity recognition, appearance scoring, medical
+advice, or a full style generator.
 
 - Production: https://makeup.soul.xn--fiqs8s/
 - Source: https://github.com/fanshouheng/makeup-match-prototype
@@ -32,7 +34,14 @@ npm run build
 
 ## Non-Negotiable Boundaries
 
-- Ordinary-user photos, face proportions, and rankings stay in the browser.
+- Default matching keeps ordinary-user photos, face proportions, and rankings in
+  the browser.
+- Optional AI discovery may send only a canvas-reencoded JPEG after separate
+  consent and Turnstile verification. Do not persist the photo, AI result, or
+  returned creator names; request provider-side conversation storage to be off.
+- AI-discovered names are unverified public leads. Do not download or analyze
+  candidate photos, present them as authorized, or import them into the creator
+  library without the creator permissions required by this file.
 - Creator self-submission is preferred, but operator-mediated import is allowed.
   When the user explicitly states that a creator or authorized representative has
   granted permission, treat that statement as the operator's verified
@@ -59,8 +68,9 @@ npm run build
 `main` is the authoritative release branch. The public app uses Vercel Analytics
 and Speed Insights, Supabase for consent-backed creator intake, Cloudflare
 Turnstile for submission protection, and manual review before publication.
-The result page supports login-free yes/no feedback and local share-poster
-generation. Feedback and share telemetry must remain aggregate and must not
-include user photos, face proportions, match scores, creator names, or rankings.
+The result page supports login-free yes/no feedback, local share-poster
+generation, and separately consented AI names-only discovery. Feedback, share,
+and AI telemetry must remain aggregate and must not include user photos, face
+proportions, match scores, creator names, AI results, or rankings.
 Read `README.md`, `SUPABASE_SETUP.md`, and `docs/ADMIN_REVIEW.md` before changing
 the public data flow or deployment contract.

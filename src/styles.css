@@ -1103,6 +1103,106 @@ h3 {
   text-decoration: none;
 }
 
+.ai-discovery {
+  margin-top: 24px;
+  padding: 24px 0 4px;
+  border-top: 1px solid var(--line);
+}
+
+.ai-discovery-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+}
+
+.ai-discovery-heading h3 {
+  margin-top: 5px;
+  font-size: 18px;
+  font-weight: 550;
+  line-height: 1.35;
+}
+
+.ai-discovery-heading > div > p:last-child,
+.ai-discovery-consent > p,
+.ai-discovery-result-heading p {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.ai-discovery-consent,
+.ai-discovery-result {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.ai-consent-field {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  margin-top: 15px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.ai-consent-field input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--ink);
+}
+
+.ai-discovery-consent .consent-policy-link {
+  margin-top: 5px;
+}
+
+.ai-discovery-consent .turnstile-widget {
+  margin-top: 14px;
+}
+
+.ai-discovery-consent .notice,
+.ai-discovery-submit {
+  margin-top: 14px;
+}
+
+.ai-discovery-result-heading {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 9px;
+}
+
+.ai-discovery-result-heading > svg {
+  margin-top: 2px;
+  color: var(--ink);
+}
+
+.ai-discovery-result-heading h4 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ai-name-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 28px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style-position: inside;
+}
+
+.ai-name-list li {
+  min-width: 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
 .match-engagement {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) auto;
@@ -1931,6 +2031,20 @@ h3 {
 
   .match-engagement-status {
     text-align: left;
+  }
+
+  .ai-discovery-heading {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .ai-discovery-heading .button,
+  .ai-discovery-submit {
+    width: 100%;
+  }
+
+  .ai-name-list {
+    grid-template-columns: 1fr;
   }
 
   .matches-section {

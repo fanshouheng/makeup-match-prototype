@@ -21,6 +21,7 @@ import {
   buildFaceSearchSuggestion,
   type CreatorMatch,
 } from "../domain/matching";
+import { AiCreatorDiscovery } from "./AiCreatorDiscovery";
 import { CreatorPhoto } from "./CreatorPhoto";
 
 const CONTENT_LABELS: Record<CreatorContentType, string> = {
@@ -53,6 +54,7 @@ interface MatchResultsProps {
   onFeedback: (feedback: MatchFeedback) => void;
   onShare: () => void;
   onViewCreators: () => void;
+  userPhoto?: HTMLImageElement;
 }
 
 export function MatchResults({
@@ -69,6 +71,7 @@ export function MatchResults({
   onFeedback,
   onShare,
   onViewCreators,
+  userPhoto,
 }: MatchResultsProps) {
   const [primaryMatch, ...otherMatches] = matches;
   const isMen = referenceAudience === "men";
@@ -377,6 +380,14 @@ export function MatchResults({
             ))}
           </div>}
         </>
+      )}
+      {showPrimary && userPhoto && (
+        <AiCreatorDiscovery
+          key={`${referenceAudience}:${contentFilter}`}
+          contentFilter={contentFilter}
+          referenceAudience={referenceAudience}
+          userPhoto={userPhoto}
+        />
       )}
     </section>
   );

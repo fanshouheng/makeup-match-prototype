@@ -1,4 +1,4 @@
-import { Database, ShieldCheck, Trash2, UserRoundCheck } from "lucide-react";
+import { BrainCircuit, Database, ShieldCheck, Trash2, UserRoundCheck } from "lucide-react";
 import { privacyContactEmail } from "../config";
 
 export function PrivacyPolicy() {
@@ -6,21 +6,37 @@ export function PrivacyPolicy() {
     <main className="privacy-page">
       <div className="page-heading privacy-heading">
         <div>
-          <p className="eyebrow">PRIVACY / 最后更新：2026-07-22</p>
+          <p className="eyebrow">PRIVACY / 最后更新：2026-07-23</p>
           <h1>隐私说明</h1>
         </div>
-        <p className="heading-note">普通匹配与博主申请是两条独立的数据流程</p>
+        <p className="heading-note">默认本地匹配、可选 AI 推荐与博主申请是三条独立的数据流程</p>
       </div>
 
       <div className="privacy-intro">
         <ShieldCheck size={28} />
         <div>
-          <h2>用于匹配的照片不会上传</h2>
+          <h2>默认匹配仍然完全在本地完成</h2>
           <p>
-            普通用户选择的照片、从照片中提取的面部比例和最终相似度排序，只在当前浏览器中处理。刷新或关闭页面后，本次照片与分析结果不会保留。
+            不开启 AI 推荐时，普通用户选择的照片、从照片中提取的面部比例和最终相似度排序，只在当前浏览器中处理，不会上传。刷新或关闭页面后，本次照片与分析结果不会保留。
           </p>
         </div>
       </div>
+
+      <section className="privacy-section">
+        <BrainCircuit size={21} />
+        <div>
+          <h2>主动使用 AI 联网推荐时</h2>
+          <p>
+            只有你展开 AI 推荐、阅读照片处理说明、勾选同意并完成安全验证后，浏览器才会生成一张最长边不超过 1024 像素、大小不超过 1.5 MB 的 JPEG 压缩副本。画布重新编码会去除原图元数据；该副本会经 LOOK AI 的 Edge Function 发送给第三方 AI 服务火山引擎方舟，用于本次图片分析和联网查找。
+          </p>
+          <p>
+            我们要求 AI 不识别照片中人物身份、不评价美丑、不推断敏感属性，也不下载或分析候选博主照片。页面只显示博主名字，并明确这些名字尚未完成主页和授权核验。LOOK AI 不会把照片副本、AI 返回的名字或推荐结果写入数据库，也不会将其加入已授权创作者库；向 AI 服务发出的请求设置为不保存会话。第三方服务仍可能依其规则处理必要的安全与运行日志。
+          </p>
+          <p>
+            AI 推荐每个 IP 每小时最多请求 3 次。限流只保存经过加盐单向哈希的 IP 标识，不保存原始 IP；关闭 AI 推荐不会影响默认本地匹配。
+          </p>
+        </div>
+      </section>
 
       <section className="privacy-section">
         <Database size={21} />

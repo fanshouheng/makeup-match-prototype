@@ -23,6 +23,8 @@ order by submitted_at asc;
 
 不要把联系邮箱、未审核照片或完整申请表复制到公开文档、聊天群或问题追踪系统。
 
+AI 联网推荐返回的名字不是入库申请，也不代表主页归属或照片授权已经核验。不得仅依据 AI 名字下载博主照片、提取面部特征、批准入库或写入博主跟进台账；需要入库时仍应由博主本人或授权代表提交并完成本 SOP 的核验。
+
 ## 2. 核验主页归属
 
 至少完成以下一项：
@@ -140,14 +142,19 @@ order by event_name, failure_reason;
 - 是否存在超过 7 天未处理的待审申请。
 - 是否存在数据库写入失败后留下的孤立照片。
 - 是否有失效的抖音、小红书主页或代表内容链接。
-- Edge Function 是否出现大量 `captcha_failed`、`rate_limited` 或上传失败日志。
+- Edge Function 是否出现大量 `captcha_failed`、`rate_limited`、`provider_request_failed` 或上传失败日志。
 
 限流表只保存加盐哈希，可以清理超过 24 小时的窗口：
 
 ```sql
 delete from public.creator_submission_rate_limits
 where window_started_at < now() - interval '24 hours';
+
+delete from public.ai_creator_discovery_rate_limits
+where window_started_at < now() - interval '24 hours';
 ```
+
+AI 推荐限流表只保存加盐单向哈希和计数窗口。不要把照片、AI 返回名字或推荐结果加入日志、审核记录、产品事件或运营台账。
 
 产品事件只用于短期产品验证。需要延长统计周期或导出数据前，先复核隐私说明和最小化原则，不要加入会话以外的用户标识或任何匹配内容。
 

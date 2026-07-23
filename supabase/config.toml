@@ -6,3 +6,6 @@ verify_jwt = true
 
 [functions.record-product-event]
 verify_jwt = false
+
+[functions.ai-creator-discovery]
+verify_jwt = false

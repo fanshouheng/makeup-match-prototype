@@ -616,6 +616,7 @@ function App() {
                         onShare={shareCurrentResult}
                         onViewCreators={() => navigate("creators")}
                         shareStatus={shareStatus}
+                        userPhoto={photo.image}
                       />
                     </div>
                   )}
@@ -670,6 +671,7 @@ function App() {
                     onShare={shareCurrentResult}
                     onViewCreators={() => navigate("creators")}
                     shareStatus={shareStatus}
+                    userPhoto={photo.image}
                   />
                 ) : null
               )}
