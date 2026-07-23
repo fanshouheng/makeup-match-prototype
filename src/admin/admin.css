@@ -222,7 +222,7 @@
   .admin-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; }
   .admin-tab { min-width: 0; justify-content: center; gap: 4px; font-size: 11px; white-space: nowrap; }
   .admin-tab > svg { display: none; }
-  .admin-tab span { min-width: 18px; height: 18px; padding: 0 4px; font-size: 9px; }
+  .admin-tab span { display: none; }
   .admin-review-row, .admin-creator-row { grid-template-columns: 1fr; }
   .admin-photo-frame, .admin-creator-photo, .admin-photo-placeholder { width: 100%; height: auto; aspect-ratio: 4 / 3; }
   .admin-meta-grid, .admin-metric-grid { grid-template-columns: 1fr; }
