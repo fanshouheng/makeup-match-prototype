@@ -1,6 +1,8 @@
 import { FEATURE_KEYS, type CreatorProfile } from "./creator";
 import type { FaceFeatureVector, FeatureKey } from "./faceFeatures";
 
+export type MatchProfile = "appearance" | "hair" | "makeup";
+
 export interface MatchReason {
   feature: FeatureKey;
   text: string;
@@ -13,56 +15,74 @@ export interface CreatorMatch {
 }
 
 interface FeatureConfig {
-  weight: number;
   group: string;
   reason: string;
 }
 
 const FEATURE_CONFIG: Record<FeatureKey, FeatureConfig> = {
   faceAspectRatio: {
-    weight: 1.5,
     group: "face-outline",
     reason: "脸部长宽比例接近，整体轮廓更相似。",
   },
   jawToCheekRatio: {
-    weight: 1.5,
     group: "jaw",
     reason: "下颌与颧骨宽度比例接近，脸部外轮廓更相似。",
   },
   foreheadToCheekRatio: {
-    weight: 1.1,
     group: "upper-face",
     reason: "上庭与颧骨宽度比例接近，上半脸结构更相似。",
   },
   lowerThirdRatio: {
-    weight: 0.65,
     group: "lower-face",
     reason: "下庭长度比例接近，下半脸结构更相似。",
   },
   eyeSpacingRatio: {
-    weight: 1.2,
     group: "eye-spacing",
     reason: "眼间距比例接近，五官横向分布更相似。",
   },
   eyeAspectRatio: {
-    weight: 0.65,
     group: "eye-shape",
     reason: "眼部长宽比例接近，眼部形态更相似。",
   },
   noseWidthRatio: {
-    weight: 0.8,
     group: "nose",
     reason: "鼻翼宽度相对脸宽的比例接近。",
   },
   lipWidthRatio: {
-    weight: 0.55,
     group: "lip-width",
     reason: "唇宽相对脸宽的比例接近。",
   },
   lipAspectRatio: {
-    weight: 0.7,
     group: "lip-shape",
     reason: "唇部厚宽比例接近，唇部形态更相似。",
+  },
+};
+
+const DEFAULT_FEATURE_WEIGHTS: Record<FeatureKey, number> = {
+  faceAspectRatio: 1.5,
+  jawToCheekRatio: 1.5,
+  foreheadToCheekRatio: 1.1,
+  lowerThirdRatio: 0.65,
+  eyeSpacingRatio: 1.2,
+  eyeAspectRatio: 0.65,
+  noseWidthRatio: 0.8,
+  lipWidthRatio: 0.55,
+  lipAspectRatio: 0.7,
+};
+
+const FEATURE_WEIGHTS: Record<MatchProfile, Record<FeatureKey, number>> = {
+  appearance: DEFAULT_FEATURE_WEIGHTS,
+  makeup: DEFAULT_FEATURE_WEIGHTS,
+  hair: {
+    faceAspectRatio: 2,
+    jawToCheekRatio: 1.8,
+    foreheadToCheekRatio: 1.7,
+    lowerThirdRatio: 1,
+    eyeSpacingRatio: 0,
+    eyeAspectRatio: 0,
+    noseWidthRatio: 0,
+    lipWidthRatio: 0,
+    lipAspectRatio: 0,
   },
 };
 
@@ -91,28 +111,33 @@ function compareCreator(
   target: FaceFeatureVector,
   creator: CreatorProfile,
   scales: FaceFeatureVector,
+  profile: MatchProfile,
 ): CreatorMatch {
-  const differences = FEATURE_KEYS.map((feature) => {
+  const featureWeights = FEATURE_WEIGHTS[profile];
+  const activeFeatures = FEATURE_KEYS.filter(
+    (feature) => featureWeights[feature] > 0,
+  );
+  const differences = activeFeatures.map((feature) => {
     const normalizedDifference =
       Math.abs(target[feature] - creator.featureVector[feature]) /
       scales[feature];
     return { feature, normalizedDifference };
   });
-  const weightTotal = FEATURE_KEYS.reduce(
-    (sum, feature) => sum + FEATURE_CONFIG[feature].weight,
+  const weightTotal = activeFeatures.reduce(
+    (sum, feature) => sum + featureWeights[feature],
     0,
   );
   const weightedSquaredDistance = differences.reduce(
     (sum, { feature, normalizedDifference }) =>
-      sum + FEATURE_CONFIG[feature].weight * normalizedDifference ** 2,
+      sum + featureWeights[feature] * normalizedDifference ** 2,
     0,
   );
 
   const usedGroups = new Set<string>();
   const reasons: MatchReason[] = [];
   for (const { feature } of [...differences].sort((left, right) => {
-    const leftWeight = FEATURE_CONFIG[left.feature].weight;
-    const rightWeight = FEATURE_CONFIG[right.feature].weight;
+    const leftWeight = featureWeights[left.feature];
+    const rightWeight = featureWeights[right.feature];
     const scoreDifference =
       left.normalizedDifference / Math.sqrt(leftWeight) -
       right.normalizedDifference / Math.sqrt(rightWeight);
@@ -138,14 +163,15 @@ function compareCreator(
 export function rankCreators(
   target: FaceFeatureVector,
   creators: CreatorProfile[],
-  limit = 3,
+  options: { limit?: number; profile?: MatchProfile } = {},
 ): CreatorMatch[] {
+  const { limit = 3, profile = "makeup" } = options;
   if (creators.length === 0 || limit <= 0) return [];
 
   const scales = calculateFeatureScales(creators);
   return creators
     .map((creator, index) => ({
-      ...compareCreator(target, creator, scales),
+      ...compareCreator(target, creator, scales, profile),
       originalIndex: index,
     }))
     .sort(

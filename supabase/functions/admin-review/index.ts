@@ -7,12 +7,14 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const CONSENT_VERSION = "2026-07-21";
 const PRODUCT_METRICS_DAYS = 7;
 const PRODUCT_EVENT_NAMES = [
+  "landing_view",
   "photo_selected",
   "analysis_succeeded",
   "analysis_failed",
   "match_result_view",
   "feedback_yes",
   "feedback_no",
+  "creator_link_clicked",
   "share_succeeded",
 ] as const;
 const FEATURE_KEYS = [
@@ -21,6 +23,8 @@ const FEATURE_KEYS = [
   "noseWidthRatio", "lipWidthRatio", "lipAspectRatio",
 ] as const;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const ALLOWED_REFERENCE_AUDIENCES = new Set(["women", "men"]);
+const ALLOWED_CONTENT_TYPES = new Set(["appearance", "hair", "makeup"]);
 type Action = "list" | "create" | "verify" | "approve" | "reject" | "cleanup" | "set_active" | "delete_creator";
 interface RequestBody {
   action?: Action;
@@ -107,6 +111,40 @@ function parseObject(value: FormDataEntryValue | null): Record<string, unknown> 
   }
 }
 
+function parseStringArray(value: FormDataEntryValue | null): string[] | undefined {
+  if (typeof value !== "string") return undefined;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (
+      !Array.isArray(parsed) ||
+      parsed.length === 0 ||
+      parsed.some((item) => typeof item !== "string")
+    ) {
+      return undefined;
+    }
+    const values = parsed as string[];
+    return new Set(values).size === values.length ? values : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function isValidReferenceSelection(
+  referenceAudience: string | undefined,
+  contentTypes: string[] | undefined,
+): boolean {
+  return Boolean(
+    referenceAudience &&
+    ALLOWED_REFERENCE_AUDIENCES.has(referenceAudience) &&
+    contentTypes &&
+    contentTypes.every((type) => ALLOWED_CONTENT_TYPES.has(type)) &&
+    (
+      referenceAudience === "men" ||
+      (contentTypes.length === 1 && contentTypes[0] === "makeup")
+    ),
+  );
+}
+
 function isFeatureVector(value: Record<string, unknown> | undefined): boolean {
   return Boolean(value && FEATURE_KEYS.every((key) => typeof value[key] === "number" && Number.isFinite(value[key])));
 }
@@ -172,11 +210,11 @@ async function productMetrics(admin: SupabaseClient): Promise<Record<string, str
 async function listData(admin: SupabaseClient): Promise<Record<string, unknown>> {
   const [submissionsResult, creatorsResult, metrics] = await Promise.all([
     admin.from("creator_submissions")
-      .select("id,name,contact_email,douyin_url,tutorial_url,reference_photo_path,quality_metrics,status,submitted_at,ownership_verified_at,reviewed_at,review_note")
+      .select("id,name,contact_email,douyin_url,tutorial_url,reference_audience,content_types,reference_photo_path,quality_metrics,status,submitted_at,ownership_verified_at,reviewed_at,review_note")
       .eq("status", "pending")
       .order("submitted_at", { ascending: true }),
     admin.from("creators")
-      .select("id,submission_id,name,douyin_url,tutorial_url,reference_photo_path,is_active,created_at,updated_at")
+      .select("id,submission_id,name,douyin_url,tutorial_url,reference_audience,content_types,reference_photo_path,is_active,created_at,updated_at")
       .order("created_at", { ascending: false }),
     productMetrics(admin),
   ]);
@@ -198,6 +236,15 @@ async function createSubmission(admin: SupabaseClient, user: User, formData: For
   const douyinUrl = requiredText(formData, "douyinUrl", 2048);
   const tutorialValue = formData.get("tutorialUrl");
   const tutorialUrl = typeof tutorialValue === "string" ? tutorialValue.trim() : "";
+  const referenceAudienceValue = formData.get("referenceAudience");
+  const contentTypesValue = formData.get("contentTypes");
+  const isLegacyClient = referenceAudienceValue === null && contentTypesValue === null;
+  const referenceAudience = isLegacyClient
+    ? "women"
+    : requiredText(formData, "referenceAudience", 20);
+  const contentTypes = isLegacyClient
+    ? ["makeup"]
+    : parseStringArray(contentTypesValue);
   const referencePhoto = formData.get("referencePhoto");
   const featureVector = parseObject(formData.get("featureVector"));
   const qualityMetrics = parseObject(formData.get("qualityMetrics"));
@@ -206,6 +253,7 @@ async function createSubmission(admin: SupabaseClient, user: User, formData: For
   if (
     !name || !contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail) ||
     !douyinUrl || !isDouyinUrl(douyinUrl) || (tutorialUrl && !isDouyinUrl(tutorialUrl)) ||
+    !isValidReferenceSelection(referenceAudience, contentTypes) ||
     !(referencePhoto instanceof File) || referencePhoto.size > MAX_PHOTO_BYTES ||
     !ALLOWED_MIME_TYPES.has(referencePhoto.type) || !isFeatureVector(featureVector) ||
     !qualityMetrics || consentVersion !== CONSENT_VERSION
@@ -238,6 +286,8 @@ async function createSubmission(admin: SupabaseClient, user: User, formData: For
     contact_email: contactEmail,
     douyin_url: douyinUrl,
     tutorial_url: tutorialUrl || null,
+    reference_audience: referenceAudience,
+    content_types: contentTypes,
     reference_photo_path: photoPath,
     feature_vector: featureVector,
     quality_metrics: qualityMetrics,

@@ -22,6 +22,10 @@ import {
   hasTurnstileConfig,
   turnstileSiteKey,
 } from "../config";
+import type {
+  CreatorContentType,
+  ReferenceAudience,
+} from "../domain/creator";
 import {
   extractFaceAnalysis,
   type FaceAnalysis,
@@ -35,6 +39,14 @@ import { hasSupabaseConfig } from "../services/supabaseClient";
 import { FacePreview } from "./FacePreview";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const MEN_CONTENT_OPTIONS: Array<{
+  value: CreatorContentType;
+  label: string;
+}> = [
+  { value: "appearance", label: "形象参考" },
+  { value: "hair", label: "发型" },
+  { value: "makeup", label: "妆容" },
+];
 
 function isDouyinUrl(value: string): boolean {
   try {
@@ -65,6 +77,10 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
   const [contactEmail, setContactEmail] = useState("");
   const [douyinUrl, setDouyinUrl] = useState("");
   const [tutorialUrl, setTutorialUrl] = useState("");
+  const [referenceAudience, setReferenceAudience] =
+    useState<ReferenceAudience>("women");
+  const [contentTypes, setContentTypes] =
+    useState<CreatorContentType[]>(["makeup"]);
   const [consent, setConsent] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [loadedImage, setLoadedImage] = useState<LoadedImage>();
@@ -134,6 +150,19 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
     if (file) void analyzePhoto(file);
   };
 
+  const changeReferenceAudience = (audience: ReferenceAudience) => {
+    setReferenceAudience(audience);
+    setContentTypes(audience === "women" ? ["makeup"] : ["appearance"]);
+  };
+
+  const toggleContentType = (type: CreatorContentType) => {
+    setContentTypes((current) =>
+      current.includes(type)
+        ? current.filter((item) => item !== type)
+        : [...current, type],
+    );
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(undefined);
@@ -142,8 +171,9 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
     if (!isEmail(contactEmail.trim())) return setError("请填写有效的联系邮箱。");
     if (!isDouyinUrl(douyinUrl.trim())) return setError("请填写有效的抖音主页链接。");
     if (tutorialUrl.trim() && !isDouyinUrl(tutorialUrl.trim())) {
-      return setError("代表教程需要填写抖音链接。");
+      return setError("代表内容需要填写抖音链接。");
     }
+    if (contentTypes.length === 0) return setError("请至少选择一个内容方向。");
     if (!analyzedPhoto) return setError("请上传一张通过质量检查的本人正脸照。");
     if (!consent) return setError("请确认授权与公开展示声明。");
     if (!hasSupabaseConfig) return setError("当前部署尚未连接公开博主库，暂时无法提交。");
@@ -157,6 +187,8 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
         contactEmail: contactEmail.trim(),
         douyinUrl: douyinUrl.trim(),
         tutorialUrl: tutorialUrl.trim(),
+        referenceAudience,
+        contentTypes,
         referencePhoto: analyzedPhoto.file,
         featureVector: analyzedPhoto.analysis.features,
         qualityMetrics: {
@@ -238,6 +270,54 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
             </div>
 
             <div className="creator-fields">
+              <fieldset className="creator-choice-field">
+                <legend>加入哪个参考页面</legend>
+                <div className="creator-choice-options">
+                  <label data-selected={referenceAudience === "women"}>
+                    <input
+                      checked={referenceAudience === "women"}
+                      className="visually-hidden"
+                      name="referenceAudience"
+                      onChange={() => changeReferenceAudience("women")}
+                      type="radio"
+                      value="women"
+                    />
+                    <span>女生妆容</span>
+                  </label>
+                  <label data-selected={referenceAudience === "men"}>
+                    <input
+                      checked={referenceAudience === "men"}
+                      className="visually-hidden"
+                      name="referenceAudience"
+                      onChange={() => changeReferenceAudience("men")}
+                      type="radio"
+                      value="men"
+                    />
+                    <span>男生形象参考</span>
+                  </label>
+                </div>
+              </fieldset>
+              {referenceAudience === "men" && (
+                <fieldset className="creator-choice-field">
+                  <legend>内容方向 <small>可多选</small></legend>
+                  <div className="creator-choice-options creator-content-options">
+                    {MEN_CONTENT_OPTIONS.map((option) => (
+                      <label
+                        data-selected={contentTypes.includes(option.value)}
+                        key={option.value}
+                      >
+                        <input
+                          checked={contentTypes.includes(option.value)}
+                          className="visually-hidden"
+                          onChange={() => toggleContentType(option.value)}
+                          type="checkbox"
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
               <label>
                 <span>博主名称</span>
                 <input required value={name} onChange={(event) => setName(event.target.value)} maxLength={60} />
@@ -251,13 +331,15 @@ function SubmissionModal({ onClose }: { onClose: () => void }) {
                 <input required value={douyinUrl} onChange={(event) => setDouyinUrl(event.target.value)} inputMode="url" placeholder="https://www.douyin.com/user/..." />
               </label>
               <label>
-                <span>代表教程 <small>选填</small></span>
+                <span>
+                  {referenceAudience === "men" ? "代表内容" : "代表教程"} <small>选填</small>
+                </span>
                 <input value={tutorialUrl} onChange={(event) => setTutorialUrl(event.target.value)} inputMode="url" placeholder="https://www.douyin.com/video/..." />
               </label>
               <label className="consent-field">
                 <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
                 <span>
-                  我确认本人为该主页博主或已获得明确授权，并同意将此照片及提取的面部特征用于公开相似匹配。
+                  我确认本人为该主页博主或已获得明确授权，并同意将此照片、提取的面部特征和所选内容方向用于公开相似匹配。
                 </span>
               </label>
               <p className="consent-policy-link">
@@ -331,9 +413,9 @@ export function CreatorLibrary() {
       <div className="page-heading creator-heading">
         <div>
           <p className="eyebrow">CREATOR / 博主入驻</p>
-          <h1>成为妆容参照的一部分</h1>
+          <h1>成为形象参考的一部分</h1>
           <p className="creator-intro-copy">
-            如果你愿意让自己的公开妆容内容被更多相似面部结构的用户找到，可以提交资料申请加入。
+            如果你愿意让自己的公开妆容、发型或形象内容被更多相似面部结构的用户找到，可以提交资料申请加入。
           </p>
         </div>
         <button className="button button-primary" onClick={() => setShowSubmission(true)} type="button">

@@ -1,19 +1,24 @@
 import {
+  CREATOR_CONTENT_TYPES,
   FEATURE_KEYS,
+  type CreatorContentType,
   type CreatorProfile,
+  type ReferenceAudience,
 } from "../domain/creator";
 import type { FaceFeatureVector, PoseMetrics } from "../domain/faceFeatures";
 import { getSupabaseClient } from "./supabaseClient";
 
 const PHOTO_BUCKET = "creator-photos";
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
-export const CONSENT_VERSION = "2026-07-17";
+export const CONSENT_VERSION = "2026-07-21";
 
 interface PublicCreatorRow {
   id: string;
   name: string;
   douyin_url: string;
   tutorial_url: string | null;
+  reference_audience: unknown;
+  content_types: unknown;
   reference_photo_path: string;
   feature_vector: unknown;
   created_at: string;
@@ -25,6 +30,8 @@ export interface CreatorSubmissionInput {
   contactEmail: string;
   douyinUrl: string;
   tutorialUrl: string;
+  referenceAudience: ReferenceAudience;
+  contentTypes: CreatorContentType[];
   referencePhoto: File;
   featureVector: FaceFeatureVector;
   qualityMetrics: {
@@ -51,6 +58,26 @@ function parseFeatureVector(value: unknown): FaceFeatureVector {
   ) as FaceFeatureVector;
 }
 
+function parseReferenceAudience(value: unknown): ReferenceAudience {
+  if (value === "women" || value === "men") return value;
+  throw new Error("博主参考页面数据无效");
+}
+
+function parseContentTypes(value: unknown): CreatorContentType[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error("博主内容方向数据无效");
+  }
+  const contentTypes = value.filter(
+    (item): item is CreatorContentType =>
+      typeof item === "string" &&
+      CREATOR_CONTENT_TYPES.includes(item as CreatorContentType),
+  );
+  if (contentTypes.length !== value.length || new Set(contentTypes).size !== value.length) {
+    throw new Error("博主内容方向数据无效");
+  }
+  return contentTypes;
+}
+
 export function mapPublicCreatorRow(
   row: PublicCreatorRow,
   referencePhotoUrl: string,
@@ -61,20 +88,25 @@ export function mapPublicCreatorRow(
     referencePhotoUrl,
     douyinUrl: row.douyin_url,
     tutorialUrl: row.tutorial_url ?? "",
+    referenceAudience: parseReferenceAudience(row.reference_audience),
+    contentTypes: parseContentTypes(row.content_types),
     featureVector: parseFeatureVector(row.feature_vector),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
-export async function listCreators(): Promise<CreatorProfile[]> {
+export async function listCreators(
+  referenceAudience: ReferenceAudience = "women",
+): Promise<CreatorProfile[]> {
   const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from("creators")
     .select(
-      "id,name,douyin_url,tutorial_url,reference_photo_path,feature_vector,created_at,updated_at",
+      "id,name,douyin_url,tutorial_url,reference_audience,content_types,reference_photo_path,feature_vector,created_at,updated_at",
     )
     .eq("is_active", true)
+    .eq("reference_audience", referenceAudience)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -109,6 +141,8 @@ export async function submitCreator(
   body.set("contactEmail", input.contactEmail);
   body.set("douyinUrl", input.douyinUrl);
   body.set("tutorialUrl", input.tutorialUrl);
+  body.set("referenceAudience", input.referenceAudience);
+  body.set("contentTypes", JSON.stringify(input.contentTypes));
   body.set("referencePhoto", input.referencePhoto);
   body.set("featureVector", JSON.stringify(input.featureVector));
   body.set("qualityMetrics", JSON.stringify(input.qualityMetrics));

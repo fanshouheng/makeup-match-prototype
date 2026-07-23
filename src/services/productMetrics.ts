@@ -1,15 +1,18 @@
 import { getSupabaseClient } from "./supabaseClient";
 
 export type ProductEventName =
+  | "landing_view"
   | "photo_selected"
   | "analysis_succeeded"
   | "analysis_failed"
   | "match_result_view"
   | "feedback_yes"
   | "feedback_no"
+  | "creator_link_clicked"
   | "share_succeeded";
 
 const SESSION_STORAGE_KEY = "look-ai-product-metrics-session";
+const CAMPAIGN_SOURCE_PATTERN = /^(xhs|creator|community)_\d{2}$/;
 
 interface SessionStorageLike {
   getItem(key: string): string | null;
@@ -26,6 +29,11 @@ export function getOrCreateProductMetricSessionId(
   const sessionId = createId();
   storage.setItem(SESSION_STORAGE_KEY, sessionId);
   return sessionId;
+}
+
+export function campaignSourceFromSearch(search: string): string | undefined {
+  const source = new URLSearchParams(search).get("src")?.trim().toLowerCase();
+  return source && CAMPAIGN_SOURCE_PATTERN.test(source) ? source : undefined;
 }
 
 let fallbackSessionId: string | undefined;
@@ -50,6 +58,6 @@ export async function recordProductEvent(eventName: ProductEventName): Promise<v
       body: { sessionId, eventName },
     });
   } catch {
-    // Product metrics are best-effort and must never interrupt local analysis.
+    // Metrics are best-effort and must never interrupt local photo analysis.
   }
 }

@@ -14,6 +14,10 @@ import {
   useState,
 } from "react";
 import { FacePreview } from "../components/FacePreview";
+import type {
+  CreatorContentType,
+  ReferenceAudience,
+} from "../domain/creator";
 import {
   extractFaceAnalysis,
   type FaceAnalysis,
@@ -25,6 +29,15 @@ import { measureAverageLuminance } from "../services/imageQuality";
 import type { AdminCreatorSubmissionInput } from "./adminApi";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const MEN_CONTENT_OPTIONS: Array<{
+  value: CreatorContentType;
+  label: string;
+}> = [
+  { value: "appearance", label: "形象参考" },
+  { value: "hair", label: "发型" },
+  { value: "makeup", label: "妆容" },
+];
+
 interface AnalyzedPhoto {
   file: File;
   analysis: FaceAnalysis;
@@ -53,6 +66,10 @@ export function AdminCreateSubmissionDialog({
   const [contactEmail, setContactEmail] = useState("");
   const [douyinUrl, setDouyinUrl] = useState("");
   const [tutorialUrl, setTutorialUrl] = useState("");
+  const [referenceAudience, setReferenceAudience] =
+    useState<ReferenceAudience>("women");
+  const [contentTypes, setContentTypes] =
+    useState<CreatorContentType[]>(["makeup"]);
   const [consent, setConsent] = useState(false);
   const [loadedImage, setLoadedImage] = useState<LoadedImage>();
   const [landmarks, setLandmarks] = useState<NormalizedLandmark[]>();
@@ -115,6 +132,19 @@ export function AdminCreateSubmissionDialog({
     if (file) void analyzePhoto(file);
   }
 
+  function changeReferenceAudience(audience: ReferenceAudience) {
+    setReferenceAudience(audience);
+    setContentTypes(audience === "women" ? ["makeup"] : ["appearance"]);
+  }
+
+  function toggleContentType(type: CreatorContentType) {
+    setContentTypes((current) =>
+      current.includes(type)
+        ? current.filter((item) => item !== type)
+        : [...current, type],
+    );
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError("");
@@ -122,6 +152,7 @@ export function AdminCreateSubmissionDialog({
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim())) return setError("请填写有效的联系邮箱。");
     if (!isDouyinUrl(douyinUrl.trim())) return setError("请填写有效的抖音主页链接。");
     if (tutorialUrl.trim() && !isDouyinUrl(tutorialUrl.trim())) return setError("代表内容需要填写抖音链接。");
+    if (contentTypes.length === 0) return setError("请至少选择一个内容方向。");
     if (!analyzedPhoto) return setError("请上传一张通过质量检查的正脸照。");
     if (!consent) return setError("请确认资料来源和授权范围。");
 
@@ -132,6 +163,8 @@ export function AdminCreateSubmissionDialog({
         contactEmail: contactEmail.trim(),
         douyinUrl: douyinUrl.trim(),
         tutorialUrl: tutorialUrl.trim(),
+        referenceAudience,
+        contentTypes,
         referencePhoto: analyzedPhoto.file,
         featureVector: analyzedPhoto.analysis.features,
         qualityMetrics: {
@@ -175,6 +208,52 @@ export function AdminCreateSubmissionDialog({
               {analyzedPhoto && !analyzing && <div className="notice notice-pass compact"><CheckCircle2 size={16} /><p>照片质量通过</p></div>}
             </div>
             <div className="creator-fields">
+              <fieldset className="creator-choice-field">
+                <legend>加入哪个参考页面</legend>
+                <div className="creator-choice-options">
+                  <label data-selected={referenceAudience === "women"}>
+                    <input
+                      checked={referenceAudience === "women"}
+                      className="visually-hidden"
+                      name="adminReferenceAudience"
+                      onChange={() => changeReferenceAudience("women")}
+                      type="radio"
+                    />
+                    <span>女生妆容</span>
+                  </label>
+                  <label data-selected={referenceAudience === "men"}>
+                    <input
+                      checked={referenceAudience === "men"}
+                      className="visually-hidden"
+                      name="adminReferenceAudience"
+                      onChange={() => changeReferenceAudience("men")}
+                      type="radio"
+                    />
+                    <span>男生形象参考</span>
+                  </label>
+                </div>
+              </fieldset>
+              {referenceAudience === "men" && (
+                <fieldset className="creator-choice-field">
+                  <legend>内容方向 <small>可多选</small></legend>
+                  <div className="creator-choice-options creator-content-options">
+                    {MEN_CONTENT_OPTIONS.map((option) => (
+                      <label
+                        data-selected={contentTypes.includes(option.value)}
+                        key={option.value}
+                      >
+                        <input
+                          checked={contentTypes.includes(option.value)}
+                          className="visually-hidden"
+                          onChange={() => toggleContentType(option.value)}
+                          type="checkbox"
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
               <label><span>博主名称</span><input required value={name} onChange={(event) => setName(event.target.value)} maxLength={60} /></label>
               <label><span>联系邮箱</span><input required type="email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} maxLength={320} placeholder="仅用于身份核验，不会公开" /></label>
               <label><span>抖音主页</span><input required value={douyinUrl} onChange={(event) => setDouyinUrl(event.target.value)} inputMode="url" placeholder="https://www.douyin.com/user/..." /></label>

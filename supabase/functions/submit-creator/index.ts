@@ -1,7 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2.110.7";
 
 const PHOTO_BUCKET = "creator-photos";
-const CONSENT_VERSION = "2026-07-17";
+const CONSENT_VERSION = "2026-07-21";
+const LEGACY_CONSENT_VERSION = "2026-07-17";
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const FEATURE_KEYS = [
   "faceAspectRatio",
@@ -15,6 +16,8 @@ const FEATURE_KEYS = [
   "lipAspectRatio",
 ] as const;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const ALLOWED_REFERENCE_AUDIENCES = new Set(["women", "men"]);
+const ALLOWED_CONTENT_TYPES = new Set(["appearance", "hair", "makeup"]);
 
 interface TurnstileOutcome {
   success: boolean;
@@ -119,6 +122,40 @@ function parseObject(value: FormDataEntryValue | null): Record<string, unknown> 
   }
 }
 
+function parseStringArray(value: FormDataEntryValue | null): string[] | undefined {
+  if (typeof value !== "string") return undefined;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (
+      !Array.isArray(parsed) ||
+      parsed.length === 0 ||
+      parsed.some((item) => typeof item !== "string")
+    ) {
+      return undefined;
+    }
+    const values = parsed as string[];
+    return new Set(values).size === values.length ? values : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function isValidReferenceSelection(
+  referenceAudience: string | undefined,
+  contentTypes: string[] | undefined,
+): boolean {
+  return Boolean(
+    referenceAudience &&
+    ALLOWED_REFERENCE_AUDIENCES.has(referenceAudience) &&
+    contentTypes &&
+    contentTypes.every((type) => ALLOWED_CONTENT_TYPES.has(type)) &&
+    (
+      referenceAudience === "men" ||
+      (contentTypes.length === 1 && contentTypes[0] === "makeup")
+    ),
+  );
+}
+
 function isFeatureVector(value: Record<string, unknown> | undefined): boolean {
   return Boolean(
     value &&
@@ -179,6 +216,15 @@ Deno.serve(async (request) => {
     const tutorialUrl = typeof tutorialUrlValue === "string"
       ? tutorialUrlValue.trim()
       : "";
+    const referenceAudienceValue = formData.get("referenceAudience");
+    const contentTypesValue = formData.get("contentTypes");
+    const isLegacyClient = referenceAudienceValue === null && contentTypesValue === null;
+    const referenceAudience = isLegacyClient
+      ? "women"
+      : requiredText(formData, "referenceAudience", 20);
+    const contentTypes = isLegacyClient
+      ? ["makeup"]
+      : parseStringArray(contentTypesValue);
     const turnstileToken = requiredText(formData, "turnstileToken", 4096);
     const consentVersion = requiredText(formData, "consentVersion", 40);
     const referencePhoto = formData.get("referencePhoto");
@@ -192,8 +238,12 @@ Deno.serve(async (request) => {
       !douyinUrl ||
       !isDouyinUrl(douyinUrl) ||
       (tutorialUrl && !isDouyinUrl(tutorialUrl)) ||
+      !isValidReferenceSelection(referenceAudience, contentTypes) ||
       !turnstileToken ||
-      consentVersion !== CONSENT_VERSION ||
+      (
+        consentVersion !== CONSENT_VERSION &&
+        !(isLegacyClient && consentVersion === LEGACY_CONSENT_VERSION)
+      ) ||
       !(referencePhoto instanceof File) ||
       referencePhoto.size > MAX_PHOTO_BYTES ||
       !ALLOWED_MIME_TYPES.has(referencePhoto.type) ||
@@ -261,10 +311,12 @@ Deno.serve(async (request) => {
       contact_email: contactEmail,
       douyin_url: douyinUrl,
       tutorial_url: tutorialUrl || null,
+      reference_audience: referenceAudience,
+      content_types: contentTypes,
       reference_photo_path: photoPath,
       feature_vector: featureVector,
       quality_metrics: qualityMetrics,
-      consent_version: CONSENT_VERSION,
+      consent_version: consentVersion,
     });
     if (inserted.error) {
       await admin.storage.from(PHOTO_BUCKET).remove([photoPath]);

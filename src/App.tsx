@@ -21,15 +21,27 @@ import {
 } from "./components/MatchResults";
 import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import { SiteHeader, type SiteView } from "./components/SiteHeader";
+import type {
+  CreatorContentFilter,
+  CreatorProfile,
+  ReferenceAudience,
+} from "./domain/creator";
 import { extractFaceAnalysis, type FaceAnalysis } from "./domain/faceFeatures";
 import { FEATURE_LABELS } from "./domain/featureLabels";
-import { rankCreators, type CreatorMatch } from "./domain/matching";
+import {
+  rankCreators,
+  type CreatorMatch,
+  type MatchProfile,
+} from "./domain/matching";
 import { assessPhotoQuality, type QualityIssue } from "./domain/quality";
 import { listCreators } from "./services/creatorRepository";
 import { detectFace } from "./services/faceLandmarker";
 import { loadImageBlob } from "./services/imageFile";
 import { measureAverageLuminance } from "./services/imageQuality";
-import { recordProductEvent } from "./services/productMetrics";
+import {
+  campaignSourceFromSearch,
+  recordProductEvent,
+} from "./services/productMetrics";
 import { shareMatchResult } from "./services/resultSharing";
 
 interface LoadedPhoto {
@@ -62,6 +74,18 @@ function loadImage(file: File): Promise<LoadedPhoto> {
   }));
 }
 
+function matchMetricProperties(
+  referenceAudience: ReferenceAudience,
+  contentFilter: CreatorContentFilter,
+  creatorsCount: number,
+) {
+  return {
+    content_filter: contentFilter,
+    creator_count: creatorsCount,
+    reference_audience: referenceAudience,
+  };
+}
+
 function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -71,13 +95,20 @@ function App() {
   const [result, setResult] = useState<AnalysisResult>();
   const [error, setError] = useState<string>();
   const [view, setView] = useState<SiteView>(viewFromLocation);
+  const [referenceAudience, setReferenceAudience] =
+    useState<ReferenceAudience>("women");
+  const [maleContentFilter, setMaleContentFilter] =
+    useState<CreatorContentFilter>("all");
+  const [creatorLibrary, setCreatorLibrary] = useState<CreatorProfile[]>();
   const [matches, setMatches] = useState<CreatorMatch[]>();
   const [creatorsCount, setCreatorsCount] = useState(0);
   const [matching, setMatching] = useState(false);
   const [matchError, setMatchError] = useState<string>();
   const [matchFeedback, setMatchFeedback] = useState<MatchFeedback | null>(null);
   const [shareStatus, setShareStatus] = useState<MatchShareStatus>("idle");
-  const trackedResultRef = useRef<AnalysisResult | undefined>(undefined);
+  const trackedResultRef = useRef<
+    { result: AnalysisResult; viewKey: string } | undefined
+  >(undefined);
   const feedbackSubmittedRef = useRef(false);
   const sharedResultRef = useRef(false);
 
@@ -94,6 +125,12 @@ function App() {
     },
     [photo],
   );
+
+  useEffect(() => {
+    void recordProductEvent("landing_view");
+    const campaignSource = campaignSourceFromSearch(window.location.search);
+    if (campaignSource) track("campaign_entry", { source: campaignSource });
+  }, []);
 
   useEffect(() => {
     const syncView = () => setView(viewFromLocation());
@@ -114,11 +151,13 @@ function App() {
     let active = true;
     setMatching(true);
     setMatchError(undefined);
-    listCreators()
+    setMatches(undefined);
+    setCreatorsCount(0);
+    setCreatorLibrary(undefined);
+    listCreators(referenceAudience)
       .then((creators) => {
         if (!active) return;
-        setCreatorsCount(creators.length);
-        setMatches(rankCreators(result.analysis!.features, creators));
+        setCreatorLibrary(creators);
       })
       .catch((loadError) => {
         console.error(loadError);
@@ -131,20 +170,56 @@ function App() {
     return () => {
       active = false;
     };
-  }, [result, status, view]);
+  }, [referenceAudience, result, status, view]);
+
+  useEffect(() => {
+    if (
+      view !== "analysis" ||
+      status !== "complete" ||
+      !result?.analysis ||
+      result.issues.length > 0 ||
+      !creatorLibrary
+    ) {
+      return;
+    }
+
+    const eligibleCreators = referenceAudience === "men" && maleContentFilter !== "all"
+      ? creatorLibrary.filter((creator) =>
+          creator.contentTypes.includes(maleContentFilter),
+        )
+      : creatorLibrary;
+    const profile: MatchProfile = referenceAudience === "women"
+      ? "makeup"
+      : maleContentFilter === "hair"
+        ? "hair"
+        : maleContentFilter === "makeup"
+          ? "makeup"
+          : "appearance";
+
+    setCreatorsCount(eligibleCreators.length);
+    setMatches(
+      rankCreators(result.analysis.features, eligibleCreators, { profile }),
+    );
+  }, [creatorLibrary, maleContentFilter, referenceAudience, result, status, view]);
 
   useEffect(() => {
     if (!showMatchScene || !result || !matches?.length) return;
-    if (trackedResultRef.current === result) return;
 
-    trackedResultRef.current = result;
+    const viewKey = `${referenceAudience}:${maleContentFilter}`;
+    const trackedResult = trackedResultRef.current;
+    if (trackedResult?.result === result && trackedResult.viewKey === viewKey) return;
+
+    trackedResultRef.current = { result, viewKey };
     feedbackSubmittedRef.current = false;
     sharedResultRef.current = false;
     setMatchFeedback(null);
     setShareStatus("idle");
-    track("match_result_view", { creator_count: creatorsCount });
+    track(
+      "match_result_view",
+      matchMetricProperties(referenceAudience, maleContentFilter, creatorsCount),
+    );
     void recordProductEvent("match_result_view");
-  }, [creatorsCount, matches, result, showMatchScene]);
+  }, [creatorsCount, maleContentFilter, matches, referenceAudience, result, showMatchScene]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -181,6 +256,7 @@ function App() {
     setError(undefined);
     setStatus("idle");
     setMatches(undefined);
+    setCreatorLibrary(undefined);
     setCreatorsCount(0);
     setMatching(false);
     setMatchError(undefined);
@@ -212,16 +288,44 @@ function App() {
     resetAnalysis();
   };
 
+  const toggleReferenceAudience = () => {
+    setMatches(undefined);
+    setCreatorLibrary(undefined);
+    setCreatorsCount(0);
+    setMatchError(undefined);
+    setMatchFeedback(null);
+    setShareStatus("idle");
+    setReferenceAudience((current) => current === "women" ? "men" : "women");
+    window.scrollTo({ top: 0, behavior: "auto" });
+  };
+
+  const changeMaleContentFilter = (filter: CreatorContentFilter) => {
+    if (filter === maleContentFilter) return;
+    setMatches(undefined);
+    setCreatorsCount(0);
+    setMatchFeedback(null);
+    setShareStatus("idle");
+    setMaleContentFilter(filter);
+  };
+
   const submitMatchFeedback = (feedback: MatchFeedback) => {
     if (feedbackSubmittedRef.current || !matches?.length) return;
 
     feedbackSubmittedRef.current = true;
     setMatchFeedback(feedback);
     track("match_feedback", {
+      ...matchMetricProperties(referenceAudience, maleContentFilter, creatorsCount),
       accurate: feedback === "yes",
-      creator_count: creatorsCount,
     });
     void recordProductEvent(feedback === "yes" ? "feedback_yes" : "feedback_no");
+  };
+
+  const trackCreatorLinkClick = (destination: "profile" | "content") => {
+    track("creator_link_click", {
+      ...matchMetricProperties(referenceAudience, maleContentFilter, creatorsCount),
+      destination,
+    });
+    void recordProductEvent("creator_link_clicked");
   };
 
   const shareCurrentResult = async () => {
@@ -231,15 +335,17 @@ function App() {
     setShareStatus("sharing");
     try {
       const method = await shareMatchResult({
+        contentFilter: maleContentFilter,
         creatorName: primaryMatch.creator.name,
         creatorPhotoUrl: primaryMatch.creator.referencePhotoUrl,
+        referenceAudience,
         userPhotoUrl: photo.objectUrl,
       });
       const firstShare = !sharedResultRef.current;
       sharedResultRef.current = true;
       setShareStatus(method === "native" ? "shared" : "downloaded");
       track("match_result_share", {
-        creator_count: creatorsCount,
+        ...matchMetricProperties(referenceAudience, maleContentFilter, creatorsCount),
         first_share: firstShare,
         method,
       });
@@ -366,7 +472,11 @@ function App() {
             {result.issues.length === 0 ? (
               <div className="notice notice-pass">
                 <CheckCircle2 size={18} />
-                <p>照片质量通过，已开始匹配相似博主。</p>
+                <p>
+                  {referenceAudience === "men"
+                    ? "照片质量通过，已开始匹配相似男生创作者。"
+                    : "照片质量通过，已开始匹配相似博主。"}
+                </p>
               </div>
             ) : (
               <div className="issue-list">
@@ -405,18 +515,39 @@ function App() {
 
   return (
     <div className="app-shell">
-      <SiteHeader currentView={view} onNavigate={navigate} />
+      <SiteHeader
+        currentView={view}
+        referenceAudience={referenceAudience}
+        onNavigate={navigate}
+      />
 
       {view === "home" ? (
         <LandingPage onStart={() => navigate("analysis")} />
       ) : view === "analysis" ? (
-        <main className="analysis-page">
+        <main className={`analysis-page ${referenceAudience === "men" ? "men-reference-page" : ""}`}>
+          <div className="reference-mode-control">
+            <button
+              aria-label={referenceAudience === "women" ? "切换到男生形象参考" : "切换到女生妆容参考"}
+              className="reference-mode-toggle"
+              onClick={toggleReferenceAudience}
+              title={referenceAudience === "women" ? "切换到男生形象参考" : "切换到女生妆容参考"}
+              type="button"
+            >
+              <span aria-hidden="true">{referenceAudience === "women" ? "♀" : "♂"}</span>
+            </button>
+          </div>
           {!photo ? (
             <section className="start-upload-screen" aria-labelledby="upload-title">
               <div className="start-upload-copy">
-                <p className="eyebrow">START / 照片分析</p>
+                <p className="eyebrow">
+                  {referenceAudience === "men" ? "MEN'S REFERENCE / 男生形象参考" : "START / 照片分析"}
+                </p>
                 <h1 id="upload-title">上传一张清晰的正面照片</h1>
-                <p>照片将占据分析主视窗。识别完成后，面部关键点和个人比例会显示在右侧。</p>
+                <p>
+                  {referenceAudience === "men"
+                    ? "从面部结构出发，寻找可以参考的男生创作者、发型和妆容内容。"
+                    : "照片将占据分析主视窗。识别完成后，面部关键点和个人比例会显示在右侧。"}
+                </p>
               </div>
               <div className="start-upload-stage">
                 <div className="upload-stage-icon"><ImagePlus size={34} /></div>
@@ -439,7 +570,15 @@ function App() {
               <div className="analysis-heading">
                 <div>
                   <p className="eyebrow">{status === "complete" ? "RESULT / 面部结构分析" : "PHOTO / 照片已准备好"}</p>
-                  <h1>{status === "complete" ? "你的个人分析" : "确认照片，开始寻找妆容参照"}</h1>
+                  <h1>
+                    {referenceAudience === "men"
+                      ? status === "complete"
+                        ? "你的男生形象参考"
+                        : "确认照片，开始寻找男生形象参考"
+                      : status === "complete"
+                        ? "你的个人分析"
+                        : "确认照片，开始寻找妆容参照"}
+                  </h1>
                 </div>
                 <button className="button button-ghost" onClick={clearPhoto} type="button">
                   <RotateCcw size={17} />重新选择
@@ -459,6 +598,10 @@ function App() {
                         feedback={matchFeedback}
                         matches={matches}
                         mode="primary"
+                        referenceAudience={referenceAudience}
+                        contentFilter={maleContentFilter}
+                        onContentFilterChange={changeMaleContentFilter}
+                        onCreatorLinkClick={trackCreatorLinkClick}
                         onFeedback={submitMatchFeedback}
                         onShare={shareCurrentResult}
                         onViewCreators={() => navigate("creators")}
@@ -478,6 +621,9 @@ function App() {
                   feedback={matchFeedback}
                   matches={matches}
                   mode="more"
+                  referenceAudience={referenceAudience}
+                  contentFilter={maleContentFilter}
+                  onCreatorLinkClick={trackCreatorLinkClick}
                   onFeedback={submitMatchFeedback}
                   onShare={shareCurrentResult}
                   onViewCreators={() => navigate("creators")}
@@ -489,7 +635,11 @@ function App() {
                 matching && !matches ? (
                   <section className="matches-loading" aria-live="polite">
                     <LoaderCircle className="spin" size={24} />
-                    <p>正在比较公开博主库</p>
+                    <p>
+                      {referenceAudience === "men"
+                        ? "正在比较男生创作者库"
+                        : "正在比较公开博主库"}
+                    </p>
                   </section>
                 ) : matchError ? (
                   <div className="notice notice-error matches-error">
@@ -500,6 +650,10 @@ function App() {
                     creatorsCount={creatorsCount}
                     feedback={matchFeedback}
                     matches={matches}
+                    referenceAudience={referenceAudience}
+                    contentFilter={maleContentFilter}
+                    onContentFilterChange={changeMaleContentFilter}
+                    onCreatorLinkClick={trackCreatorLinkClick}
                     onFeedback={submitMatchFeedback}
                     onShare={shareCurrentResult}
                     onViewCreators={() => navigate("creators")}

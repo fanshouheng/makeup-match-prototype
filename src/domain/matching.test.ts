@@ -25,6 +25,8 @@ function createCreator(
     referencePhotoUrl: `https://example.com/${id}.jpg`,
     douyinUrl: `https://www.douyin.com/user/${id}`,
     tutorialUrl: "",
+    referenceAudience: "women",
+    contentTypes: ["makeup"],
     featureVector,
     createdAt: "2026-07-13T00:00:00.000Z",
     updatedAt: "2026-07-13T00:00:00.000Z",
@@ -97,5 +99,27 @@ describe("rankCreators", () => {
     expect(match.reasons).toHaveLength(2);
     expect(new Set(match.reasons.map((reason) => reason.feature)).size).toBe(2);
     expect(match.reasons.every((reason) => reason.text.length > 0)).toBe(true);
+  });
+
+  it("uses only face outline features for hairstyle references", () => {
+    const [match] = rankCreators(
+      baseFeatures,
+      [createCreator("creator", shiftFeatures(0.02))],
+      { profile: "hair" },
+    );
+
+    expect(match.reasons.map((reason) => reason.feature)).toContain(
+      "faceAspectRatio",
+    );
+    expect(
+      match.reasons.every((reason) =>
+        [
+          "faceAspectRatio",
+          "jawToCheekRatio",
+          "foreheadToCheekRatio",
+          "lowerThirdRatio",
+        ].includes(reason.feature),
+      ),
+    ).toBe(true);
   });
 });

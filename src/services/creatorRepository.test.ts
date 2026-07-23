@@ -28,6 +28,8 @@ const row = {
   name: "示例博主",
   douyin_url: "https://www.douyin.com/user/example",
   tutorial_url: null,
+  reference_audience: "women",
+  content_types: ["makeup"],
   reference_photo_path: "submissions/id/reference.jpg",
   feature_vector: featureVector,
   created_at: "2026-07-17T00:00:00.000Z",
@@ -42,6 +44,8 @@ describe("mapPublicCreatorRow", () => {
       referencePhotoUrl: "https://example.com/signed-photo",
       douyinUrl: row.douyin_url,
       tutorialUrl: "",
+      referenceAudience: "women",
+      contentTypes: ["makeup"],
       featureVector,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -55,6 +59,15 @@ describe("mapPublicCreatorRow", () => {
         "https://example.com/signed-photo",
       ),
     ).toThrow("博主特征");
+  });
+
+  it("rejects unknown creator content directions", () => {
+    expect(() =>
+      mapPublicCreatorRow(
+        { ...row, content_types: ["beauty-score"] },
+        "https://example.com/signed-photo",
+      ),
+    ).toThrow("内容方向");
   });
 });
 
@@ -72,6 +85,8 @@ describe("submitCreator", () => {
       contactEmail: "creator@example.com",
       douyinUrl: "https://www.douyin.com/user/example",
       tutorialUrl: "",
+      referenceAudience: "men",
+      contentTypes: ["appearance", "hair"],
       referencePhoto: photo,
       featureVector,
       qualityMetrics: {
@@ -95,5 +110,7 @@ describe("submitCreator", () => {
     expect(options.body.get("referencePhoto")).toBe(photo);
     expect(options.body.get("turnstileToken")).toBe("verified-token");
     expect(options.body.get("consentVersion")).toBe(CONSENT_VERSION);
+    expect(options.body.get("referenceAudience")).toBe("men");
+    expect(options.body.get("contentTypes")).toBe('["appearance","hair"]');
   });
 });

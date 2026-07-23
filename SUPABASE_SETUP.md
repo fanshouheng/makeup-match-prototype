@@ -10,8 +10,10 @@
 2. `supabase/migrations/202607170002_creator_submission_rate_limit.sql`
 3. `supabase/migrations/202607170004_explicit_rate_limit_denial.sql`
 4. `supabase/migrations/20260722173428_product_event_metrics.sql`
+5. `supabase/migrations/202607230001_add_creator_reference_modes.sql`
+6. `supabase/migrations/202607230002_extend_product_event_metrics.sql`
 
-第二、三个迁移只增加私有限流能力并显式拒绝客户端访问，不会关闭现有提交入口。
+第二、三个迁移只增加私有限流能力并显式拒绝客户端访问，不会关闭现有提交入口。第四个迁移创建匿名会话事件表。第五个迁移为现有申请和公开创作者补充参考页面与内容方向，已有记录默认保持为“女生 + 妆容”。第六个迁移补充访问和创作者链接点击事件；产品事件表不向匿名或已登录客户端开放读写权限。
 
 暂时不要执行 `202607170003_lock_creator_submission_writes.sql`。它会关闭浏览器直接写数据库和存储的旧入口，应在 Edge Function 验证成功后最后执行。
 
@@ -71,6 +73,7 @@ Supabase 托管的 Edge Function 会自动提供 `SUPABASE_URL`、`SUPABASE_SECR
 4. 非允许域名不能调用函数。
 5. 失败的数据库写入不会留下孤立照片。
 6. 匿名用户仍不能读取 `creator_submissions`。
+7. 女生申请保存为 `women + makeup`，男生申请能保存所选的形象参考、发型或妆容方向。
 
 ## 6. 关闭匿名直写
 
@@ -86,14 +89,15 @@ Edge Function 验证通过后，执行：
 
 ## 7. 产品事件与管理台指标
 
-部署 `supabase/functions/record-product-event/index.ts`，并保持 `verify_jwt = false`。该函数仅接受允许来源提交的随机会话 UUID 和固定事件名；`product_events` 不向 `anon` 或 `authenticated` 开放读取或直写权限。
+部署 `supabase/functions/record-product-event/index.ts`，并保持 `verify_jwt = false`。该函数只接受允许来源提交的随机会话 UUID 和固定事件名；`product_events` 不向 `anon` 或 `authenticated` 开放读取或直写权限。
 
-重新部署 `supabase/functions/admin-review/index.ts`，让受保护的 `/admin` 管理台可以读取近 7 天汇总指标。验证：
+重新部署 `supabase/functions/admin-review/index.ts`，让受保护的 `/admin` 管理台读取最近 7 天的访问、选图、分析、结果、反馈、创作者链接点击和分享聚合指标。验证：
 
 1. 允许来源的合法事件返回 `recorded`。
 2. 非法事件名、额外字段和非 UUID 会话标识被拒绝。
 3. 匿名客户端不能直接读取 `product_events`。
 4. 同一会话重复提交同一事件时，表中仍只有一条记录。
+5. 点击事件中不包含创作者名称、ID、链接或结果名次。
 
 ## 8. 审核与维护
 

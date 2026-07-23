@@ -1,11 +1,18 @@
+import type { ReferenceAudience } from "../domain/creator";
+
 export type SiteView = "home" | "analysis" | "creators" | "privacy";
 
 interface SiteHeaderProps {
   currentView: SiteView;
+  referenceAudience: ReferenceAudience;
   onNavigate: (view: SiteView) => void;
 }
 
-export function SiteHeader({ currentView, onNavigate }: SiteHeaderProps) {
+export function SiteHeader({
+  currentView,
+  referenceAudience,
+  onNavigate,
+}: SiteHeaderProps) {
   return (
     <header className="site-header">
       <button
@@ -15,7 +22,11 @@ export function SiteHeader({ currentView, onNavigate }: SiteHeaderProps) {
         type="button"
       >
         <span className="wordmark-name">LOOK AI</span>
-        <span className="wordmark-product">MAKEUP REFERENCE</span>
+        <span className="wordmark-product">
+          {currentView === "analysis" && referenceAudience === "men"
+            ? "MEN'S REFERENCE"
+            : "MAKEUP REFERENCE"}
+        </span>
       </button>
       <nav className="site-nav" aria-label="站点导航">
         <button

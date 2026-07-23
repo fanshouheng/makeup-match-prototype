@@ -1,4 +1,8 @@
 import type { Session } from "@supabase/supabase-js";
+import type {
+  CreatorContentType,
+  ReferenceAudience,
+} from "../domain/creator";
 import type { FaceFeatureVector, PoseMetrics } from "../domain/faceFeatures";
 import { adminClient } from "./adminClient";
 
@@ -9,6 +13,8 @@ export interface AdminCreatorSubmissionInput {
   contactEmail: string;
   douyinUrl: string;
   tutorialUrl: string;
+  referenceAudience: ReferenceAudience;
+  contentTypes: CreatorContentType[];
   referencePhoto: File;
   featureVector: FaceFeatureVector;
   qualityMetrics: {
@@ -23,6 +29,8 @@ export interface AdminSubmission {
   contact_email: string;
   douyin_url: string;
   tutorial_url: string | null;
+  reference_audience: ReferenceAudience;
+  content_types: CreatorContentType[];
   quality_metrics: Record<string, unknown>;
   status: "pending" | "approved" | "rejected";
   submitted_at: string;
@@ -38,6 +46,8 @@ export interface AdminCreator {
   name: string;
   douyin_url: string;
   tutorial_url: string | null;
+  reference_audience: ReferenceAudience;
+  content_types: CreatorContentType[];
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -46,12 +56,14 @@ export interface AdminCreator {
 
 export interface AdminProductMetrics {
   period_start: string;
+  landing_view: number;
   photo_selected: number;
   analysis_succeeded: number;
   analysis_failed: number;
   match_result_view: number;
   feedback_yes: number;
   feedback_no: number;
+  creator_link_clicked: number;
   share_succeeded: number;
 }
 
@@ -118,6 +130,8 @@ export async function createAdminSubmission(
   body.set("contactEmail", input.contactEmail);
   body.set("douyinUrl", input.douyinUrl);
   body.set("tutorialUrl", input.tutorialUrl);
+  body.set("referenceAudience", input.referenceAudience);
+  body.set("contentTypes", JSON.stringify(input.contentTypes));
   body.set("referencePhoto", input.referencePhoto);
   body.set("featureVector", JSON.stringify(input.featureVector));
   body.set("qualityMetrics", JSON.stringify(input.qualityMetrics));

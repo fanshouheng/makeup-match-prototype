@@ -9,18 +9,40 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
+import type {
+  CreatorContentFilter,
+  CreatorContentType,
+  ReferenceAudience,
+} from "../domain/creator";
 import type { CreatorMatch } from "../domain/matching";
 import { CreatorPhoto } from "./CreatorPhoto";
 
+const CONTENT_LABELS: Record<CreatorContentType, string> = {
+  appearance: "形象参考",
+  hair: "发型",
+  makeup: "妆容",
+};
+
+const MEN_FILTERS: Array<{ value: CreatorContentFilter; label: string }> = [
+  { value: "all", label: "综合参考" },
+  { value: "hair", label: "发型" },
+  { value: "makeup", label: "妆容" },
+];
+
 export type MatchFeedback = "yes" | "no";
 export type MatchShareStatus = "idle" | "sharing" | "shared" | "downloaded" | "error";
+export type CreatorLinkDestination = "profile" | "content";
 
 interface MatchResultsProps {
   creatorsCount: number;
   feedback: MatchFeedback | null;
   matches: CreatorMatch[];
   mode?: "all" | "primary" | "more";
+  referenceAudience?: ReferenceAudience;
   shareStatus: MatchShareStatus;
+  contentFilter?: CreatorContentFilter;
+  onContentFilterChange?: (filter: CreatorContentFilter) => void;
+  onCreatorLinkClick: (destination: CreatorLinkDestination) => void;
   onFeedback: (feedback: MatchFeedback) => void;
   onShare: () => void;
   onViewCreators: () => void;
@@ -31,12 +53,17 @@ export function MatchResults({
   feedback,
   matches,
   mode = "all",
+  referenceAudience = "women",
   shareStatus,
+  contentFilter = "all",
+  onContentFilterChange,
+  onCreatorLinkClick,
   onFeedback,
   onShare,
   onViewCreators,
 }: MatchResultsProps) {
   const [primaryMatch, ...otherMatches] = matches;
+  const isMen = referenceAudience === "men";
   const showPrimary = mode !== "more";
   const showMore = mode !== "primary";
   const feedbackSubmitted = feedback !== null;
@@ -56,6 +83,11 @@ export function MatchResults({
       : shareStatus === "error"
         ? "分享失败，请重试"
         : "";
+  const primaryIntro = contentFilter === "hair"
+    ? "这些面部轮廓特征与你更接近，可以优先参考他的发型内容。"
+    : contentFilter === "makeup"
+      ? "这些面部结构特征与你更接近，可以优先参考他的妆容内容。"
+      : "这些面部结构特征与你更接近，可以从他的公开内容中寻找形象参考。";
 
   return (
     <section className={`matches-section matches-${mode}`} aria-labelledby={`matches-title-${mode}`}>
@@ -63,16 +95,41 @@ export function MatchResults({
         <div>
           <p className="eyebrow">{mode === "more" ? "MORE / 更多参照" : "MATCH / 相似匹配"}</p>
           <h2 id={`matches-title-${mode}`}>
-            {mode === "more" ? "也可以看看这些博主" : "和你面部结构更接近的博主"}
+            {isMen
+              ? mode === "more"
+                ? "更多男生形象参考"
+                : "和你面部结构更接近的男生创作者"
+              : mode === "more"
+                ? "也可以看看这些博主"
+                : "和你面部结构更接近的博主"}
           </h2>
         </div>
+        {isMen && mode !== "more" && onContentFilterChange && (
+          <div className="match-category-tabs" role="tablist" aria-label="男生参考内容">
+            {MEN_FILTERS.map((filter) => (
+              <button
+                aria-selected={contentFilter === filter.value}
+                key={filter.value}
+                onClick={() => onContentFilterChange(filter.value)}
+                role="tab"
+                type="button"
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {creatorsCount === 0 ? (
         <div className="matches-empty">
           <Library size={28} />
-          <h3>公开博主库还是空的</h3>
-          <p>博主本人完成申请和身份核验后，才会参与匹配。</p>
+          <h3>{isMen ? "这个方向还没有男生创作者" : "公开博主库还是空的"}</h3>
+          <p>
+            {isMen
+              ? "创作者本人完成申请和身份核验后，才会进入男生形象参考。"
+              : "博主本人完成申请和身份核验后，才会参与匹配。"}
+          </p>
           <button className="button button-primary" onClick={onViewCreators} type="button">
             博主入驻
           </button>
@@ -91,10 +148,21 @@ export function MatchResults({
                 <CreatorPhoto creator={primaryMatch.creator} />
                 <span className="match-rank">最接近</span>
               </div>
-              <div className="primary-match-body">
-                <p className="eyebrow">首选参照</p>
-                <h3>{primaryMatch.creator.name}</h3>
-                <p className="primary-match-intro">这些面部结构特征与你更接近，可以优先参考她的妆容思路。</p>
+                <div className="primary-match-body">
+                  <p className="eyebrow">首选参照</p>
+                  <h3>{primaryMatch.creator.name}</h3>
+                {isMen && (
+                  <div className="creator-content-tags" aria-label="内容方向">
+                    {primaryMatch.creator.contentTypes.map((type) => (
+                      <span key={type}>{CONTENT_LABELS[type]}</span>
+                    ))}
+                  </div>
+                )}
+                <p className="primary-match-intro">
+                  {isMen
+                    ? primaryIntro
+                    : "这些面部结构特征与你更接近，可以优先参考她的妆容思路。"}
+                </p>
                 <ul className="match-reasons">
                   {primaryMatch.reasons.map((reason) => (
                     <li key={reason.feature}>
@@ -105,12 +173,24 @@ export function MatchResults({
                 </ul>
                 <div className="match-links">
                   {primaryMatch.creator.tutorialUrl && (
-                    <a className="button button-primary" href={primaryMatch.creator.tutorialUrl} target="_blank" rel="noreferrer">
-                      查看代表教程
+                    <a
+                      className="button button-primary"
+                      href={primaryMatch.creator.tutorialUrl}
+                      onClick={() => onCreatorLinkClick("content")}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {isMen ? "查看代表内容" : "查看代表教程"}
                       <ExternalLink size={15} />
                     </a>
                   )}
-                  <a className="button button-secondary" href={primaryMatch.creator.douyinUrl} target="_blank" rel="noreferrer">
+                  <a
+                    className="button button-secondary"
+                    href={primaryMatch.creator.douyinUrl}
+                    onClick={() => onCreatorLinkClick("profile")}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
                     博主主页
                     <ExternalLink size={15} />
                   </a>
@@ -186,6 +266,13 @@ export function MatchResults({
                 </div>
                 <div className="match-card-body">
                   <h3>{match.creator.name}</h3>
+                  {isMen && (
+                    <div className="creator-content-tags" aria-label="内容方向">
+                      {match.creator.contentTypes.map((type) => (
+                        <span key={type}>{CONTENT_LABELS[type]}</span>
+                      ))}
+                    </div>
+                  )}
                   <ul className="match-reasons">
                     {match.reasons.map((reason) => (
                       <li key={reason.feature}>
@@ -196,12 +283,24 @@ export function MatchResults({
                   </ul>
                   <div className="match-links">
                     {match.creator.tutorialUrl && (
-                      <a className="button button-primary" href={match.creator.tutorialUrl} target="_blank" rel="noreferrer">
-                        代表教程
+                      <a
+                        className="button button-primary"
+                        href={match.creator.tutorialUrl}
+                        onClick={() => onCreatorLinkClick("content")}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {isMen ? "代表内容" : "代表教程"}
                         <ExternalLink size={15} />
                       </a>
                     )}
-                    <a className="button button-secondary" href={match.creator.douyinUrl} target="_blank" rel="noreferrer">
+                    <a
+                      className="button button-secondary"
+                      href={match.creator.douyinUrl}
+                      onClick={() => onCreatorLinkClick("profile")}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
                       博主主页
                       <ExternalLink size={15} />
                     </a>

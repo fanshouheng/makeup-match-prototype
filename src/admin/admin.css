@@ -129,6 +129,9 @@
 }
 
 @media (max-width: 430px) {
+  .admin-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; }
+  .admin-tab { justify-content: center; min-width: 0; padding: 10px 4px; gap: 4px; font-size: 12px; white-space: nowrap; }
+  .admin-tab span { min-width: 18px; height: 18px; padding: 0 4px; font-size: 10px; }
   .admin-metric-grid { grid-template-columns: 1fr; }
   .admin-metric p { min-height: 0; }
 }

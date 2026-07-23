@@ -1,12 +1,14 @@
 import { createClient } from "npm:@supabase/supabase-js@2.110.7";
 
 const EVENT_NAMES = new Set([
+  "landing_view",
   "photo_selected",
   "analysis_succeeded",
   "analysis_failed",
   "match_result_view",
   "feedback_yes",
   "feedback_no",
+  "creator_link_clicked",
   "share_succeeded",
 ]);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

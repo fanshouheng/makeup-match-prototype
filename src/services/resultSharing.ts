@@ -1,4 +1,8 @@
 import QRCode from "qrcode";
+import type {
+  CreatorContentFilter,
+  ReferenceAudience,
+} from "../domain/creator";
 
 export const LOOK_AI_HOME_URL = "https://makeup.soul.xn--fiqs8s/";
 export type MatchShareMethod = "native" | "image";
@@ -10,7 +14,9 @@ interface NativeShareSupport {
 }
 
 interface MatchShareCopyDetails {
+  contentFilter: CreatorContentFilter;
   creatorName: string;
+  referenceAudience: ReferenceAudience;
 }
 
 interface MatchShareDetails extends MatchShareCopyDetails {
@@ -18,8 +24,23 @@ interface MatchShareDetails extends MatchShareCopyDetails {
   userPhotoUrl: string;
 }
 
-export function buildMatchShareText({ creatorName }: MatchShareCopyDetails) {
-  return `我在 LOOK AI 找到的首选妆容参考是「${creatorName}」。`;
+function referenceLabel(
+  referenceAudience: ReferenceAudience,
+  contentFilter: CreatorContentFilter,
+) {
+  if (referenceAudience === "women" || contentFilter === "makeup") {
+    return "妆容参考";
+  }
+  if (contentFilter === "hair") return "发型参考";
+  return "男生形象参考";
+}
+
+export function buildMatchShareText({
+  contentFilter,
+  creatorName,
+  referenceAudience,
+}: MatchShareCopyDetails) {
+  return `我在 LOOK AI 找到的首选${referenceLabel(referenceAudience, contentFilter)}是「${creatorName}」。`;
 }
 
 export function shouldUseNativeShare({
@@ -165,8 +186,9 @@ export async function createMatchSharePoster(
     `匹配博主 · ${details.creatorName}`,
   );
 
+  const introduction = `根据面部结构，找到更适合你的${referenceLabel(details.referenceAudience, details.contentFilter)}。`;
   setFont(context, 20, 500);
-  context.fillText("根据面部结构，找到更适合你的妆容参考。", 64, 1280);
+  context.fillText(introduction, 64, 1280);
   context.fillText("隐私保护 · 用户照片仅在本地处理，不上传、不保存", 64, 1320);
 
   context.textAlign = "right";
@@ -175,6 +197,7 @@ export async function createMatchSharePoster(
   setFont(context, 18, 400);
   context.fillText("makeup.soul.中国", 914, 1494);
   context.textAlign = "left";
+
   context.drawImage(qrCanvas, 950, 1386, 178, 178);
 
   return canvasToBlob(canvas);
