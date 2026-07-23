@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.110.7";
 const EVENT_NAMES = new Set([
   "landing_view",
   "photo_selected",
+  "women_photo_selected",
   "men_photo_selected",
   "analysis_succeeded",
   "analysis_failed",

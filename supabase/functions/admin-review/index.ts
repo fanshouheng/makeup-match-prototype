@@ -9,6 +9,7 @@ const PRODUCT_METRICS_DAYS = 7;
 const PRODUCT_EVENT_NAMES = [
   "landing_view",
   "photo_selected",
+  "women_photo_selected",
   "men_photo_selected",
   "analysis_succeeded",
   "analysis_failed",

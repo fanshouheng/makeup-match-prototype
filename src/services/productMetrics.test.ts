@@ -53,8 +53,11 @@ describe("campaignSourceFromSearch", () => {
 });
 
 describe("photoSelectionEventNames", () => {
-  it("records the overall event only for the women reference mode", () => {
-    expect(photoSelectionEventNames("women")).toEqual(["photo_selected"]);
+  it("records the overall and women-specific events for the women reference mode", () => {
+    expect(photoSelectionEventNames("women")).toEqual([
+      "photo_selected",
+      "women_photo_selected",
+    ]);
   });
 
   it("also records the men-specific event for the men reference mode", () => {

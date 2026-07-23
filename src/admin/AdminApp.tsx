@@ -20,6 +20,7 @@ import {
   RefreshCw,
   Share2,
   ShieldCheck,
+  Sparkles,
   ThumbsUp,
   Trash2,
   UserRound,
@@ -110,8 +111,11 @@ function LoginScreen() {
   return (
     <main className="admin-auth-shell">
       <section className="admin-auth-panel" aria-labelledby="admin-login-title">
-        <div className="admin-brand-mark" aria-hidden="true"><ShieldCheck size={22} /></div>
-        <p className="admin-kicker">LOOK AI / PRIVATE CONSOLE</p>
+        <div className="admin-auth-brand" aria-label="LOOK AI 管理台">
+          <span className="admin-wordmark">LOOK</span>
+          <span className="admin-wordmark-product">MAKEUP REFERENCE<br />PRIVATE CONSOLE</span>
+        </div>
+        <p className="admin-kicker">ADMIN ACCESS</p>
         <h1 id="admin-login-title">进入管理台</h1>
         {sent ? (
           <div className="admin-auth-success" role="status">
@@ -281,10 +285,16 @@ function MetricsPanel({ metrics }: { metrics: AdminProductMetrics }) {
           <p>{metrics.photo_selected} 次选择 · {metrics.landing_view} 次访问</p>
         </article>
         <article className="admin-metric">
+          <Sparkles size={19} />
+          <span>女生模式选图会话</span>
+          <strong>{metrics.women_photo_selected}</strong>
+          <p>{formatRate(metrics.women_photo_selected, metrics.photo_selected)} 的选图会话使用过女生模式</p>
+        </article>
+        <article className="admin-metric">
           <UserRound size={19} />
           <span>男生模式选图会话</span>
           <strong>{metrics.men_photo_selected}</strong>
-          <p>{formatRate(metrics.men_photo_selected, metrics.photo_selected)} 的选图会话来自男生模式</p>
+          <p>{formatRate(metrics.men_photo_selected, metrics.photo_selected)} 的选图会话使用过男生模式</p>
         </article>
         <article className="admin-metric">
           <CheckCircle2 size={19} />
@@ -324,7 +334,7 @@ function MetricsPanel({ metrics }: { metrics: AdminProductMetrics }) {
         </article>
       </div>
       <p className="admin-metrics-note">
-        统计窗口从 {formatDate(metrics.period_start)} 起；同一会话重复触发同一动作只计一次。
+        统计窗口从 {formatDate(metrics.period_start)} 起；同一会话重复触发同一动作只计一次，同时体验两种模式会分别计入两项。
       </p>
     </section>
   );
@@ -489,12 +499,12 @@ export default function AdminApp() {
   return (
     <main className="admin-shell">
       <header className="admin-topbar">
-        <div className="admin-topbar-brand"><div className="admin-brand-mark" aria-hidden="true"><ShieldCheck size={20} /></div><div><p className="admin-kicker">LOOK AI / PRIVATE CONSOLE</p><h1>创作者管理台</h1></div></div>
+        <div className="admin-topbar-brand"><span className="admin-wordmark">LOOK</span><div><p className="admin-kicker">MAKEUP REFERENCE</p><h1>管理台</h1></div></div>
         <div className="admin-topbar-actions"><span className="admin-user-email">{session.user.email}</span><button className="admin-icon-button" type="button" onClick={() => void loadDashboard()} aria-label="刷新数据" title="刷新数据"><RefreshCw size={17} /></button><button className="admin-icon-button" type="button" onClick={() => void adminClient.auth.signOut()} aria-label="退出登录" title="退出登录"><LogOut size={17} /></button></div>
       </header>
       <section className="admin-content" aria-label="产品数据、创作者审核与库管理">
         <div className="admin-page-intro"><div><p className="admin-kicker">PRODUCTION DATA</p><h2>先核验，再公开</h2><p>申请资料只在管理台可见；产品数据只展示匿名会话聚合结果。</p></div><div className="admin-intro-actions"><button className="admin-primary-button" type="button" onClick={() => setShowCreate(true)}><Plus size={16} />新建待审申请</button><div className="admin-data-badge"><Database size={18} /><span>{pending.length} 条待审核<br /><small>{creators.length} 条库内记录</small></span></div></div></div>
-        <nav className="admin-tabs" aria-label="管理台视图"><button className={view === "pending" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("pending")}><Clock3 size={16} />待审核 <span>{pending.length}</span></button><button className={view === "creators" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("creators")}><Database size={16} />公开创作者库 <span>{creators.length}</span></button><button className={view === "metrics" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("metrics")}><BarChart3 size={16} />产品数据</button></nav>
+        <nav className="admin-tabs" aria-label="管理台视图"><button className={view === "pending" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("pending")}><Clock3 size={16} />待审核 <span>{pending.length}</span></button><button className={view === "creators" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("creators")}><Database size={16} />创作者库 <span>{creators.length}</span></button><button className={view === "metrics" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("metrics")}><BarChart3 size={16} />产品数据</button></nav>
         {error && <div className="admin-alert" role="alert"><X size={17} />{error}</div>}
         {loading ? <div className="admin-loading admin-loading-inline"><LoaderCircle className="admin-spin" size={22} />正在读取受保护数据…</div> : view === "pending" ? (
           <div className="admin-list">{pending.length === 0 ? <div className="admin-empty"><CheckCircle2 size={28} /><h3>当前没有待审核申请</h3><p>新的投稿会先停留在这里，不会自动公开。</p></div> : pending.map((submission) => <PendingRow key={submission.id} submission={submission} onAction={openAction} />)}</div>

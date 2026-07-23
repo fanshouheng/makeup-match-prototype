@@ -3,6 +3,7 @@ import { getSupabaseClient } from "./supabaseClient";
 export type ProductEventName =
   | "landing_view"
   | "photo_selected"
+  | "women_photo_selected"
   | "men_photo_selected"
   | "analysis_succeeded"
   | "analysis_failed"
@@ -20,7 +21,7 @@ export function photoSelectionEventNames(
 ): ProductEventName[] {
   return referenceAudience === "men"
     ? ["photo_selected", "men_photo_selected"]
-    : ["photo_selected"];
+    : ["photo_selected", "women_photo_selected"];
 }
 
 interface SessionStorageLike {
