@@ -9,11 +9,12 @@
 1. `supabase/migrations/202607170001_public_creator_library.sql`
 2. `supabase/migrations/202607170002_creator_submission_rate_limit.sql`
 3. `supabase/migrations/202607170004_explicit_rate_limit_denial.sql`
-4. `supabase/migrations/20260722173428_product_event_metrics.sql`
-5. `supabase/migrations/202607230001_add_creator_reference_modes.sql`
-6. `supabase/migrations/202607230002_extend_product_event_metrics.sql`
+4. `supabase/migrations/20260722071544_add_creator_reference_modes.sql`
+5. `supabase/migrations/20260722094929_product_event_metrics.sql`
+6. `supabase/migrations/20260723054229_enforce_creator_reference_modes.sql`
+7. `supabase/migrations/20260723054251_extend_product_event_metrics.sql`
 
-第二、三个迁移只增加私有限流能力并显式拒绝客户端访问，不会关闭现有提交入口。第四个迁移创建匿名会话事件表。第五个迁移为现有申请和公开创作者补充参考页面与内容方向，已有记录默认保持为“女生 + 妆容”。第六个迁移补充访问和创作者链接点击事件；产品事件表不向匿名或已登录客户端开放读写权限。
+第二、三个迁移只增加私有限流能力并显式拒绝客户端访问，不会关闭现有提交入口。第四个迁移为现有申请和公开创作者补充参考页面与内容方向，已有记录默认保持为“女生 + 妆容”。第五个迁移创建匿名会话事件表。第六个迁移约束女生参考只使用妆容内容，第七个迁移补充访问和创作者链接点击事件；产品事件表不向匿名或已登录客户端开放读写权限。
 
 暂时不要执行 `202607170003_lock_creator_submission_writes.sql`。它会关闭浏览器直接写数据库和存储的旧入口，应在 Edge Function 验证成功后最后执行。
 

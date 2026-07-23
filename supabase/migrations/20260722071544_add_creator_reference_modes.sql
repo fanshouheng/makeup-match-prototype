@@ -7,12 +7,6 @@ alter table public.creator_submissions
       and content_types <@ array['appearance', 'hair', 'makeup']::text[]
     );
 
-alter table public.creator_submissions
-  add constraint creator_submissions_audience_content_check check (
-    reference_audience = 'men'
-    or content_types = array['makeup']::text[]
-  );
-
 alter table public.creators
   add column reference_audience text not null default 'women'
     check (reference_audience in ('women', 'men')),
@@ -21,12 +15,6 @@ alter table public.creators
       cardinality(content_types) between 1 and 3
       and content_types <@ array['appearance', 'hair', 'makeup']::text[]
     );
-
-alter table public.creators
-  add constraint creators_audience_content_check check (
-    reference_audience = 'men'
-    or content_types = array['makeup']::text[]
-  );
 
 create index creators_audience_active_created_idx
   on public.creators (reference_audience, is_active, created_at desc);
@@ -43,11 +31,6 @@ declare
   submission public.creator_submissions%rowtype;
   creator_uuid uuid;
 begin
-  if coalesce(auth.role(), '') <> 'service_role'
-     and current_user not in ('postgres', 'supabase_admin', 'service_role') then
-    raise exception 'not authorized';
-  end if;
-
   select * into submission
   from public.creator_submissions
   where id = submission_uuid
