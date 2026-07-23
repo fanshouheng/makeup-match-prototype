@@ -16,6 +16,13 @@ const EVENT_KEYS = [
   "creator_link_clicked",
   "share_succeeded",
 ];
+const ANALYSIS_FAILURE_KEYS = [
+  "no_face",
+  "multiple_faces",
+  "too_dark",
+  "pose_issue",
+  "component_error",
+];
 const SUBMISSION_KEYS = [
   "new_total",
   "pending",
@@ -67,12 +74,24 @@ function assertExactKeys(value, expected, label) {
 
 function normalizeSnapshot(raw) {
   const hasOutreach = Object.prototype.hasOwnProperty.call(raw, "outreach");
+  const hasAnalysisFailures = Object.prototype.hasOwnProperty.call(raw, "analysis_failures");
   assertExactKeys(
     raw,
-    ["project_ref", "captured_at", "period_start", "metrics", "submissions", ...(hasOutreach ? ["outreach"] : [])],
+    [
+      "project_ref",
+      "captured_at",
+      "period_start",
+      "metrics",
+      ...(hasAnalysisFailures ? ["analysis_failures"] : []),
+      "submissions",
+      ...(hasOutreach ? ["outreach"] : []),
+    ],
     "snapshot",
   );
   assertExactKeys(raw.metrics, EVENT_KEYS, "metrics");
+  if (hasAnalysisFailures) {
+    assertExactKeys(raw.analysis_failures, ANALYSIS_FAILURE_KEYS, "analysis_failures");
+  }
   assertExactKeys(raw.submissions, SUBMISSION_KEYS, "submissions");
   if (hasOutreach) assertExactKeys(raw.outreach, OUTREACH_KEYS, "outreach");
 
@@ -94,6 +113,13 @@ function normalizeSnapshot(raw) {
     captured_at: capturedAt.toISOString(),
     period_start: periodStart.toISOString(),
     metrics: normalizeCounts(raw.metrics, EVENT_KEYS, "metrics"),
+    ...(hasAnalysisFailures ? {
+      analysis_failures: normalizeCounts(
+        raw.analysis_failures,
+        ANALYSIS_FAILURE_KEYS,
+        "analysis_failures",
+      ),
+    } : {}),
     submissions: normalizeCounts(raw.submissions, SUBMISSION_KEYS, "submissions"),
     ...(hasOutreach ? { outreach: normalizeCounts(raw.outreach, OUTREACH_KEYS, "outreach") } : {}),
   };
@@ -128,10 +154,12 @@ function rateStatus(numerator, denominator, threshold, minimumSample) {
 
 function createReport(current, previous) {
   const metrics = current.metrics;
+  const analysisFailures = current.analysis_failures;
   const submissions = current.submissions;
   const outreach = current.outreach;
   const feedbackTotal = metrics.feedback_yes + metrics.feedback_no;
   const previousMetrics = previous?.metrics;
+  const previousAnalysisFailures = previous?.analysis_failures;
   const previousSubmissions = previous?.submissions;
   const previousOutreach = previous?.outreach;
   const metricRows = [
@@ -156,6 +184,23 @@ function createReport(current, previous) {
     ["创作者点击率", metrics.creator_link_clicked, metrics.match_result_view, 0.15, 20],
     ["分享率", metrics.share_succeeded, metrics.match_result_view, 0.03, 20],
   ];
+  const failureRows = [
+    ["未检测到人脸", "no_face"],
+    ["检测到多张人脸", "multiple_faces"],
+    ["照片过暗", "too_dark"],
+    ["角度或画面问题", "pose_issue"],
+    ["分析组件异常", "component_error"],
+  ];
+  const classifiedFailures = analysisFailures
+    ? Object.values(analysisFailures).reduce((total, count) => total + count, 0)
+    : 0;
+  const unclassifiedFailures = Math.max(metrics.analysis_failed - classifiedFailures, 0);
+  const previousClassifiedFailures = previousAnalysisFailures
+    ? Object.values(previousAnalysisFailures).reduce((total, count) => total + count, 0)
+    : 0;
+  const previousUnclassifiedFailures = previousAnalysisFailures
+    ? Math.max((previousMetrics?.analysis_failed ?? 0) - previousClassifiedFailures, 0)
+    : undefined;
 
   const lines = [
     "# LOOK AI 30 天验证进度",
@@ -171,6 +216,15 @@ function createReport(current, previous) {
     "| --- | ---: | ---: |",
     ...metricRows.map(([label, key]) => `| ${label} | ${metrics[key]} | ${delta(metrics[key], previousMetrics?.[key])} |`),
     "",
+    ...(analysisFailures ? [
+      "## 分析失败原因",
+      "",
+      "| 原因 | 当前累计 | 较上次 |",
+      "| --- | ---: | ---: |",
+      ...failureRows.map(([label, key]) => `| ${label} | ${analysisFailures[key]} | ${delta(analysisFailures[key], previousAnalysisFailures?.[key])} |`),
+      `| 旧版本未分类 | ${unclassifiedFailures} | ${delta(unclassifiedFailures, previousUnclassifiedFailures)} |`,
+      "",
+    ] : []),
     "## 转化判断",
     "",
     "| 指标 | 当前值 | 30 天计划观察线 | 判断 |",
@@ -216,6 +270,7 @@ function createReport(current, previous) {
     "## 口径说明",
     "",
     "- 同一会话的同一事件只计一次。",
+    "- 分析失败原因只记录固定分类代码；不会记录照片、面部参数、异常文本或设备身份。",
     "- `使用女生模式选图` 只表示用户选择了女生模式，不代表系统识别或推断了用户性别。",
     "- 所有转化率都从统计起点累计计算；样本较小时只记录，不据此频繁改产品。",
     "",

@@ -264,6 +264,15 @@ function formatRate(numerator: number, denominator: number): string {
 
 function MetricsPanel({ metrics }: { metrics: AdminProductMetrics }) {
   const feedbackTotal = metrics.feedback_yes + metrics.feedback_no;
+  const failureReasons = [
+    ["未检测到人脸", metrics.analysis_failures.no_face],
+    ["检测到多张人脸", metrics.analysis_failures.multiple_faces],
+    ["照片过暗", metrics.analysis_failures.too_dark],
+    ["角度或画面问题", metrics.analysis_failures.pose_issue],
+    ["分析组件异常", metrics.analysis_failures.component_error],
+  ] as const;
+  const classifiedFailures = failureReasons.reduce((total, [, count]) => total + count, 0);
+  const unclassifiedFailures = Math.max(metrics.analysis_failed - classifiedFailures, 0);
   return (
     <section className="admin-metrics" aria-labelledby="admin-metrics-title">
       <div className="admin-metrics-heading">
@@ -335,8 +344,29 @@ function MetricsPanel({ metrics }: { metrics: AdminProductMetrics }) {
           <p>{metrics.share_succeeded} 次分享 · {metrics.match_result_view} 次结果展示</p>
         </article>
       </div>
+      <section className="admin-failure-breakdown" aria-labelledby="admin-failure-title">
+        <div className="admin-failure-heading">
+          <div>
+            <span>ANALYSIS FAILURES</span>
+            <h3 id="admin-failure-title">失败原因</h3>
+          </div>
+          <p>
+            已分类 {classifiedFailures} 次
+            {unclassifiedFailures > 0 ? ` · 旧版本未分类 ${unclassifiedFailures} 次` : ""}
+          </p>
+        </div>
+        <div className="admin-failure-grid">
+          {failureReasons.map(([label, count]) => (
+            <div key={label}>
+              <span>{label}</span>
+              <strong>{count}</strong>
+              <small>{formatRate(count, metrics.analysis_failed)}</small>
+            </div>
+          ))}
+        </div>
+      </section>
       <p className="admin-metrics-note">
-        统计窗口从 {formatDate(metrics.period_start)} 起；同一会话重复触发同一动作只计一次，同时体验两种模式会分别计入两项。
+        统计窗口从 {formatDate(metrics.period_start)} 起；同一会话重复触发同一动作只计一次，同时体验两种模式会分别计入两项。失败原因只记录固定分类，不含照片、面部或异常详情。
       </p>
     </section>
   );

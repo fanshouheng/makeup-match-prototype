@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "./supabaseClient";
+import type { QualityIssueCode } from "../domain/quality";
 
 export type ProductEventName =
   | "landing_view"
@@ -13,6 +14,23 @@ export type ProductEventName =
   | "creator_link_clicked"
   | "share_succeeded";
 
+export type AnalysisFailureReason =
+  | "no_face"
+  | "multiple_faces"
+  | "too_dark"
+  | "pose_issue"
+  | "component_error";
+
+const FAILURE_REASON_BY_ISSUE: Record<QualityIssueCode, AnalysisFailureReason> = {
+  "no-face": "no_face",
+  "multiple-faces": "multiple_faces",
+  "too-dark": "too_dark",
+  "too-small": "pose_issue",
+  tilted: "pose_issue",
+  "side-facing": "pose_issue",
+  "expressive-mouth": "pose_issue",
+};
+
 const SESSION_STORAGE_KEY = "look-ai-product-metrics-session";
 const CAMPAIGN_SOURCE_PATTERN = /^(xhs|creator|community)_\d{2}$/;
 
@@ -22,6 +40,12 @@ export function photoSelectionEventNames(
   return referenceAudience === "men"
     ? ["photo_selected", "men_photo_selected"]
     : ["photo_selected", "women_photo_selected"];
+}
+
+export function analysisFailureReasonFromIssues(
+  issues: readonly { code: QualityIssueCode }[],
+): AnalysisFailureReason | undefined {
+  return issues[0] ? FAILURE_REASON_BY_ISSUE[issues[0].code] : undefined;
 }
 
 interface SessionStorageLike {
@@ -58,14 +82,19 @@ function productMetricSessionId(): string | undefined {
   }
 }
 
-export async function recordProductEvent(eventName: ProductEventName): Promise<void> {
+export async function recordProductEvent(
+  eventName: ProductEventName,
+  failureReason?: AnalysisFailureReason,
+): Promise<void> {
   const sessionId = productMetricSessionId();
   if (!sessionId) return;
 
   try {
     const supabase = await getSupabaseClient();
     await supabase.functions.invoke("record-product-event", {
-      body: { sessionId, eventName },
+      body: failureReason
+        ? { sessionId, eventName, failureReason }
+        : { sessionId, eventName },
     });
   } catch {
     // Metrics are best-effort and must never interrupt local photo analysis.

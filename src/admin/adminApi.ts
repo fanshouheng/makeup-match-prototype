@@ -102,6 +102,13 @@ export interface AdminProductMetrics {
   feedback_no: number;
   creator_link_clicked: number;
   share_succeeded: number;
+  analysis_failures: {
+    no_face: number;
+    multiple_faces: number;
+    too_dark: number;
+    pose_issue: number;
+    component_error: number;
+  };
 }
 
 export interface AdminListResponse {

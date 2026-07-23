@@ -39,6 +39,7 @@ import { detectFace } from "./services/faceLandmarker";
 import { loadImageBlob } from "./services/imageFile";
 import { measureAverageLuminance } from "./services/imageQuality";
 import {
+  analysisFailureReasonFromIssues,
   campaignSourceFromSearch,
   photoSelectionEventNames,
   recordProductEvent,
@@ -399,9 +400,14 @@ function App() {
         pose: analysis?.pose,
       });
 
-      void recordProductEvent(
-        analysis && issues.length === 0 ? "analysis_succeeded" : "analysis_failed",
-      );
+      if (analysis && issues.length === 0) {
+        void recordProductEvent("analysis_succeeded");
+      } else {
+        void recordProductEvent(
+          "analysis_failed",
+          analysisFailureReasonFromIssues(issues) ?? "component_error",
+        );
+      }
 
       setResult({
         analysis,
@@ -412,7 +418,7 @@ function App() {
       setStatus("complete");
     } catch (analysisError) {
       console.error(analysisError);
-      void recordProductEvent("analysis_failed");
+      void recordProductEvent("analysis_failed", "component_error");
       setError("分析组件加载失败，请刷新页面后重试。");
       setStatus("error");
     }

@@ -16,8 +16,9 @@
 8. `supabase/migrations/20260723060615_add_men_photo_selected_metric.sql`
 9. `supabase/migrations/20260723080320_add_women_photo_selected_metric.sql`
 10. `supabase/migrations/20260723092337_creator_outreach_tracking.sql`
+11. `supabase/migrations/20260723173725_add_analysis_failure_reason.sql`
 
-第二、三个迁移只增加私有限流能力并显式拒绝客户端访问，不会关闭现有提交入口。第四个迁移为现有申请和公开创作者补充参考页面与内容方向，已有记录默认保持为“女生 + 妆容”。第五个迁移创建匿名会话事件表。第六个迁移约束女生参考只使用妆容内容，第七个迁移补充访问和创作者链接点击事件，第八、九个迁移分别补充男生和女生模式选图事件；产品事件表不向匿名或已登录客户端开放读写权限。第十个迁移创建私有博主跟进台账，只允许 `service_role` 访问，不能向 `anon` 或 `authenticated` 授权。
+第二、三个迁移只增加私有限流能力并显式拒绝客户端访问，不会关闭现有提交入口。第四个迁移为现有申请和公开创作者补充参考页面与内容方向，已有记录默认保持为“女生 + 妆容”。第五个迁移创建匿名会话事件表。第六个迁移约束女生参考只使用妆容内容，第七个迁移补充访问和创作者链接点击事件，第八、九个迁移分别补充男生和女生模式选图事件；产品事件表不向匿名或已登录客户端开放读写权限。第十个迁移创建私有博主跟进台账，只允许 `service_role` 访问，不能向 `anon` 或 `authenticated` 授权。第十一个迁移为分析失败增加固定原因代码；旧事件保持未分类，不做历史猜测。
 
 暂时不要执行 `202607170003_lock_creator_submission_writes.sql`。它会关闭浏览器直接写数据库和存储的旧入口，应在 Edge Function 验证成功后最后执行。
 
@@ -93,7 +94,7 @@ Edge Function 验证通过后，执行：
 
 ## 7. 产品事件与管理台指标
 
-部署 `supabase/functions/record-product-event/index.ts`，并保持 `verify_jwt = false`。该函数只接受允许来源提交的随机会话 UUID 和固定事件名；`product_events` 不向 `anon` 或 `authenticated` 开放读取或直写权限。
+部署 `supabase/functions/record-product-event/index.ts`，并保持 `verify_jwt = false`。该函数只接受允许来源提交的随机会话 UUID、固定事件名，以及分析失败时可选的固定原因代码；`product_events` 不向 `anon` 或 `authenticated` 开放读取或直写权限。
 
 重新部署 `supabase/functions/admin-review/index.ts`，让受保护的 `/admin` 管理台读取最近 7 天的访问、选图、女生与男生模式选图、分析、结果、反馈、创作者链接点击和分享聚合指标。验证：
 
@@ -102,6 +103,8 @@ Edge Function 验证通过后，执行：
 3. 匿名客户端不能直接读取 `product_events`。
 4. 同一会话重复提交同一事件时，表中仍只有一条记录。
 5. 点击事件中不包含创作者名称、ID、链接或结果名次。
+6. 分析失败只接受 `no_face`、`multiple_faces`、`too_dark`、`pose_issue` 或 `component_error`；其他事件携带原因字段时被拒绝。
+7. 失败事件不带原因时仍可写入，兼容已缓存的旧页面，并在管理台显示为旧版本未分类。
 
 ## 8. 审核与维护
 

@@ -24,6 +24,24 @@ event_counts as (
    and events.created_at >= params.period_start
   group by names.event_name
 ),
+analysis_failure_reasons(failure_reason) as (
+  values
+    ('no_face'),
+    ('multiple_faces'),
+    ('too_dark'),
+    ('pose_issue'),
+    ('component_error')
+),
+analysis_failure_counts as (
+  select reasons.failure_reason, count(events.session_id)::int as failure_count
+  from analysis_failure_reasons reasons
+  cross join params
+  left join public.product_events events
+    on events.event_name = 'analysis_failed'
+   and events.failure_reason = reasons.failure_reason
+   and events.created_at >= params.period_start
+  group by reasons.failure_reason
+),
 submission_counts as (
   select
     count(*) filter (where submitted_at >= params.period_start)::int as new_total,
@@ -62,6 +80,7 @@ select jsonb_build_object(
   'captured_at', now(),
   'period_start', (select period_start from params),
   'metrics', (select jsonb_object_agg(event_name, event_count) from event_counts),
+  'analysis_failures', (select jsonb_object_agg(failure_reason, failure_count) from analysis_failure_counts),
   'submissions', jsonb_build_object(
     'new_total', submissions.new_total,
     'pending', submissions.pending,

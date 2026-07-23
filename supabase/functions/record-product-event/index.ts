@@ -13,6 +13,13 @@ const EVENT_NAMES = new Set([
   "creator_link_clicked",
   "share_succeeded",
 ]);
+const FAILURE_REASONS = new Set([
+  "no_face",
+  "multiple_faces",
+  "too_dark",
+  "pose_issue",
+  "component_error",
+]);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function configuredOrigins(): string[] {
@@ -86,12 +93,21 @@ Deno.serve(async (request) => {
 
   try {
     const body = await request.json() as Record<string, unknown>;
+    const keys = Object.keys(body);
+    const hasFailureReason = Object.prototype.hasOwnProperty.call(body, "failureReason");
+    const eventNameIsValid = typeof body.eventName === "string" && EVENT_NAMES.has(body.eventName);
+    const failureReasonIsValid = body.eventName === "analysis_failed"
+      ? !hasFailureReason || (
+        typeof body.failureReason === "string" && FAILURE_REASONS.has(body.failureReason)
+      )
+      : !hasFailureReason;
     if (
-      Object.keys(body).length !== 2 ||
+      (keys.length !== 2 && keys.length !== 3) ||
+      !keys.every((key) => ["sessionId", "eventName", "failureReason"].includes(key)) ||
       typeof body.sessionId !== "string" ||
       !UUID_PATTERN.test(body.sessionId) ||
-      typeof body.eventName !== "string" ||
-      !EVENT_NAMES.has(body.eventName)
+      !eventNameIsValid ||
+      !failureReasonIsValid
     ) {
       return reply(origin, 400, "invalid_event");
     }
@@ -100,7 +116,11 @@ Deno.serve(async (request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
     const { error } = await admin.from("product_events").upsert(
-      { session_id: body.sessionId, event_name: body.eventName },
+      {
+        session_id: body.sessionId,
+        event_name: body.eventName,
+        failure_reason: hasFailureReason ? body.failureReason : null,
+      },
       { onConflict: "session_id,event_name", ignoreDuplicates: true },
     );
     if (error) throw error;

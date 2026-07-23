@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  analysisFailureReasonFromIssues,
   campaignSourceFromSearch,
   getOrCreateProductMetricSessionId,
   photoSelectionEventNames,
@@ -65,5 +66,30 @@ describe("photoSelectionEventNames", () => {
       "photo_selected",
       "men_photo_selected",
     ]);
+  });
+});
+
+describe("analysisFailureReasonFromIssues", () => {
+  it.each([
+    ["no-face", "no_face"],
+    ["multiple-faces", "multiple_faces"],
+    ["too-dark", "too_dark"],
+    ["too-small", "pose_issue"],
+    ["tilted", "pose_issue"],
+    ["side-facing", "pose_issue"],
+    ["expressive-mouth", "pose_issue"],
+  ] as const)("maps %s to %s", (code, expected) => {
+    expect(analysisFailureReasonFromIssues([{ code }])).toBe(expected);
+  });
+
+  it("uses the first displayed quality issue when a photo has several issues", () => {
+    expect(analysisFailureReasonFromIssues([
+      { code: "too-dark" },
+      { code: "tilted" },
+    ])).toBe("too_dark");
+  });
+
+  it("returns no reason when photo quality passed", () => {
+    expect(analysisFailureReasonFromIssues([])).toBeUndefined();
   });
 });

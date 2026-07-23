@@ -22,6 +22,14 @@ const PRODUCT_EVENT_NAMES = [
   "creator_link_clicked",
   "share_succeeded",
 ] as const;
+const PRODUCT_FAILURE_REASONS = [
+  "no_face",
+  "multiple_faces",
+  "too_dark",
+  "pose_issue",
+  "component_error",
+] as const;
+type ProductFailureReason = typeof PRODUCT_FAILURE_REASONS[number];
 const FEATURE_KEYS = [
   "faceAspectRatio", "jawToCheekRatio", "foreheadToCheekRatio",
   "lowerThirdRatio", "eyeSpacingRatio", "eyeAspectRatio",
@@ -229,18 +237,42 @@ async function signedPhotoMap(admin: SupabaseClient, paths: string[]): Promise<M
   return new Map((data ?? []).flatMap((item) => item.signedUrl ? [[item.path, item.signedUrl] as const] : []));
 }
 
-async function productMetrics(admin: SupabaseClient): Promise<Record<string, string | number>> {
+async function productMetrics(admin: SupabaseClient): Promise<Record<string, unknown>> {
   const periodStart = new Date(Date.now() - PRODUCT_METRICS_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  const counts = await Promise.all(PRODUCT_EVENT_NAMES.map(async (eventName) => {
-    const result = await admin.from("product_events")
-      .select("session_id", { count: "exact", head: true })
-      .eq("event_name", eventName)
-      .gte("created_at", periodStart);
-    if (result.error) throw result.error;
-    return [eventName, result.count ?? 0] as const;
-  }));
+  const [counts, failuresResult] = await Promise.all([
+    Promise.all(PRODUCT_EVENT_NAMES.map(async (eventName) => {
+      const result = await admin.from("product_events")
+        .select("session_id", { count: "exact", head: true })
+        .eq("event_name", eventName)
+        .gte("created_at", periodStart);
+      if (result.error) throw result.error;
+      return [eventName, result.count ?? 0] as const;
+    })),
+    admin.from("product_events")
+      .select("failure_reason")
+      .eq("event_name", "analysis_failed")
+      .gte("created_at", periodStart),
+  ]);
+  if (failuresResult.error) throw failuresResult.error;
 
-  return { period_start: periodStart, ...Object.fromEntries(counts) };
+  const failureCounts = Object.fromEntries(
+    PRODUCT_FAILURE_REASONS.map((reason) => [reason, 0]),
+  ) as Record<ProductFailureReason, number>;
+  for (const row of failuresResult.data ?? []) {
+    const reason = row.failure_reason;
+    if (
+      typeof reason === "string" &&
+      PRODUCT_FAILURE_REASONS.includes(reason as ProductFailureReason)
+    ) {
+      failureCounts[reason as ProductFailureReason] += 1;
+    }
+  }
+
+  return {
+    period_start: periodStart,
+    ...Object.fromEntries(counts),
+    analysis_failures: failureCounts,
+  };
 }
 
 async function listData(admin: SupabaseClient): Promise<Record<string, unknown>> {

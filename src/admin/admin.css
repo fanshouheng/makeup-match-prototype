@@ -80,6 +80,17 @@
 .admin-metric span { display: block; margin-top: 20px; color: var(--admin-muted); font-size: 11px; font-weight: 600; }
 .admin-metric strong { display: block; margin-top: 8px; font: 400 28px/1 "Space Mono", "Cascadia Mono", Consolas, monospace; letter-spacing: 0; }
 .admin-metric p { min-height: 36px; margin: 12px 0 0; color: var(--admin-muted); font-size: 11px; line-height: 1.6; }
+.admin-failure-breakdown { margin-top: 28px; }
+.admin-failure-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 12px; }
+.admin-failure-heading span { color: var(--admin-muted); font-size: 10px; font-weight: 600; }
+.admin-failure-heading h3 { margin: 5px 0 0; font-size: 17px; font-weight: 600; }
+.admin-failure-heading p { margin: 0; color: var(--admin-muted); font-size: 11px; }
+.admin-failure-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--admin-line); border-bottom: 1px solid var(--admin-line); }
+.admin-failure-grid div { min-width: 0; padding: 14px 16px; border-left: 1px solid var(--admin-line); }
+.admin-failure-grid div:first-child { border-left: 0; }
+.admin-failure-grid span { display: block; min-height: 30px; color: var(--admin-muted); font-size: 10px; line-height: 1.5; }
+.admin-failure-grid strong { display: block; margin-top: 6px; font: 400 22px/1 "Space Mono", "Cascadia Mono", Consolas, monospace; }
+.admin-failure-grid small { display: block; margin-top: 7px; color: var(--admin-muted); font-size: 10px; }
 .admin-metrics-note { margin: 16px 0 0; color: var(--admin-muted); font-size: 11px; line-height: 1.6; }
 .admin-outreach { padding-top: 8px; }
 .admin-outreach-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
@@ -175,6 +186,11 @@
   .admin-metrics-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
   .admin-metrics-heading > p { text-align: left; }
   .admin-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-failure-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .admin-failure-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-failure-grid div { border-top: 1px solid var(--admin-line); }
+  .admin-failure-grid div:nth-child(-n + 2) { border-top: 0; }
+  .admin-failure-grid div:nth-child(odd) { border-left: 0; }
   .admin-outreach-heading { align-items: flex-start; flex-direction: column; }
   .admin-outreach-controls { width: 100%; }
   .admin-outreach-controls label { flex: 1; }
