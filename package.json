@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "postinstall": "node scripts/prepare-model.mjs",
+    "progress:update": "node scripts/update-validation-progress.mjs --input output/validation-progress/latest-input.json",
     "test": "vitest run",
     "test:watch": "vitest"
   },
