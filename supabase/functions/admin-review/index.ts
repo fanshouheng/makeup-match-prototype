@@ -13,6 +13,7 @@ const MAX_OUTREACH_NOTES_LENGTH = 1000;
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const CONSENT_VERSION = "2026-07-21";
 const PRODUCT_METRICS_DAYS = 7;
+const AI_DISCOVERY_LOG_LIMIT = 50;
 const PRODUCT_EVENT_NAMES = [
   "landing_view",
   "photo_selected",
@@ -228,7 +229,9 @@ async function signedPhotoMap(admin: SupabaseClient, paths: string[]): Promise<M
   if (uniquePaths.length === 0) return new Map();
   const { data, error } = await admin.storage.from(PHOTO_BUCKET).createSignedUrls(uniquePaths, SIGNED_URL_TTL_SECONDS);
   if (error) throw error;
-  return new Map((data ?? []).flatMap((item) => item.signedUrl ? [[item.path, item.signedUrl] as const] : []));
+  return new Map((data ?? []).flatMap((item) =>
+    item.path && item.signedUrl ? [[item.path, item.signedUrl] as const] : []
+  ));
 }
 
 async function productMetrics(admin: SupabaseClient): Promise<Record<string, unknown>> {
@@ -269,8 +272,36 @@ async function productMetrics(admin: SupabaseClient): Promise<Record<string, unk
   };
 }
 
+async function aiDiscoveryData(admin: SupabaseClient): Promise<Record<string, unknown>> {
+  const periodStart = new Date(Date.now() - PRODUCT_METRICS_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const baseCount = () => admin.from("ai_creator_discovery_logs")
+    .select("id", { count: "exact", head: true })
+    .gte("created_at", periodStart);
+  const [totalResult, succeededResult, failedResult, recentResult] = await Promise.all([
+    baseCount(),
+    baseCount().eq("status", "succeeded"),
+    baseCount().eq("status", "failed"),
+    admin.from("ai_creator_discovery_logs")
+      .select("id,status,error_code,duration_ms,provider_status,reference_audience,content_filter,created_at")
+      .gte("created_at", periodStart)
+      .order("created_at", { ascending: false })
+      .limit(AI_DISCOVERY_LOG_LIMIT),
+  ]);
+  if (totalResult.error) throw totalResult.error;
+  if (succeededResult.error) throw succeededResult.error;
+  if (failedResult.error) throw failedResult.error;
+  if (recentResult.error) throw recentResult.error;
+  return {
+    period_start: periodStart,
+    total: totalResult.count ?? 0,
+    succeeded: succeededResult.count ?? 0,
+    failed: failedResult.count ?? 0,
+    recent: recentResult.data ?? [],
+  };
+}
+
 async function listData(admin: SupabaseClient): Promise<Record<string, unknown>> {
-  const [submissionsResult, creatorsResult, outreachResult, metrics] = await Promise.all([
+  const [submissionsResult, creatorsResult, outreachResult, metrics, aiDiscovery] = await Promise.all([
     admin.from("creator_submissions")
       .select("id,name,contact_email,platform,profile_url,douyin_url,tutorial_url,reference_audience,content_types,reference_photo_path,quality_metrics,status,submitted_at,ownership_verified_at,reviewed_at,review_note")
       .eq("status", "pending")
@@ -282,6 +313,7 @@ async function listData(admin: SupabaseClient): Promise<Record<string, unknown>>
       .select("id,candidate_no,display_name,profile_url,first_contacted_at,status,next_follow_up_at,loss_reason,notes,created_at,updated_at")
       .order("updated_at", { ascending: false }),
     productMetrics(admin),
+    aiDiscoveryData(admin),
   ]);
   if (submissionsResult.error) throw submissionsResult.error;
   if (creatorsResult.error) throw creatorsResult.error;
@@ -302,6 +334,7 @@ async function listData(admin: SupabaseClient): Promise<Record<string, unknown>>
     })),
     outreach: outreachResult.data ?? [],
     product_metrics: metrics,
+    ai_discovery: aiDiscovery,
   };
 }
 

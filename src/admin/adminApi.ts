@@ -117,11 +117,33 @@ export interface AdminProductMetrics {
   };
 }
 
+export type AdminAiDiscoveryStatus = "succeeded" | "failed";
+
+export interface AdminAiDiscoveryLog {
+  id: string;
+  status: AdminAiDiscoveryStatus;
+  error_code: string | null;
+  duration_ms: number;
+  provider_status: number | null;
+  reference_audience: ReferenceAudience;
+  content_filter: "all" | "hair" | "makeup";
+  created_at: string;
+}
+
+export interface AdminAiDiscoveryData {
+  period_start: string;
+  total: number;
+  succeeded: number;
+  failed: number;
+  recent: AdminAiDiscoveryLog[];
+}
+
 export interface AdminListResponse {
   submissions: AdminSubmission[];
   creators: AdminCreator[];
   outreach: AdminOutreach[];
   product_metrics: AdminProductMetrics;
+  ai_discovery: AdminAiDiscoveryData;
 }
 
 interface AdminRequest {

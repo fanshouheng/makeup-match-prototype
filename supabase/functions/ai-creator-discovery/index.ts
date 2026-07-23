@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2.110.7";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.110.7";
 import { parseProviderCreatorNames } from "../_shared/aiCreatorDiscovery.ts";
 
 const AI_DISCOVERY_CONSENT_VERSION = "2026-07-23";
@@ -12,6 +12,22 @@ interface TurnstileOutcome {
   action?: string;
   hostname?: string;
   success: boolean;
+}
+
+type AiInvocationError =
+  | "web_search_not_configured"
+  | "provider_request_failed"
+  | "invalid_provider_response"
+  | "timeout"
+  | "unexpected_error";
+
+interface AiInvocationLog {
+  contentFilter: string;
+  durationMs: number;
+  errorCode?: AiInvocationError;
+  providerStatus?: number;
+  referenceAudience: string;
+  status: "succeeded" | "failed";
 }
 
 function configuredOrigins(): string[] {
@@ -150,6 +166,38 @@ function prompt(): string {
   return "根据这张照片的面部特点，联网搜索 3 到 5 位长相特征相近、适合参考妆容的美妆博主。只返回博主名字，不要解释。不要识别人物，也不要分析博主照片。";
 }
 
+async function recordAiInvocation(
+  admin: SupabaseClient,
+  input: AiInvocationLog,
+): Promise<void> {
+  try {
+    const { error } = await admin.from("ai_creator_discovery_logs").insert({
+      content_filter: input.contentFilter,
+      duration_ms: input.durationMs,
+      error_code: input.errorCode ?? null,
+      provider_status: input.providerStatus ?? null,
+      reference_audience: input.referenceAudience,
+      status: input.status,
+    });
+    if (error) console.error("AI invocation log write failed", { code: error.code });
+  } catch (error) {
+    const code = typeof error === "object" && error !== null && "code" in error
+      ? String(error.code)
+      : "unknown";
+    console.error("AI invocation log write failed", { code });
+  }
+}
+
+function invocationErrorCode(error: unknown): "timeout" | "unexpected_error" {
+  if (
+    error instanceof DOMException &&
+    (error.name === "TimeoutError" || error.name === "AbortError")
+  ) {
+    return "timeout";
+  }
+  return "unexpected_error";
+}
+
 Deno.serve(async (request) => {
   const origin = resolveOrigin(request);
   if (!origin) return reply("null", 403, "origin_not_allowed");
@@ -219,48 +267,65 @@ Deno.serve(async (request) => {
     const photoBytes = new Uint8Array(await photo.arrayBuffer());
     if (!isJpeg(photo, photoBytes)) return reply(origin, 400, "invalid_request");
     const imageUrl = `data:image/jpeg;base64,${toBase64(photoBytes)}`;
-    const providerResponse = await fetch(ARK_RESPONSES_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${arkApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: arkModel,
-        store: false,
-        input: [{
-          role: "user",
-          content: [
-            { type: "input_text", text: prompt() },
-            { type: "input_image", detail: "high", image_url: imageUrl },
-          ],
-        }],
-        tools: [{ type: "web_search", max_keyword: 2 }],
-        thinking: { type: "disabled" },
-        max_output_tokens: 300,
-        text: {
-          format: {
-            type: "json_schema",
-            name: "creator_names",
-            strict: true,
-            schema: {
-              type: "object",
-              additionalProperties: false,
-              properties: {
-                names: {
-                  type: "array",
-                  minItems: 1,
-                  maxItems: 5,
-                  items: { type: "string", minLength: 1, maxLength: 60 },
+    const providerStartedAt = Date.now();
+    let providerResponse: Response;
+    try {
+      providerResponse = await fetch(ARK_RESPONSES_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${arkApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: arkModel,
+          store: false,
+          input: [{
+            role: "user",
+            content: [
+              { type: "input_text", text: prompt() },
+              { type: "input_image", detail: "high", image_url: imageUrl },
+            ],
+          }],
+          tools: [{ type: "web_search", max_keyword: 2 }],
+          thinking: { type: "disabled" },
+          max_output_tokens: 300,
+          text: {
+            format: {
+              type: "json_schema",
+              name: "creator_names",
+              strict: true,
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  names: {
+                    type: "array",
+                    minItems: 1,
+                    maxItems: 5,
+                    items: { type: "string", minLength: 1, maxLength: 60 },
+                  },
                 },
+                required: ["names"],
               },
-              required: ["names"],
             },
           },
-        },
-      }),
-      signal: AbortSignal.timeout(70_000),
-    });
+        }),
+        signal: AbortSignal.timeout(70_000),
+      });
+    } catch (error) {
+      const errorCode = invocationErrorCode(error);
+      await recordAiInvocation(admin, {
+        contentFilter,
+        durationMs: Date.now() - providerStartedAt,
+        errorCode,
+        referenceAudience,
+        status: "failed",
+      });
+      const code = error instanceof Error ? error.message : "unknown";
+      console.error("AI creator discovery failed", { code });
+      return reply(origin, 500, "unexpected_error");
+    }
+
     if (!providerResponse.ok) {
       const providerError = await providerResponse
         .clone()
@@ -269,6 +334,17 @@ Deno.serve(async (request) => {
       const providerCode = typeof providerError?.error?.code === "string"
         ? providerError.error.code
         : undefined;
+      const errorCode = providerCode === "ToolNotOpen"
+        ? "web_search_not_configured"
+        : "provider_request_failed";
+      await recordAiInvocation(admin, {
+        contentFilter,
+        durationMs: Date.now() - providerStartedAt,
+        errorCode,
+        providerStatus: providerResponse.status,
+        referenceAudience,
+        status: "failed",
+      });
       console.error("AI provider request failed", {
         code: providerCode,
         requestId: providerResponse.headers.get("x-request-id"),
@@ -277,17 +353,36 @@ Deno.serve(async (request) => {
       return reply(
         origin,
         providerCode === "ToolNotOpen" ? 503 : 502,
-        providerCode === "ToolNotOpen"
-          ? "web_search_not_configured"
-          : "provider_request_failed",
+        errorCode,
       );
     }
 
-    const names = parseProviderCreatorNames(await providerResponse.json());
-    return new Response(JSON.stringify({ names }), {
-      status: 200,
-      headers: headers(origin),
-    });
+    try {
+      const names = parseProviderCreatorNames(await providerResponse.json());
+      await recordAiInvocation(admin, {
+        contentFilter,
+        durationMs: Date.now() - providerStartedAt,
+        providerStatus: providerResponse.status,
+        referenceAudience,
+        status: "succeeded",
+      });
+      return new Response(JSON.stringify({ names }), {
+        status: 200,
+        headers: headers(origin),
+      });
+    } catch (error) {
+      await recordAiInvocation(admin, {
+        contentFilter,
+        durationMs: Date.now() - providerStartedAt,
+        errorCode: "invalid_provider_response",
+        providerStatus: providerResponse.status,
+        referenceAudience,
+        status: "failed",
+      });
+      const code = error instanceof Error ? error.message : "unknown";
+      console.error("AI creator discovery failed", { code });
+      return reply(origin, 502, "unexpected_error");
+    }
   } catch (error) {
     const code = error instanceof Error ? error.message : "unknown";
     console.error("AI creator discovery failed", { code });

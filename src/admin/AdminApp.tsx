@@ -36,6 +36,8 @@ import {
   invokeAdmin,
   type AdminCreator,
   type AdminCreatorSubmissionInput,
+  type AdminAiDiscoveryData,
+  type AdminAiDiscoveryLog,
   type AdminListResponse,
   type AdminOutreachInput,
   type AdminProductMetrics,
@@ -43,7 +45,7 @@ import {
 } from "./adminApi";
 import "./admin.css";
 
-type View = "pending" | "creators" | "outreach" | "metrics";
+type View = "pending" | "creators" | "outreach" | "metrics" | "ai";
 type ConfirmAction =
   | { type: "verify" | "approve" | "reject" | "cleanup"; submission: AdminSubmission }
   | { type: "set_active" | "delete_creator"; creator: AdminCreator }
@@ -263,6 +265,96 @@ function formatRate(numerator: number, denominator: number): string {
     style: "percent",
     maximumFractionDigits: 1,
   }).format(numerator / denominator);
+}
+
+function formatDuration(milliseconds: number): string {
+  if (milliseconds < 1000) return `${milliseconds} ms`;
+  return `${(milliseconds / 1000).toFixed(1)} s`;
+}
+
+const AI_ERROR_LABELS: Record<string, string> = {
+  web_search_not_configured: "联网搜索未开通",
+  provider_request_failed: "AI 服务请求失败",
+  invalid_provider_response: "AI 返回格式异常",
+  timeout: "AI 响应超时",
+  unexpected_error: "未分类异常",
+};
+
+function aiModeLabel(log: AdminAiDiscoveryLog): string {
+  if (log.reference_audience === "women") return "女生妆容";
+  const filters = { all: "综合", hair: "发型", makeup: "妆容" } as const;
+  return `男生·${filters[log.content_filter]}`;
+}
+
+function AiDiscoveryPanel({ data }: { data: AdminAiDiscoveryData }) {
+  const averageDuration = data.recent.length === 0
+    ? 0
+    : Math.round(data.recent.reduce((total, log) => total + log.duration_ms, 0) / data.recent.length);
+  return (
+    <section className="admin-ai" aria-labelledby="admin-ai-title">
+      <div className="admin-metrics-heading">
+        <div>
+          <p className="admin-kicker">LAST 7 DAYS</p>
+          <h2 id="admin-ai-title">AI 调用</h2>
+        </div>
+        <p>只记录调用状态和性能数据，不保存照片、面部数据、AI 返回名字、排名或原始 IP。</p>
+      </div>
+      <div className="admin-metric-grid">
+        <article className="admin-metric">
+          <Sparkles size={19} />
+          <span>调用总数</span>
+          <strong>{data.total}</strong>
+          <p>实际发送到 AI 服务的请求</p>
+        </article>
+        <article className="admin-metric">
+          <CheckCircle2 size={19} />
+          <span>成功率</span>
+          <strong>{formatRate(data.succeeded, data.total)}</strong>
+          <p>{data.succeeded} 次成功 · {data.failed} 次失败</p>
+        </article>
+        <article className="admin-metric">
+          <Clock3 size={19} />
+          <span>最近记录平均耗时</span>
+          <strong>{averageDuration ? formatDuration(averageDuration) : "—"}</strong>
+          <p>按下方最近 {data.recent.length} 条记录计算</p>
+        </article>
+        <article className="admin-metric">
+          <X size={19} />
+          <span>失败次数</span>
+          <strong>{data.failed}</strong>
+          <p>固定错误分类，不保存原始异常文本</p>
+        </article>
+      </div>
+      <div className="admin-ai-heading">
+        <div>
+          <span>RECENT INVOCATIONS</span>
+          <h3>最近调用记录</h3>
+        </div>
+        <p>最多显示最近 50 条</p>
+      </div>
+      {data.recent.length === 0 ? (
+        <div className="admin-empty"><Sparkles size={28} /><h3>还没有 AI 调用记录</h3></div>
+      ) : (
+        <div className="admin-ai-table-wrap">
+          <table className="admin-ai-table">
+            <thead><tr><th>时间</th><th>状态</th><th>耗时</th><th>参考模式</th><th>结果</th></tr></thead>
+            <tbody>
+              {data.recent.map((log) => (
+                <tr key={log.id}>
+                  <td data-label="时间">{formatDate(log.created_at)}</td>
+                  <td data-label="状态"><span className={log.status === "succeeded" ? "admin-status admin-status-ok" : "admin-status admin-status-error"}>{log.status === "succeeded" ? "成功" : "失败"}</span></td>
+                  <td data-label="耗时">{formatDuration(log.duration_ms)}</td>
+                  <td data-label="参考模式">{aiModeLabel(log)}</td>
+                  <td data-label="结果">{log.error_code ? `${AI_ERROR_LABELS[log.error_code] ?? log.error_code}${log.provider_status ? ` · HTTP ${log.provider_status}` : ""}` : "正常返回"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="admin-metrics-note">记录窗口从 {formatDate(data.period_start)} 起；这里只统计真正发送到第三方 AI 服务的调用，安全验证失败、限流和无效图片不会计入。</p>
+    </section>
+  );
 }
 
 function MetricsPanel({ metrics }: { metrics: AdminProductMetrics }) {
@@ -549,8 +641,8 @@ export default function AdminApp() {
         <div className="admin-topbar-actions"><span className="admin-user-email">{session.user.email}</span><button className="admin-icon-button" type="button" onClick={() => void loadDashboard()} aria-label="刷新数据" title="刷新数据"><RefreshCw size={17} /></button><button className="admin-icon-button" type="button" onClick={() => void adminClient.auth.signOut()} aria-label="退出登录" title="退出登录"><LogOut size={17} /></button></div>
       </header>
       <section className="admin-content" aria-label="产品数据、创作者审核与库管理">
-        <div className="admin-page-intro"><div><p className="admin-kicker">PRODUCTION DATA</p><h2>先核验，再公开</h2><p>申请资料只在管理台可见；产品数据只展示匿名会话聚合结果。</p></div><div className="admin-intro-actions"><button className="admin-primary-button" type="button" onClick={() => setShowCreate(true)}><Plus size={16} />新建待审申请</button><div className="admin-data-badge"><Database size={18} /><span>{pending.length} 条待审核<br /><small>{creators.length} 条库内记录</small></span></div></div></div>
-        <nav className="admin-tabs" aria-label="管理台视图"><button className={view === "pending" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("pending")}><Clock3 size={16} />待审核 <span>{pending.length}</span></button><button className={view === "creators" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("creators")}><Database size={16} />创作者库 <span>{creators.length}</span></button><button className={view === "outreach" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("outreach")}><MessageCircle size={16} />博主跟进 <span>{outreach.length}</span></button><button className={view === "metrics" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("metrics")}><BarChart3 size={16} />产品数据</button></nav>
+        <div className="admin-page-intro"><div><p className="admin-kicker">PRODUCTION DATA</p><h2>先核验，再公开</h2><p>申请资料只在管理台可见；产品数据与 AI 调用记录不包含照片或推荐结果。</p></div><div className="admin-intro-actions"><button className="admin-primary-button" type="button" onClick={() => setShowCreate(true)}><Plus size={16} />新建待审申请</button><div className="admin-data-badge"><Database size={18} /><span>{pending.length} 条待审核<br /><small>{creators.length} 条库内记录</small></span></div></div></div>
+        <nav className="admin-tabs" aria-label="管理台视图"><button className={view === "pending" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("pending")}><Clock3 size={16} />待审核 <span>{pending.length}</span></button><button className={view === "creators" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("creators")}><Database size={16} />创作者库 <span>{creators.length}</span></button><button className={view === "outreach" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("outreach")}><MessageCircle size={16} />博主跟进 <span>{outreach.length}</span></button><button className={view === "metrics" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("metrics")}><BarChart3 size={16} />产品数据</button><button className={view === "ai" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("ai")}><Sparkles size={16} />AI 调用 <span>{data?.ai_discovery.total ?? 0}</span></button></nav>
         {error && <div className="admin-alert" role="alert"><X size={17} />{error}</div>}
         {loading ? <div className="admin-loading admin-loading-inline"><LoaderCircle className="admin-spin" size={22} />正在读取受保护数据…</div> : view === "pending" ? (
           <div className="admin-list">{pending.length === 0 ? <div className="admin-empty"><CheckCircle2 size={28} /><h3>当前没有待审核申请</h3><p>新的投稿会先停留在这里，不会自动公开。</p></div> : pending.map((submission) => <PendingRow key={submission.id} submission={submission} onAction={openAction} />)}</div>
@@ -558,7 +650,9 @@ export default function AdminApp() {
           <div className="admin-list">{creators.length === 0 ? <div className="admin-empty"><Database size={28} /><h3>公开库暂无记录</h3></div> : creators.map((creator) => <CreatorRow key={creator.id} creator={creator} onAction={openAction} />)}</div>
         ) : view === "outreach" ? (
           <AdminOutreachPanel records={outreach} onSave={handleOutreachSave} onDelete={handleOutreachDelete} />
-        ) : data?.product_metrics ? <MetricsPanel metrics={data.product_metrics} /> : null}
+        ) : view === "metrics" && data?.product_metrics ? (
+          <MetricsPanel metrics={data.product_metrics} />
+        ) : data?.ai_discovery ? <AiDiscoveryPanel data={data.ai_discovery} /> : null}
       </section>
       {showCreate && <AdminCreateSubmissionDialog onClose={() => setShowCreate(false)} onSubmit={handleCreate} />}
       {confirmAction && <ConfirmDialog action={confirmAction} busy={actionBusy} reviewNote={reviewNote} setReviewNote={setReviewNote} confirmText={confirmText} setConfirmText={setConfirmText} onCancel={() => setConfirmAction(null)} onConfirm={() => void handleConfirm()} />}

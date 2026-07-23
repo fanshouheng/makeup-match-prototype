@@ -125,6 +125,8 @@ where id = '申请 UUID';
 
 同一会话的同一事件只计一次；同时体验女生和男生模式时会分别计入两项，因此两项比例之和可能超过 100%。失败原因只保存固定代码，不保存原始异常。统计不包含照片、面部比例、匹配分数、异常文本、设备身份、创作者名称、具体链接、排序或邮箱，也不能用于识别具体用户。指标从对应记录功能上线后开始累计，没有历史补录。
 
+切换到“AI 调用”页签，可以查看最近 7 天实际发送到第三方 AI 服务的调用总数、成功率、最近记录平均耗时和最多 50 条调用记录。每条记录只包含调用时间、成功或失败、耗时、固定错误分类、上游 HTTP 状态和参考模式；不包含照片、面部比例、提示词、AI 返回名字、推荐结果或原始 IP。安全验证失败、限流和无效图片没有调用 AI，因此不会进入该列表。
+
 需要在 Supabase SQL Editor 复核原始事件数量时，可以运行：
 
 ```sql
@@ -152,6 +154,9 @@ where window_started_at < now() - interval '24 hours';
 
 delete from public.ai_creator_discovery_rate_limits
 where window_started_at < now() - interval '24 hours';
+
+delete from public.ai_creator_discovery_logs
+where created_at < now() - interval '30 days';
 ```
 
 AI 推荐限流表只保存加盐单向哈希和计数窗口。不要把照片、AI 返回名字或推荐结果加入日志、审核记录、产品事件或运营台账。
