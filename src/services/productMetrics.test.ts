@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   campaignSourceFromSearch,
   getOrCreateProductMetricSessionId,
+  photoSelectionEventNames,
 } from "./productMetrics";
 
 function memoryStorage(initialValue?: string) {
@@ -48,5 +49,18 @@ describe("campaignSourceFromSearch", () => {
     "?src=user@example.com",
   ])("rejects an unbounded or identifying campaign value from %s", (search) => {
     expect(campaignSourceFromSearch(search)).toBeUndefined();
+  });
+});
+
+describe("photoSelectionEventNames", () => {
+  it("records the overall event only for the women reference mode", () => {
+    expect(photoSelectionEventNames("women")).toEqual(["photo_selected"]);
+  });
+
+  it("also records the men-specific event for the men reference mode", () => {
+    expect(photoSelectionEventNames("men")).toEqual([
+      "photo_selected",
+      "men_photo_selected",
+    ]);
   });
 });

@@ -58,6 +58,7 @@ export interface AdminProductMetrics {
   period_start: string;
   landing_view: number;
   photo_selected: number;
+  men_photo_selected: number;
   analysis_succeeded: number;
   analysis_failed: number;
   match_result_view: number;

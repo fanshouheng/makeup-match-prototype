@@ -3,6 +3,7 @@ import { getSupabaseClient } from "./supabaseClient";
 export type ProductEventName =
   | "landing_view"
   | "photo_selected"
+  | "men_photo_selected"
   | "analysis_succeeded"
   | "analysis_failed"
   | "match_result_view"
@@ -13,6 +14,14 @@ export type ProductEventName =
 
 const SESSION_STORAGE_KEY = "look-ai-product-metrics-session";
 const CAMPAIGN_SOURCE_PATTERN = /^(xhs|creator|community)_\d{2}$/;
+
+export function photoSelectionEventNames(
+  referenceAudience: "women" | "men",
+): ProductEventName[] {
+  return referenceAudience === "men"
+    ? ["photo_selected", "men_photo_selected"]
+    : ["photo_selected"];
+}
 
 interface SessionStorageLike {
   getItem(key: string): string | null;

@@ -40,6 +40,7 @@ import { loadImageBlob } from "./services/imageFile";
 import { measureAverageLuminance } from "./services/imageQuality";
 import {
   campaignSourceFromSearch,
+  photoSelectionEventNames,
   recordProductEvent,
 } from "./services/productMetrics";
 import { shareMatchResult } from "./services/resultSharing";
@@ -272,7 +273,9 @@ function App() {
     event.target.value = "";
     if (!file) return;
 
-    void recordProductEvent("photo_selected");
+    for (const eventName of photoSelectionEventNames(referenceAudience)) {
+      void recordProductEvent(eventName);
+    }
     resetAnalysis();
     try {
       const nextPhoto = await loadImage(file);

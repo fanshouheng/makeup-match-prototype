@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   ThumbsUp,
   Trash2,
+  UserRound,
   X,
 } from "lucide-react";
 import { adminClient } from "./adminClient";
@@ -278,6 +279,12 @@ function MetricsPanel({ metrics }: { metrics: AdminProductMetrics }) {
           <span>选择照片率</span>
           <strong>{formatRate(metrics.photo_selected, metrics.landing_view)}</strong>
           <p>{metrics.photo_selected} 次选择 · {metrics.landing_view} 次访问</p>
+        </article>
+        <article className="admin-metric">
+          <UserRound size={19} />
+          <span>男生模式选图会话</span>
+          <strong>{metrics.men_photo_selected}</strong>
+          <p>{formatRate(metrics.men_photo_selected, metrics.photo_selected)} 的选图会话来自男生模式</p>
         </article>
         <article className="admin-metric">
           <CheckCircle2 size={19} />
