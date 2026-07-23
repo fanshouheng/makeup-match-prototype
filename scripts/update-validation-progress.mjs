@@ -25,6 +25,17 @@ const SUBMISSION_KEYS = [
   "active_new_creators",
   "active_total",
 ];
+const OUTREACH_KEYS = [
+  "total",
+  "replied",
+  "interested",
+  "submitted",
+  "approved",
+  "active",
+  "declined",
+  "no_reply",
+  "overdue_follow_ups",
+];
 
 function parseArgs(argv) {
   const values = {};
@@ -55,9 +66,15 @@ function assertExactKeys(value, expected, label) {
 }
 
 function normalizeSnapshot(raw) {
-  assertExactKeys(raw, ["project_ref", "captured_at", "period_start", "metrics", "submissions"], "snapshot");
+  const hasOutreach = Object.prototype.hasOwnProperty.call(raw, "outreach");
+  assertExactKeys(
+    raw,
+    ["project_ref", "captured_at", "period_start", "metrics", "submissions", ...(hasOutreach ? ["outreach"] : [])],
+    "snapshot",
+  );
   assertExactKeys(raw.metrics, EVENT_KEYS, "metrics");
   assertExactKeys(raw.submissions, SUBMISSION_KEYS, "submissions");
+  if (hasOutreach) assertExactKeys(raw.outreach, OUTREACH_KEYS, "outreach");
 
   if (raw.project_ref !== PROJECT_REF) throw new Error("Snapshot came from the wrong Supabase project");
   const capturedAt = new Date(raw.captured_at);
@@ -78,6 +95,7 @@ function normalizeSnapshot(raw) {
     period_start: periodStart.toISOString(),
     metrics: normalizeCounts(raw.metrics, EVENT_KEYS, "metrics"),
     submissions: normalizeCounts(raw.submissions, SUBMISSION_KEYS, "submissions"),
+    ...(hasOutreach ? { outreach: normalizeCounts(raw.outreach, OUTREACH_KEYS, "outreach") } : {}),
   };
 }
 
@@ -111,9 +129,11 @@ function rateStatus(numerator, denominator, threshold, minimumSample) {
 function createReport(current, previous) {
   const metrics = current.metrics;
   const submissions = current.submissions;
+  const outreach = current.outreach;
   const feedbackTotal = metrics.feedback_yes + metrics.feedback_no;
   const previousMetrics = previous?.metrics;
   const previousSubmissions = previous?.submissions;
+  const previousOutreach = previous?.outreach;
   const metricRows = [
     ["全部匿名访问", "landing_view"],
     ["选择照片", "photo_selected"],
@@ -143,7 +163,7 @@ function createReport(current, previous) {
     `更新时间：${formatDate(current.captured_at)}（Asia/Shanghai）`,
     `完整埋点统计起点：${formatDate(current.period_start)}（Asia/Shanghai）`,
     "",
-    "> 本报告由定时任务生成，只包含匿名聚合计数。普通用户照片、面部比例、匹配分数、创作者身份和联系方式不会写入本文件。",
+    "> 本报告由定时任务生成，只包含匿名聚合计数。普通用户照片、面部比例、匹配分数、博主姓名、主页、联系方式和跟进备注不会写入本文件。",
     "",
     "## 产品漏斗",
     "",
@@ -172,10 +192,25 @@ function createReport(current, previous) {
     `| 本轮新增且当前在线 | ${submissions.active_new_creators} | ${delta(submissions.active_new_creators, previousSubmissions?.active_new_creators)} |`,
     `| 当前在线创作者总数 | ${submissions.active_total} | ${delta(submissions.active_total, previousSubmissions?.active_total)} |`,
     "",
+    ...(outreach ? [
+      "## 博主触达",
+      "",
+      "| 指标 | 当前累计 | 较上次 |",
+      "| --- | ---: | ---: |",
+      `| 已联系 | ${outreach.total} | ${delta(outreach.total, previousOutreach?.total)} |`,
+      `| 已回复 | ${outreach.replied} | ${delta(outreach.replied, previousOutreach?.replied)} |`,
+      `| 有意愿 | ${outreach.interested} | ${delta(outreach.interested, previousOutreach?.interested)} |`,
+      `| 已提交 | ${outreach.submitted} | ${delta(outreach.submitted, previousOutreach?.submitted)} |`,
+      `| 已批准 | ${outreach.approved} | ${delta(outreach.approved, previousOutreach?.approved)} |`,
+      `| 已上线 | ${outreach.active} | ${delta(outreach.active, previousOutreach?.active)} |`,
+      `| 已拒绝 | ${outreach.declined} | ${delta(outreach.declined, previousOutreach?.declined)} |`,
+      `| 未回复 | ${outreach.no_reply} | ${delta(outreach.no_reply, previousOutreach?.no_reply)} |`,
+      `| 逾期待跟进 | ${outreach.overdue_follow_ups} | ${delta(outreach.overdue_follow_ups, previousOutreach?.overdue_follow_ups)} |`,
+      "",
+    ] : []),
     "## 需要人工补录",
     "",
     "- 女性受众渠道访问数：Supabase 事件没有保存渠道维度，不能把全部访问当成女性访客或目标渠道访问。",
-    "- 博主触达、回复和有意愿人数：这些数据来自私聊台账，数据库无法自动判断。",
     "- 品牌触达、正式报价和到账金额：这些数据来自商业台账，数据库无法自动判断。",
     "",
     "## 口径说明",

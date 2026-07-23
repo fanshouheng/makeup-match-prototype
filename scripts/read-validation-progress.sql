@@ -40,6 +40,22 @@ creator_counts as (
     count(*) filter (where is_active)::int as active_total
   from public.creators
   cross join params
+),
+outreach_counts as (
+  select
+    count(*)::int as total,
+    count(*) filter (where status in ('replied', 'interested', 'submitted', 'approved', 'active', 'declined'))::int as replied,
+    count(*) filter (where status in ('interested', 'submitted', 'approved', 'active'))::int as interested,
+    count(*) filter (where status in ('submitted', 'approved', 'active'))::int as submitted,
+    count(*) filter (where status in ('approved', 'active'))::int as approved,
+    count(*) filter (where status = 'active')::int as active,
+    count(*) filter (where status = 'declined')::int as declined,
+    count(*) filter (where status = 'no_reply')::int as no_reply,
+    count(*) filter (
+      where next_follow_up_at < (now() at time zone 'Asia/Shanghai')::date
+        and status not in ('active', 'declined', 'no_reply')
+    )::int as overdue_follow_ups
+  from public.creator_outreach
 )
 select jsonb_build_object(
   'project_ref', 'srydzphmmepcywepcccq',
@@ -54,7 +70,19 @@ select jsonb_build_object(
     'pending_over_7_days', submissions.pending_over_7_days,
     'active_new_creators', creators.active_new_creators,
     'active_total', creators.active_total
+  ),
+  'outreach', jsonb_build_object(
+    'total', outreach.total,
+    'replied', outreach.replied,
+    'interested', outreach.interested,
+    'submitted', outreach.submitted,
+    'approved', outreach.approved,
+    'active', outreach.active,
+    'declined', outreach.declined,
+    'no_reply', outreach.no_reply,
+    'overdue_follow_ups', outreach.overdue_follow_ups
   )
 ) as snapshot
 from submission_counts submissions
-cross join creator_counts creators;
+cross join creator_counts creators
+cross join outreach_counts outreach;

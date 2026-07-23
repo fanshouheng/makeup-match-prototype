@@ -15,8 +15,9 @@
 7. `supabase/migrations/20260723054251_extend_product_event_metrics.sql`
 8. `supabase/migrations/20260723060615_add_men_photo_selected_metric.sql`
 9. `supabase/migrations/20260723080320_add_women_photo_selected_metric.sql`
+10. `supabase/migrations/20260723092337_creator_outreach_tracking.sql`
 
-第二、三个迁移只增加私有限流能力并显式拒绝客户端访问，不会关闭现有提交入口。第四个迁移为现有申请和公开创作者补充参考页面与内容方向，已有记录默认保持为“女生 + 妆容”。第五个迁移创建匿名会话事件表。第六个迁移约束女生参考只使用妆容内容，第七个迁移补充访问和创作者链接点击事件，第八、九个迁移分别补充男生和女生模式选图事件；产品事件表不向匿名或已登录客户端开放读写权限。
+第二、三个迁移只增加私有限流能力并显式拒绝客户端访问，不会关闭现有提交入口。第四个迁移为现有申请和公开创作者补充参考页面与内容方向，已有记录默认保持为“女生 + 妆容”。第五个迁移创建匿名会话事件表。第六个迁移约束女生参考只使用妆容内容，第七个迁移补充访问和创作者链接点击事件，第八、九个迁移分别补充男生和女生模式选图事件；产品事件表不向匿名或已登录客户端开放读写权限。第十个迁移创建私有博主跟进台账，只允许 `service_role` 访问，不能向 `anon` 或 `authenticated` 授权。
 
 暂时不要执行 `202607170003_lock_creator_submission_writes.sql`。它会关闭浏览器直接写数据库和存储的旧入口，应在 Edge Function 验证成功后最后执行。
 

@@ -3,6 +3,9 @@ import { createClient, type SupabaseClient, type User } from "npm:@supabase/supa
 const PHOTO_BUCKET = "creator-photos";
 const SIGNED_URL_TTL_SECONDS = 300;
 const MAX_REVIEW_NOTE_LENGTH = 500;
+const MAX_OUTREACH_NAME_LENGTH = 60;
+const MAX_OUTREACH_REASON_LENGTH = 200;
+const MAX_OUTREACH_NOTES_LENGTH = 1000;
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const CONSENT_VERSION = "2026-07-21";
 const PRODUCT_METRICS_DAYS = 7;
@@ -27,7 +30,12 @@ const FEATURE_KEYS = [
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_REFERENCE_AUDIENCES = new Set(["women", "men"]);
 const ALLOWED_CONTENT_TYPES = new Set(["appearance", "hair", "makeup"]);
-type Action = "list" | "create" | "verify" | "approve" | "reject" | "cleanup" | "set_active" | "delete_creator";
+const OUTREACH_STATUSES = new Set([
+  "contacted", "replied", "interested", "submitted",
+  "approved", "active", "declined", "no_reply",
+]);
+const TERMINAL_OUTREACH_STATUSES = new Set(["declined", "no_reply"]);
+type Action = "list" | "create" | "verify" | "approve" | "reject" | "cleanup" | "set_active" | "delete_creator" | "save_outreach" | "delete_outreach";
 interface RequestBody {
   action?: Action;
   submissionId?: string;
@@ -35,6 +43,14 @@ interface RequestBody {
   isActive?: boolean;
   confirmName?: string;
   reviewNote?: string;
+  outreachId?: string;
+  displayName?: string;
+  profileUrl?: string;
+  firstContactedAt?: string;
+  outreachStatus?: string;
+  nextFollowUpAt?: string | null;
+  lossReason?: string;
+  notes?: string;
 }
 
 function configuredOrigins(): string[] {
@@ -161,6 +177,24 @@ function isDouyinUrl(value: string): boolean {
   }
 }
 
+function isHttpsUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function isDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().startsWith(value);
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 function extensionForMimeType(type: string): string {
   if (type === "image/png") return "png";
   if (type === "image/webp") return "webp";
@@ -210,7 +244,7 @@ async function productMetrics(admin: SupabaseClient): Promise<Record<string, str
 }
 
 async function listData(admin: SupabaseClient): Promise<Record<string, unknown>> {
-  const [submissionsResult, creatorsResult, metrics] = await Promise.all([
+  const [submissionsResult, creatorsResult, outreachResult, metrics] = await Promise.all([
     admin.from("creator_submissions")
       .select("id,name,contact_email,douyin_url,tutorial_url,reference_audience,content_types,reference_photo_path,quality_metrics,status,submitted_at,ownership_verified_at,reviewed_at,review_note")
       .eq("status", "pending")
@@ -218,16 +252,21 @@ async function listData(admin: SupabaseClient): Promise<Record<string, unknown>>
     admin.from("creators")
       .select("id,submission_id,name,douyin_url,tutorial_url,reference_audience,content_types,reference_photo_path,is_active,created_at,updated_at")
       .order("created_at", { ascending: false }),
+    admin.from("creator_outreach")
+      .select("id,candidate_no,display_name,profile_url,first_contacted_at,status,next_follow_up_at,loss_reason,notes,created_at,updated_at")
+      .order("updated_at", { ascending: false }),
     productMetrics(admin),
   ]);
   if (submissionsResult.error) throw submissionsResult.error;
   if (creatorsResult.error) throw creatorsResult.error;
+  if (outreachResult.error) throw outreachResult.error;
   const submissions = submissionsResult.data ?? [];
   const creators = creatorsResult.data ?? [];
   const photos = await signedPhotoMap(admin, [...submissions, ...creators].map((row) => row.reference_photo_path));
   return {
     submissions: submissions.map(({ reference_photo_path, ...row }) => ({ ...row, reference_photo_url: photos.get(reference_photo_path) ?? null })),
     creators: creators.map(({ reference_photo_path, ...row }) => ({ ...row, reference_photo_url: photos.get(reference_photo_path) ?? null })),
+    outreach: outreachResult.data ?? [],
     product_metrics: metrics,
   };
 }
@@ -385,6 +424,76 @@ Deno.serve(async (request) => {
       return reply(origin, 200, { ok: true });
     }
 
+    if (action === "save_outreach") {
+      stage = "save_outreach";
+      const outreachId = typeof body.outreachId === "string" ? body.outreachId.trim() : "";
+      const displayName = typeof body.displayName === "string" ? body.displayName.trim() : "";
+      const profileUrl = typeof body.profileUrl === "string" ? body.profileUrl.trim() : "";
+      const firstContactedAt = typeof body.firstContactedAt === "string" ? body.firstContactedAt.trim() : "";
+      const outreachStatus = typeof body.outreachStatus === "string" ? body.outreachStatus.trim() : "";
+      const nextFollowUpAt = typeof body.nextFollowUpAt === "string" ? body.nextFollowUpAt.trim() || null : null;
+      const lossReason = typeof body.lossReason === "string" ? body.lossReason.trim() || null : null;
+      const notes = typeof body.notes === "string" ? body.notes.trim() || null : null;
+
+      if (
+        (body.outreachId !== undefined && !isUuid(outreachId)) ||
+        !displayName || displayName.length > MAX_OUTREACH_NAME_LENGTH ||
+        !profileUrl || profileUrl.length > 2048 || !isHttpsUrl(profileUrl) ||
+        !isDate(firstContactedAt) || !OUTREACH_STATUSES.has(outreachStatus) ||
+        (nextFollowUpAt !== null && (!isDate(nextFollowUpAt) || nextFollowUpAt < firstContactedAt)) ||
+        (lossReason !== null && lossReason.length > MAX_OUTREACH_REASON_LENGTH) ||
+        (notes !== null && notes.length > MAX_OUTREACH_NOTES_LENGTH) ||
+        (TERMINAL_OUTREACH_STATUSES.has(outreachStatus) && !lossReason)
+      ) {
+        return reply(origin, 400, { code: "invalid_outreach" });
+      }
+
+      const values = {
+        display_name: displayName,
+        profile_url: profileUrl,
+        first_contacted_at: firstContactedAt,
+        status: outreachStatus,
+        next_follow_up_at: nextFollowUpAt,
+        loss_reason: lossReason,
+        notes,
+        updated_at: new Date().toISOString(),
+      };
+      const fields = "id,candidate_no,display_name,profile_url,first_contacted_at,status,next_follow_up_at,loss_reason,notes,created_at,updated_at";
+
+      if (outreachId) {
+        const result = await identity.admin.from("creator_outreach")
+          .update(values)
+          .eq("id", outreachId)
+          .select(fields)
+          .maybeSingle();
+        if (result.error) throw result.error;
+        if (!result.data) return reply(origin, 404, { code: "outreach_not_found" });
+        return reply(origin, 200, { outreach: result.data });
+      }
+
+      const result = await identity.admin.from("creator_outreach")
+        .insert(values)
+        .select(fields)
+        .single();
+      if (result.error) throw result.error;
+      return reply(origin, 201, { outreach: result.data });
+    }
+
+    if (action === "delete_outreach") {
+      stage = "delete_outreach";
+      if (typeof body.outreachId !== "string" || !isUuid(body.outreachId)) {
+        return reply(origin, 400, { code: "invalid_outreach" });
+      }
+      const result = await identity.admin.from("creator_outreach")
+        .delete()
+        .eq("id", body.outreachId)
+        .select("id")
+        .maybeSingle();
+      if (result.error) throw result.error;
+      if (!result.data) return reply(origin, 404, { code: "outreach_not_found" });
+      return reply(origin, 200, { ok: true });
+    }
+
     if (!body.submissionId) return reply(origin, 400, { code: "submission_required" });
 
     const current = await submission(identity.admin, body.submissionId);
@@ -431,6 +540,12 @@ Deno.serve(async (request) => {
       ? String(error.code)
       : undefined;
     console.error("admin-review request failed", { stage, code });
+    if (stage === "save_outreach" && code === "23505") {
+      return reply(origin, 409, { code: "duplicate_outreach" });
+    }
+    if (stage === "save_outreach" && code === "23514") {
+      return reply(origin, 400, { code: "invalid_outreach" });
+    }
     return reply(origin, 500, { code: "unexpected_error" });
   }
 });

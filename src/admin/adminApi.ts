@@ -54,6 +54,41 @@ export interface AdminCreator {
   reference_photo_url: string | null;
 }
 
+export type AdminOutreachStatus =
+  | "contacted"
+  | "replied"
+  | "interested"
+  | "submitted"
+  | "approved"
+  | "active"
+  | "declined"
+  | "no_reply";
+
+export interface AdminOutreach {
+  id: string;
+  candidate_no: number;
+  display_name: string;
+  profile_url: string;
+  first_contacted_at: string;
+  status: AdminOutreachStatus;
+  next_follow_up_at: string | null;
+  loss_reason: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminOutreachInput {
+  outreachId?: string;
+  displayName: string;
+  profileUrl: string;
+  firstContactedAt: string;
+  outreachStatus: AdminOutreachStatus;
+  nextFollowUpAt: string | null;
+  lossReason: string;
+  notes: string;
+}
+
 export interface AdminProductMetrics {
   period_start: string;
   landing_view: number;
@@ -72,16 +107,25 @@ export interface AdminProductMetrics {
 export interface AdminListResponse {
   submissions: AdminSubmission[];
   creators: AdminCreator[];
+  outreach: AdminOutreach[];
   product_metrics: AdminProductMetrics;
 }
 
 interface AdminRequest {
-  action: "list" | "verify" | "approve" | "reject" | "cleanup" | "set_active" | "delete_creator";
+  action: "list" | "verify" | "approve" | "reject" | "cleanup" | "set_active" | "delete_creator" | "save_outreach" | "delete_outreach";
   submissionId?: string;
   creatorId?: string;
+  outreachId?: string;
   isActive?: boolean;
   confirmName?: string;
   reviewNote?: string;
+  displayName?: string;
+  profileUrl?: string;
+  firstContactedAt?: string;
+  outreachStatus?: AdminOutreachStatus;
+  nextFollowUpAt?: string | null;
+  lossReason?: string;
+  notes?: string;
 }
 
 function wait(milliseconds: number): Promise<void> {
@@ -119,6 +163,12 @@ export async function invokeAdmin<T>(request: AdminRequest, retryList = true): P
   }
   if (code === "service_not_configured") {
     throw new Error("管理台服务配置不完整，请联系维护者。");
+  }
+  if (code === "duplicate_outreach") {
+    throw new Error("这个主页已经存在跟进记录。");
+  }
+  if (code === "invalid_outreach") {
+    throw new Error("跟进资料不完整，请检查日期、链接和流失原因。");
   }
   throw new Error("管理台请求失败，请稍后重试。");
 }
