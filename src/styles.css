@@ -1176,6 +1176,44 @@ h3 {
   text-align: right;
 }
 
+.match-feedback-recovery {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 13px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.match-feedback-recovery > svg {
+  margin-top: 1px;
+  color: var(--ink);
+}
+
+.match-feedback-recovery h3 {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.match-feedback-recovery p {
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.match-feedback-recovery .match-feedback-guidance {
+  margin-top: 13px;
+  color: #4d4d49;
+}
+
+.match-feedback-keyword strong,
+.match-feedback-wish {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .more-matches-heading {
   margin: 34px 0 15px;
 }

@@ -76,6 +76,7 @@ export function MatchResults({
   const showMore = mode !== "primary";
   const noSuitableMatch = creatorsCount > 0 && matches.length === 0;
   const feedbackSubmitted = feedback !== null;
+  const creatorLibraryLabel = isMen ? "已授权男生创作者库" : "已授权博主库";
   const faceSuggestion = buildFaceSearchSuggestion(
     faceFeatures,
     referenceAudience,
@@ -164,7 +165,7 @@ export function MatchResults({
               暂未找到足够接近的{isMen ? "创作者" : "博主"}
             </h3>
             <p>
-              LOOK AI 还在初期阶段，{isMen ? "已授权男生创作者库" : "已授权博主库"}
+              LOOK AI 还在初期阶段，{creatorLibraryLabel}
               仍在完善。与其给你一个勉强的答案，我们更愿意诚实地告诉你：这次还没有足够合适的参照。
             </p>
           </div>
@@ -294,6 +295,24 @@ export function MatchResults({
                     .join(" · ")}
                 </span>
               </div>
+              {feedback === "no" && (
+                <div className="match-feedback-recovery" role="status">
+                  <Search aria-hidden="true" size={22} />
+                  <div>
+                    <h3>谢谢你告诉我们</h3>
+                    <p>
+                      LOOK AI 还在初期阶段，{creatorLibraryLabel}仍在完善，这次推荐可能还不够贴合。
+                    </p>
+                    <p className="match-feedback-guidance">
+                      从这张照片的面部比例来看，你的脸型特征是：{faceSuggestion.description}。
+                    </p>
+                    <p className="match-feedback-keyword">
+                      可以试试搜索 <strong>「{faceSuggestion.keyword}」</strong>，继续寻找更适合你的参考。
+                    </p>
+                    <p className="match-feedback-wish">希望你天天开心，也能找到真正喜欢的参考。</p>
+                  </div>
+                </div>
+              )}
             </section>
           )}
           {mode === "all" && otherMatches.length > 0 && (

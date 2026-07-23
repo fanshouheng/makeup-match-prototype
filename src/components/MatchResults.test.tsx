@@ -136,6 +136,32 @@ describe("MatchResults", () => {
     expect(html).toContain("图片已下载");
   });
 
+  it("shows face guidance after the user rejects a match", () => {
+    const html = renderToStaticMarkup(
+      <MatchResults
+        creatorsCount={10}
+        faceFeatures={{
+          ...match.creator.featureVector,
+          faceAspectRatio: 1.3,
+          jawToCheekRatio: 0.72,
+        }}
+        feedback="no"
+        matches={[match]}
+        onCreatorLinkClick={() => undefined}
+        onFeedback={() => undefined}
+        onShare={() => undefined}
+        onViewCreators={() => undefined}
+        shareStatus="idle"
+      />,
+    );
+
+    expect(html).toContain("谢谢你告诉我们");
+    expect(html).toContain("这次推荐可能还不够贴合");
+    expect(html).toContain("面部纵向比例偏修长，下颌相对颧部更收窄");
+    expect(html).toContain("长脸 窄下颌 妆容博主");
+    expect(html).toContain("希望你天天开心");
+  });
+
   it("shows a gentle search suggestion instead of a weak match", () => {
     const html = renderToStaticMarkup(
       <MatchResults
