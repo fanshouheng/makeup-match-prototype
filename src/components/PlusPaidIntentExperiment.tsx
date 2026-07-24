@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import {
+  ArrowDown,
   CheckCircle2,
   ChevronDown,
   FileText,
   Palette,
   Search,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import {
   getPlusOfferVariant,
@@ -30,6 +32,8 @@ const STYLES = [
 
 type IntentResponse = "yes" | "price_high" | "not_needed";
 
+const PLUS_OFFER_ID = "look-ai-plus-offer";
+
 const RESPONSE_EVENT: Record<IntentResponse, PlusOfferEventName> = {
   yes: "plus_intent_yes",
   price_high: "plus_intent_price_high",
@@ -41,6 +45,42 @@ const RESPONSE_MESSAGE: Record<IntentResponse, string> = {
   price_high: "已记录：当前价格偏高",
   not_needed: "已记录：暂时不需要",
 };
+
+export function PlusPaidIntentSpotlight() {
+  const [variant] = useState(getPlusOfferVariant);
+  const price = PLUS_OFFER_PRICES[variant];
+
+  const showFullOffer = () => {
+    document.getElementById(PLUS_OFFER_ID)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  return (
+    <aside className="plus-spotlight" aria-labelledby="plus-spotlight-title">
+      <div className="plus-spotlight-mark" aria-hidden="true">
+        <Sparkles size={18} />
+        PLUS
+      </div>
+      <div className="plus-spotlight-copy">
+        <p className="eyebrow">付费功能测试</p>
+        <h3 id="plus-spotlight-title">把面部分析，变成可执行的妆造方案</h3>
+        <p>详细面部报告 · 多场景妆容方案 · 按方案发现博主</p>
+      </div>
+      <div className="plus-spotlight-action">
+        <p className="plus-spotlight-price" aria-label={`${price} 元每次`}>
+          <strong>¥{price}</strong><span>/ 次</span>
+        </p>
+        <button className="button plus-spotlight-button" onClick={showFullOffer} type="button">
+          查看 Plus 方案
+          <ArrowDown aria-hidden="true" size={15} />
+        </button>
+        <small>仅测试意向，不会扣款</small>
+      </div>
+    </aside>
+  );
+}
 
 export function PlusPaidIntentExperiment() {
   const [variant] = useState(getPlusOfferVariant);
@@ -83,7 +123,7 @@ export function PlusPaidIntentExperiment() {
   };
 
   return (
-    <section className="plus-offer" aria-labelledby="plus-offer-title">
+    <section className="plus-offer" id={PLUS_OFFER_ID} aria-labelledby="plus-offer-title">
       <div className="plus-offer-heading">
         <div>
           <p className="eyebrow">PLUS / 付费功能测试</p>

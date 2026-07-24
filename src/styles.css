@@ -1118,10 +1118,92 @@ h3 {
   border-top: 1px solid var(--line);
 }
 
+.plus-spotlight {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 22px;
+  margin: 24px 0;
+  padding: 20px 22px;
+  border-top: 4px solid #d9ff57;
+  color: #fff;
+  background: #171715;
+}
+
+.plus-spotlight-mark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #d9ff57;
+  font: 700 22px/1 "Space Mono", Consolas, monospace;
+  letter-spacing: 0;
+}
+
+.plus-spotlight-copy {
+  min-width: 0;
+}
+
+.plus-spotlight-copy .eyebrow {
+  color: #d9ff57;
+}
+
+.plus-spotlight-copy h3 {
+  margin-top: 5px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.plus-spotlight-copy > p:last-child {
+  margin-top: 6px;
+  color: #c9c9c2;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.plus-spotlight-action {
+  display: grid;
+  min-width: 164px;
+  justify-items: end;
+  gap: 8px;
+}
+
+.plus-spotlight-price {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.plus-spotlight-price strong {
+  color: #d9ff57;
+  font: 700 24px/1 "Space Mono", Consolas, monospace;
+}
+
+.plus-spotlight-price span,
+.plus-spotlight-action small {
+  color: #c9c9c2;
+  font-size: 10px;
+}
+
+.plus-spotlight-button {
+  border-color: #fff;
+  color: #171715;
+  background: #fff;
+}
+
+.plus-spotlight-button:hover {
+  border-color: #d9ff57;
+  background: #d9ff57;
+}
+
 .plus-offer {
+  box-sizing: border-box;
+  scroll-margin-top: 24px;
   margin-top: 32px;
-  padding: 28px 0 4px;
-  border-top: 1px solid var(--line-strong);
+  padding: 28px 24px 24px;
+  border-top: 4px solid var(--ink);
+  background: #f4f5ee;
 }
 
 .plus-offer-heading {
@@ -2276,6 +2358,42 @@ h3 {
   .plus-offer-heading {
     grid-template-columns: 1fr;
     gap: 14px;
+  }
+
+  .plus-spotlight {
+    grid-template-columns: 1fr;
+    gap: 13px;
+    padding: 18px;
+  }
+
+  .plus-spotlight-mark {
+    font-size: 20px;
+  }
+
+  .plus-spotlight-copy h3 {
+    font-size: 17px;
+  }
+
+  .plus-spotlight-action {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    justify-items: stretch;
+    gap: 9px 12px;
+  }
+
+  .plus-spotlight-action small {
+    grid-column: 1 / -1;
+  }
+
+  .plus-spotlight-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .plus-offer {
+    padding: 24px 18px 20px;
   }
 
   .plus-offer-features {

@@ -51,6 +51,7 @@ describe("MatchResults", () => {
         referenceAudience="men"
         shareStatus="idle"
         showPlusOffer
+        showPlusSpotlight
       />,
     );
 
@@ -63,6 +64,7 @@ describe("MatchResults", () => {
     expect(html).toContain("分享结果");
     expect(html).toContain("抖音主页");
     expect(html).not.toContain("PLUS / 付费功能测试");
+    expect(html).not.toContain("查看 Plus 方案");
   });
 
   it("labels and links a Xiaohongshu creator", () => {
@@ -106,6 +108,7 @@ describe("MatchResults", () => {
           },
         }]}
         showPlusOffer
+        showPlusSpotlight
         onCreatorLinkClick={() => undefined}
         onFeedback={() => undefined}
         onShare={() => undefined}
@@ -118,8 +121,11 @@ describe("MatchResults", () => {
     expect(html).toContain("可以优先参考她的妆容思路");
     expect(html).not.toContain("综合参考");
     expect(html).toContain("PLUS / 付费功能测试");
+    expect(html).toContain("把面部分析，变成可执行的妆造方案");
+    expect(html).toContain("查看 Plus 方案");
     expect(html).toContain("当前仅测试购买意向，不会扣款，也不收集支付信息");
     expect(html).toContain("¥19.9");
+    expect(html.indexOf("plus-spotlight")).toBeLessThan(html.indexOf("look-ai-plus-offer"));
   });
 
   it("shows a recorded feedback and downloaded-share state", () => {
