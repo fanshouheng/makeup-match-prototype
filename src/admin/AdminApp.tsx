@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AuthError, Session } from "@supabase/supabase-js";
 import {
   ArrowUpRight,
   BarChart3,
+  CalendarRange,
   Camera,
   Check,
   CheckCircle2,
@@ -47,6 +48,10 @@ import {
 import "./admin.css";
 
 type View = "pending" | "creators" | "outreach" | "metrics" | "ai";
+interface MetricsDateRange {
+  startDate: string;
+  endDate: string;
+}
 type ConfirmAction =
   | { type: "verify" | "approve" | "reject" | "cleanup"; submission: AdminSubmission }
   | { type: "set_active" | "delete_creator"; creator: AdminCreator }
@@ -268,6 +273,30 @@ function formatRate(numerator: number, denominator: number): string {
   }).format(numerator / denominator);
 }
 
+function beijingDateString(value: Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(value);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+function initialMetricsDateRange(now = new Date()): MetricsDateRange {
+  return {
+    startDate: beijingDateString(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000)),
+    endDate: beijingDateString(now),
+  };
+}
+
+function formatCalendarDate(value: string): string {
+  const [year, month, day] = value.split("-").map(Number);
+  return `${year}年${month}月${day}日`;
+}
+
 function formatDuration(milliseconds: number): string {
   if (milliseconds < 1000) return `${milliseconds} ms`;
   return `${(milliseconds / 1000).toFixed(1)} s`;
@@ -358,7 +387,18 @@ function AiDiscoveryPanel({ data }: { data: AdminAiDiscoveryData }) {
   );
 }
 
-function MetricsPanel({ metrics }: { metrics: AdminProductMetrics }) {
+function MetricsPanel({
+  metrics,
+  dateRange,
+  onDateRangeChange,
+}: {
+  metrics: AdminProductMetrics;
+  dateRange: MetricsDateRange;
+  onDateRangeChange: (range: MetricsDateRange) => void;
+}) {
+  const [startDate, setStartDate] = useState(dateRange.startDate);
+  const [endDate, setEndDate] = useState(dateRange.endDate);
+  const [dateError, setDateError] = useState("");
   const feedbackTotal = metrics.feedback_yes + metrics.feedback_no;
   const failureReasons = [
     ["未检测到人脸", metrics.analysis_failures.no_face],
@@ -382,15 +422,40 @@ function MetricsPanel({ metrics }: { metrics: AdminProductMetrics }) {
     if (rate <= 0.05) return "进入 Plus MVP";
     return "准备真实支付";
   };
+  function handleDateRangeSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (startDate > endDate) {
+      setDateError("开始日期不能晚于结束日期。");
+      return;
+    }
+    setDateError("");
+    onDateRangeChange({ startDate, endDate });
+  }
   return (
     <section className="admin-metrics" aria-labelledby="admin-metrics-title">
       <div className="admin-metrics-heading">
         <div>
-          <p className="admin-kicker">LAST 7 DAYS</p>
+          <p className="admin-kicker">BEIJING DATE RANGE</p>
           <h2 id="admin-metrics-title">产品数据</h2>
         </div>
         <p>按匿名浏览器标签页会话去重，不代表可识别的真实用户人数。</p>
       </div>
+      <form className="admin-date-range" onSubmit={handleDateRangeSubmit}>
+        <label>
+          <span>开始日期</span>
+          <input type="date" required value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+        </label>
+        <span className="admin-date-range-separator" aria-hidden="true">至</span>
+        <label>
+          <span>结束日期</span>
+          <input type="date" required value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+        </label>
+        <button className="admin-primary-button" type="submit">
+          <CalendarRange size={16} />查询
+        </button>
+        <small>按北京时间自然日统计，包含开始日和结束日。</small>
+        {dateError && <p className="admin-date-range-error" role="alert">{dateError}</p>}
+      </form>
       <div className="admin-metric-grid">
         <article className="admin-metric">
           <Eye size={19} />
@@ -520,7 +585,7 @@ function MetricsPanel({ metrics }: { metrics: AdminProductMetrics }) {
         </div>
       </section>
       <p className="admin-metrics-note">
-        统计窗口从 {formatDate(metrics.period_start)} 起；同一会话重复触发同一动作只计一次，同时体验两种模式会分别计入两项。失败原因只记录固定分类，不含照片、面部或异常详情。
+        当前范围：{formatCalendarDate(dateRange.startDate)} 至 {formatCalendarDate(dateRange.endDate)}；同一会话重复触发同一动作只计一次，同时体验两种模式会分别计入两项。失败原因只记录固定分类，不含照片、面部或异常详情。
       </p>
     </section>
   );
@@ -593,6 +658,7 @@ function ConfirmDialog({
 }
 
 export default function AdminApp() {
+  const initialRange = useMemo(initialMetricsDateRange, []);
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [view, setView] = useState<View>("pending");
@@ -604,6 +670,8 @@ export default function AdminApp() {
   const [confirmText, setConfirmText] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [metricsDateRange, setMetricsDateRange] = useState<MetricsDateRange>(initialRange);
+  const metricsDateRangeRef = useRef(initialRange);
 
   useEffect(() => {
     let mounted = true;
@@ -616,11 +684,19 @@ export default function AdminApp() {
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, []);
 
-  const loadDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async (requestedRange?: MetricsDateRange) => {
+    const range = requestedRange ?? metricsDateRangeRef.current;
     setLoading(true);
     setError("");
     try {
-      setData(await invokeAdmin<AdminListResponse>({ action: "list" }));
+      const nextData = await invokeAdmin<AdminListResponse>({
+        action: "list",
+        metricsStartDate: range.startDate,
+        metricsEndDate: range.endDate,
+      });
+      setData(nextData);
+      metricsDateRangeRef.current = range;
+      setMetricsDateRange(range);
     } catch (nextError) {
       setError(errorMessage(nextError));
     } finally {
@@ -710,7 +786,11 @@ export default function AdminApp() {
         ) : view === "outreach" ? (
           <AdminOutreachPanel records={outreach} onSave={handleOutreachSave} onDelete={handleOutreachDelete} />
         ) : view === "metrics" && data?.product_metrics ? (
-          <MetricsPanel metrics={data.product_metrics} />
+          <MetricsPanel
+            metrics={data.product_metrics}
+            dateRange={metricsDateRange}
+            onDateRangeChange={(range) => void loadDashboard(range)}
+          />
         ) : data?.ai_discovery ? <AiDiscoveryPanel data={data.ai_discovery} /> : null}
       </section>
       {showCreate && <AdminCreateSubmissionDialog onClose={() => setShowCreate(false)} onSubmit={handleCreate} />}

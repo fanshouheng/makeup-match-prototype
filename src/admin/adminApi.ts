@@ -166,6 +166,8 @@ export interface AdminListResponse {
 
 interface AdminRequest {
   action: "list" | "verify" | "approve" | "reject" | "cleanup" | "set_active" | "delete_creator" | "save_outreach" | "delete_outreach";
+  metricsStartDate?: string;
+  metricsEndDate?: string;
   submissionId?: string;
   creatorId?: string;
   outreachId?: string;
@@ -222,6 +224,9 @@ export async function invokeAdmin<T>(request: AdminRequest, retryList = true): P
   }
   if (code === "invalid_outreach") {
     throw new Error("跟进资料不完整，请检查日期、链接和流失原因。");
+  }
+  if (code === "invalid_metrics_range") {
+    throw new Error("日期范围无效，请检查开始和结束日期。");
   }
   throw new Error("管理台请求失败，请稍后重试。");
 }

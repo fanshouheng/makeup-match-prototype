@@ -75,6 +75,13 @@
 .admin-metrics-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
 .admin-metrics-heading h2 { margin: 0; font-size: 24px; font-weight: 600; }
 .admin-metrics-heading > p { max-width: 430px; margin: 0; color: var(--admin-muted); font-size: 12px; line-height: 1.6; text-align: right; }
+.admin-date-range { display: grid; grid-template-columns: minmax(150px, 190px) max-content minmax(150px, 190px) max-content; align-items: end; gap: 8px 10px; margin-bottom: 24px; padding: 16px; border-top: 1px solid var(--admin-line); border-bottom: 1px solid var(--admin-line); background: var(--admin-soft); }
+.admin-date-range label { display: grid; min-width: 0; gap: 7px; color: var(--admin-muted); font-size: 10px; font-weight: 600; }
+.admin-date-range input { width: 100%; height: 40px; box-sizing: border-box; padding: 0 10px; border: 1px solid var(--admin-line-strong); border-radius: 6px; color: var(--admin-ink); background: var(--admin-surface); font: 500 12px/1 "Space Mono", "Cascadia Mono", Consolas, monospace; }
+.admin-date-range input:focus { border-color: var(--admin-ink); outline: 2px solid var(--admin-ink); outline-offset: 2px; }
+.admin-date-range-separator { padding-bottom: 12px; color: var(--admin-muted); font-size: 11px; }
+.admin-date-range small { grid-column: 1 / -1; color: var(--admin-muted); font-size: 10px; }
+.admin-date-range-error { grid-column: 1 / -1; margin: 0; color: var(--admin-danger); font-size: 11px; }
 .admin-metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .admin-metric { min-width: 0; padding: 18px; border: 1px solid var(--admin-line); border-radius: 8px; background: var(--admin-surface); }
 .admin-metric svg { color: var(--admin-ink); }
@@ -204,6 +211,7 @@
   .admin-row-actions button { width: 100%; }
   .admin-metrics-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
   .admin-metrics-heading > p { text-align: left; }
+  .admin-date-range { grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr) max-content; }
   .admin-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-failure-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
   .admin-failure-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -230,6 +238,9 @@
   .admin-review-row, .admin-creator-row { grid-template-columns: 1fr; }
   .admin-photo-frame, .admin-creator-photo, .admin-photo-placeholder { width: 100%; height: auto; aspect-ratio: 4 / 3; }
   .admin-meta-grid, .admin-metric-grid { grid-template-columns: 1fr; }
+  .admin-date-range { grid-template-columns: 1fr; align-items: stretch; }
+  .admin-date-range-separator { display: none; }
+  .admin-date-range .admin-primary-button { width: 100%; }
   .admin-metric p { min-height: 0; }
   .admin-auth-shell { padding: 24px 20px; }
   .admin-auth-brand { margin-bottom: 56px; }

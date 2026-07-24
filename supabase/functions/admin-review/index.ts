@@ -3,6 +3,11 @@ import {
   isCreatorPlatform,
   isCreatorPlatformUrl,
 } from "../_shared/creatorPlatform.ts";
+import {
+  isIsoDate,
+  resolveAdminMetricsRange,
+  type AdminMetricsRange,
+} from "./adminMetricsRange.ts";
 
 const PHOTO_BUCKET = "creator-photos";
 const SIGNED_URL_TTL_SECONDS = 300;
@@ -68,6 +73,8 @@ const TERMINAL_OUTREACH_STATUSES = new Set(["declined", "no_reply"]);
 type Action = "list" | "create" | "verify" | "approve" | "reject" | "cleanup" | "set_active" | "delete_creator" | "save_outreach" | "delete_outreach";
 interface RequestBody {
   action?: Action;
+  metricsStartDate?: string;
+  metricsEndDate?: string;
   submissionId?: string;
   creatorId?: string;
   isActive?: boolean;
@@ -206,9 +213,7 @@ function isHttpsUrl(value: string): boolean {
 }
 
 function isDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().startsWith(value);
+  return isIsoDate(value);
 }
 
 function isUuid(value: string): boolean {
@@ -251,25 +256,30 @@ async function signedPhotoMap(admin: SupabaseClient, paths: string[]): Promise<M
   ));
 }
 
-async function productMetrics(admin: SupabaseClient): Promise<Record<string, unknown>> {
-  const periodStart = new Date(Date.now() - PRODUCT_METRICS_DAYS * 24 * 60 * 60 * 1000).toISOString();
+async function productMetrics(
+  admin: SupabaseClient,
+  range: AdminMetricsRange,
+): Promise<Record<string, unknown>> {
   const [counts, failuresResult, plusResult] = await Promise.all([
     Promise.all(PRODUCT_EVENT_NAMES.map(async (eventName) => {
       const result = await admin.from("product_events")
         .select("session_id", { count: "exact", head: true })
         .eq("event_name", eventName)
-        .gte("created_at", periodStart);
+        .gte("created_at", range.startAt)
+        .lt("created_at", range.endBefore);
       if (result.error) throw result.error;
       return [eventName, result.count ?? 0] as const;
     })),
     admin.from("product_events")
       .select("failure_reason")
       .eq("event_name", "analysis_failed")
-      .gte("created_at", periodStart),
+      .gte("created_at", range.startAt)
+      .lt("created_at", range.endBefore),
     admin.from("product_events")
       .select("event_name,experiment_variant")
       .in("event_name", [...PLUS_EVENT_NAMES])
-      .gte("created_at", periodStart),
+      .gte("created_at", range.startAt)
+      .lt("created_at", range.endBefore),
   ]);
   if (failuresResult.error) throw failuresResult.error;
   if (plusResult.error) throw plusResult.error;
@@ -305,7 +315,7 @@ async function productMetrics(admin: SupabaseClient): Promise<Record<string, unk
   }
 
   return {
-    period_start: periodStart,
+    period_start: range.startAt,
     ...Object.fromEntries(counts),
     analysis_failures: failureCounts,
     plus_by_variant: plusByVariant,
@@ -340,7 +350,10 @@ async function aiDiscoveryData(admin: SupabaseClient): Promise<Record<string, un
   };
 }
 
-async function listData(admin: SupabaseClient): Promise<Record<string, unknown>> {
+async function listData(
+  admin: SupabaseClient,
+  metricsRange: AdminMetricsRange,
+): Promise<Record<string, unknown>> {
   const [submissionsResult, creatorsResult, outreachResult, metrics, aiDiscovery] = await Promise.all([
     admin.from("creator_submissions")
       .select("id,name,contact_email,platform,profile_url,douyin_url,tutorial_url,reference_audience,content_types,reference_photo_path,quality_metrics,status,submitted_at,ownership_verified_at,reviewed_at,review_note")
@@ -352,7 +365,7 @@ async function listData(admin: SupabaseClient): Promise<Record<string, unknown>>
     admin.from("creator_outreach")
       .select("id,candidate_no,display_name,profile_url,first_contacted_at,status,next_follow_up_at,loss_reason,notes,created_at,updated_at")
       .order("updated_at", { ascending: false }),
-    productMetrics(admin),
+    productMetrics(admin, metricsRange),
     aiDiscoveryData(admin),
   ]);
   if (submissionsResult.error) throw submissionsResult.error;
@@ -491,7 +504,9 @@ Deno.serve(async (request) => {
 
     if (action === "list") {
       stage = "list";
-      return new Response(JSON.stringify(await listData(identity.admin)), { status: 200, headers: headers(origin) });
+      const metricsRange = resolveAdminMetricsRange(body.metricsStartDate, body.metricsEndDate);
+      if (!metricsRange) return reply(origin, 400, { code: "invalid_metrics_range" });
+      return new Response(JSON.stringify(await listData(identity.admin, metricsRange)), { status: 200, headers: headers(origin) });
     }
 
     if (action === "set_active") {

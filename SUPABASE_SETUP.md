@@ -118,7 +118,7 @@ Edge Function 验证通过后，执行：
 
 部署 `supabase/functions/record-product-event/index.ts`，并保持 `verify_jwt = false`。该函数只接受允许来源提交的随机会话 UUID、固定事件名，以及分析失败时可选的固定原因代码；`product_events` 不向 `anon` 或 `authenticated` 开放读取或直写权限。
 
-重新部署 `supabase/functions/admin-review/index.ts`，让受保护的 `/admin` 管理台读取最近 7 天的访问、选图、女生与男生模式选图、分析、结果、反馈、创作者链接点击和分享聚合指标。验证：
+重新部署 `supabase/functions/admin-review/index.ts`，让受保护的 `/admin` 管理台按所选北京时间日期范围读取访问、选图、女生与男生模式选图、分析、结果、反馈、创作者链接点击和分享聚合指标；未传日期的旧版管理台请求仍读取最近 7×24 小时。验证：
 
 1. 允许来源的合法事件返回 `recorded`。
 2. 非法事件名、额外字段和非 UUID 会话标识被拒绝。
