@@ -633,6 +633,7 @@ function App() {
                         onShare={shareCurrentResult}
                         onViewCreators={() => navigate("creators")}
                         shareStatus={shareStatus}
+                        showPlusOffer={matches.length === 1}
                         userPhoto={photo.image}
                       />
                     </div>
@@ -657,6 +658,7 @@ function App() {
                   onShare={shareCurrentResult}
                   onViewCreators={() => navigate("creators")}
                   shareStatus={shareStatus}
+                  showPlusOffer
                 />
               )}
 
@@ -688,6 +690,7 @@ function App() {
                     onShare={shareCurrentResult}
                     onViewCreators={() => navigate("creators")}
                     shareStatus={shareStatus}
+                    showPlusOffer
                     userPhoto={photo.image}
                   />
                 ) : null

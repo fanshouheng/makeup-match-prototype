@@ -3,6 +3,7 @@ import {
   analysisFailureReasonFromIssues,
   campaignSourceFromSearch,
   getOrCreateProductMetricSessionId,
+  plusOfferVariantFromSessionId,
   photoSelectionEventNames,
 } from "./productMetrics";
 
@@ -50,6 +51,20 @@ describe("campaignSourceFromSearch", () => {
     "?src=user@example.com",
   ])("rejects an unbounded or identifying campaign value from %s", (search) => {
     expect(campaignSourceFromSearch(search)).toBeUndefined();
+  });
+});
+
+describe("plusOfferVariantFromSessionId", () => {
+  it.each([
+    ["00000000-0000-4000-8000-000000000000", "price_9_9"],
+    ["00000000-0000-4000-8000-000000000001", "price_19_9"],
+    ["00000000-0000-4000-8000-000000000002", "price_29_9"],
+  ] as const)("assigns %s to %s", (sessionId, expected) => {
+    expect(plusOfferVariantFromSessionId(sessionId)).toBe(expected);
+  });
+
+  it("uses the middle price when the input cannot be parsed", () => {
+    expect(plusOfferVariantFromSessionId("not-a-session-id")).toBe("price_19_9");
   });
 });
 

@@ -1,4 +1,4 @@
-import { BrainCircuit, Database, ShieldCheck, Trash2, UserRoundCheck } from "lucide-react";
+import { BrainCircuit, CircleDollarSign, Database, ShieldCheck, Trash2, UserRoundCheck } from "lucide-react";
 import { privacyContactEmail } from "../config";
 
 export function PrivacyPolicy() {
@@ -6,10 +6,10 @@ export function PrivacyPolicy() {
     <main className="privacy-page">
       <div className="page-heading privacy-heading">
         <div>
-          <p className="eyebrow">PRIVACY / 最后更新：2026-07-23</p>
+          <p className="eyebrow">PRIVACY / 最后更新：2026-07-24</p>
           <h1>隐私说明</h1>
         </div>
-        <p className="heading-note">默认本地匹配、可选 AI 推荐与博主申请是三条独立的数据流程</p>
+        <p className="heading-note">默认本地匹配、Plus 意向测试、可选 AI 推荐与博主申请相互独立</p>
       </div>
 
       <div className="privacy-intro">
@@ -39,6 +39,19 @@ export function PrivacyPolicy() {
       </section>
 
       <section className="privacy-section">
+        <CircleDollarSign size={21} />
+        <div>
+          <h2>参与 Plus 付费意向测试时</h2>
+          <p>
+            女生妆容结果页可能展示 9.9 元、19.9 元或 29.9 元的一次性 Plus 方案。这只是购买意向测试，不会收费、不会调用 Plus AI，也不要求登录或填写联系方式、支付账号和付款资料。你选择的场景与妆造方向只保留在当前页面，不会发送给统计服务。
+          </p>
+          <p>
+            Supabase 只接收当前标签页的随机会话标识、六种固定动作、固定价格分组和记录时间，用于统计曝光、展开、配置完成及三种意向反馈。同一标签页刷新后价格分组保持不变，关闭标签页后不会继续关联后续会话。该测试不上传照片、面部比例、匹配分数、场景、妆造方向、博主信息或 AI 结果。
+          </p>
+        </div>
+      </section>
+
+      <section className="privacy-section">
         <Database size={21} />
         <div>
           <h2>访问公开创作者库时</h2>
@@ -46,7 +59,7 @@ export function PrivacyPolicy() {
             应用会从服务器下载对应参考页面中已审核创作者的公开资料、授权照片和面部比例，用于在你的设备上完成比较。服务器和托管服务可能记录常规的 IP、请求时间、浏览器类型和错误信息，但请求中不包含你的匹配照片或面部比例。
           </p>
           <p>
-            为评估访问到匹配的完整漏斗，应用会记录进入产品、选择照片、是否在男生模式选择照片、分析成功或失败、固定的失败原因分类、结果展示、你主动选择的“符合/不太符合”、点击任一创作者链接和首次成功分享。Supabase 只接收当前标签页会话的随机标识、固定事件名称和失败原因代码；Vercel Analytics 记录聚合访问、预定义渠道编号以及不含创作者身份的链接类型。两者都不会收到照片、面部比例、匹配分数、异常文本、设备身份、创作者名称、具体链接或完整排序。关闭标签页后，随机会话标识不会继续用于后续会话；分享图片只在本机生成，本站不会保存分享内容。
+            为评估访问到匹配的完整漏斗，应用会记录进入产品、选择照片、是否在女生或男生模式选择照片、分析成功或失败、固定的失败原因分类、结果展示、你主动选择的“符合/不太符合”、点击任一创作者链接和首次成功分享。Supabase 只接收当前标签页会话的随机标识、固定事件名称和失败原因代码；Vercel Analytics 记录聚合访问、预定义渠道编号以及不含创作者身份的链接类型。两者都不会收到照片、面部比例、匹配分数、异常文本、设备身份、创作者名称、具体链接或完整排序。关闭标签页后，随机会话标识不会继续用于后续会话；分享图片只在本机生成，本站不会保存分享内容。
           </p>
         </div>
       </section>

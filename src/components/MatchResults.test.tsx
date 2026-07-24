@@ -50,6 +50,7 @@ describe("MatchResults", () => {
         onViewCreators={() => undefined}
         referenceAudience="men"
         shareStatus="idle"
+        showPlusOffer
       />,
     );
 
@@ -61,6 +62,7 @@ describe("MatchResults", () => {
     expect(html).toContain("这个结果是否符合你的感觉？");
     expect(html).toContain("分享结果");
     expect(html).toContain("抖音主页");
+    expect(html).not.toContain("PLUS / 付费功能测试");
   });
 
   it("labels and links a Xiaohongshu creator", () => {
@@ -103,6 +105,7 @@ describe("MatchResults", () => {
             contentTypes: ["makeup"],
           },
         }]}
+        showPlusOffer
         onCreatorLinkClick={() => undefined}
         onFeedback={() => undefined}
         onShare={() => undefined}
@@ -114,6 +117,9 @@ describe("MatchResults", () => {
     expect(html).toContain("和你面部结构更接近的博主");
     expect(html).toContain("可以优先参考她的妆容思路");
     expect(html).not.toContain("综合参考");
+    expect(html).toContain("PLUS / 付费功能测试");
+    expect(html).toContain("当前仅测试购买意向，不会扣款，也不收集支付信息");
+    expect(html).toContain("¥19.9");
   });
 
   it("shows a recorded feedback and downloaded-share state", () => {

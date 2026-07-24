@@ -40,6 +40,7 @@ import {
   type AdminAiDiscoveryLog,
   type AdminListResponse,
   type AdminOutreachInput,
+  type AdminPlusVariant,
   type AdminProductMetrics,
   type AdminSubmission,
 } from "./adminApi";
@@ -368,6 +369,19 @@ function MetricsPanel({ metrics }: { metrics: AdminProductMetrics }) {
   ] as const;
   const classifiedFailures = failureReasons.reduce((total, [, count]) => total + count, 0);
   const unclassifiedFailures = Math.max(metrics.analysis_failed - classifiedFailures, 0);
+  const plusVariants: Array<[AdminPlusVariant, string]> = [
+    ["price_9_9", "¥9.9"],
+    ["price_19_9", "¥19.9"],
+    ["price_29_9", "¥29.9"],
+  ];
+  const plusDecision = (yes: number, viewed: number): string => {
+    if (viewed < 300) return `积累中（还差 ${300 - viewed}）`;
+    const rate = yes / viewed;
+    if (rate < 0.01) return "停止真实开发";
+    if (rate <= 0.03) return "重看价值表达";
+    if (rate <= 0.05) return "进入 Plus MVP";
+    return "准备真实支付";
+  };
   return (
     <section className="admin-metrics" aria-labelledby="admin-metrics-title">
       <div className="admin-metrics-heading">
@@ -439,6 +453,51 @@ function MetricsPanel({ metrics }: { metrics: AdminProductMetrics }) {
           <p>{metrics.share_succeeded} 次分享 · {metrics.match_result_view} 次结果展示</p>
         </article>
       </div>
+      <section className="admin-plus-breakdown" aria-labelledby="admin-plus-title">
+        <div className="admin-ai-heading">
+          <div>
+            <span>PLUS PURCHASE INTENT</span>
+            <h3 id="admin-plus-title">Plus 价格实验</h3>
+          </div>
+          <p>主指标为愿意购买 / 曝光；每档满 300 次曝光后判断。</p>
+        </div>
+        <div className="admin-ai-table-wrap">
+          <table className="admin-ai-table admin-plus-table">
+            <thead>
+              <tr>
+                <th>价格</th>
+                <th>曝光</th>
+                <th>展开</th>
+                <th>配置完成</th>
+                <th>愿意购买</th>
+                <th>价格偏高</th>
+                <th>暂不需要</th>
+                <th>判断</th>
+              </tr>
+            </thead>
+            <tbody>
+              {plusVariants.map(([variant, price]) => {
+                const data = metrics.plus_by_variant[variant];
+                return (
+                  <tr key={variant}>
+                    <td data-label="价格"><strong>{price}</strong></td>
+                    <td data-label="曝光">{data.plus_offer_viewed}</td>
+                    <td data-label="展开">{data.plus_offer_opened} · {formatRate(data.plus_offer_opened, data.plus_offer_viewed)}</td>
+                    <td data-label="配置完成">{data.plus_offer_configured} · {formatRate(data.plus_offer_configured, data.plus_offer_viewed)}</td>
+                    <td data-label="愿意购买">{data.plus_intent_yes} · {formatRate(data.plus_intent_yes, data.plus_offer_viewed)}</td>
+                    <td data-label="价格偏高">{data.plus_intent_price_high} · {formatRate(data.plus_intent_price_high, data.plus_offer_viewed)}</td>
+                    <td data-label="暂不需要">{data.plus_intent_not_needed} · {formatRate(data.plus_intent_not_needed, data.plus_offer_viewed)}</td>
+                    <td data-label="判断">{plusDecision(data.plus_intent_yes, data.plus_offer_viewed)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="admin-metrics-note">
+          这里只记录价格分组与固定动作，不记录场景、妆造方向、照片、面部数据、联系方式或支付信息。
+        </p>
+      </section>
       <section className="admin-failure-breakdown" aria-labelledby="admin-failure-title">
         <div className="admin-failure-heading">
           <div>

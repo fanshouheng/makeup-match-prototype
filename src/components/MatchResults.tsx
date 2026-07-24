@@ -23,6 +23,7 @@ import {
 } from "../domain/matching";
 import { AiCreatorDiscovery } from "./AiCreatorDiscovery";
 import { CreatorPhoto } from "./CreatorPhoto";
+import { PlusPaidIntentExperiment } from "./PlusPaidIntentExperiment";
 
 const CONTENT_LABELS: Record<CreatorContentType, string> = {
   appearance: "形象参考",
@@ -54,6 +55,7 @@ interface MatchResultsProps {
   onFeedback: (feedback: MatchFeedback) => void;
   onShare: () => void;
   onViewCreators: () => void;
+  showPlusOffer?: boolean;
   userPhoto?: HTMLImageElement;
 }
 
@@ -71,6 +73,7 @@ export function MatchResults({
   onFeedback,
   onShare,
   onViewCreators,
+  showPlusOffer = false,
   userPhoto,
 }: MatchResultsProps) {
   const [primaryMatch, ...otherMatches] = matches;
@@ -381,6 +384,7 @@ export function MatchResults({
           </div>}
         </>
       )}
+      {showPlusOffer && primaryMatch && !isMen && <PlusPaidIntentExperiment />}
       {showPrimary && userPhoto && (
         <AiCreatorDiscovery
           key={`${referenceAudience}:${contentFilter}`}

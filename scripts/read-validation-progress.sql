@@ -13,7 +13,13 @@ event_names(event_name) as (
     ('feedback_yes'),
     ('feedback_no'),
     ('creator_link_clicked'),
-    ('share_succeeded')
+    ('share_succeeded'),
+    ('plus_offer_viewed'),
+    ('plus_offer_opened'),
+    ('plus_offer_configured'),
+    ('plus_intent_yes'),
+    ('plus_intent_price_high'),
+    ('plus_intent_not_needed')
 ),
 event_counts as (
   select names.event_name, count(events.session_id)::int as event_count
@@ -41,6 +47,30 @@ analysis_failure_counts as (
    and events.failure_reason = reasons.failure_reason
    and events.created_at >= params.period_start
   group by reasons.failure_reason
+),
+plus_variants(experiment_variant) as (
+  values
+    ('price_9_9'),
+    ('price_19_9'),
+    ('price_29_9')
+),
+plus_variant_counts as (
+  select
+    variants.experiment_variant,
+    jsonb_build_object(
+      'plus_offer_viewed', count(events.session_id) filter (where events.event_name = 'plus_offer_viewed'),
+      'plus_offer_opened', count(events.session_id) filter (where events.event_name = 'plus_offer_opened'),
+      'plus_offer_configured', count(events.session_id) filter (where events.event_name = 'plus_offer_configured'),
+      'plus_intent_yes', count(events.session_id) filter (where events.event_name = 'plus_intent_yes'),
+      'plus_intent_price_high', count(events.session_id) filter (where events.event_name = 'plus_intent_price_high'),
+      'plus_intent_not_needed', count(events.session_id) filter (where events.event_name = 'plus_intent_not_needed')
+    ) as counts
+  from plus_variants variants
+  cross join params
+  left join public.product_events events
+    on events.experiment_variant = variants.experiment_variant
+   and events.created_at >= params.period_start
+  group by variants.experiment_variant
 ),
 submission_counts as (
   select
@@ -81,6 +111,7 @@ select jsonb_build_object(
   'period_start', (select period_start from params),
   'metrics', (select jsonb_object_agg(event_name, event_count) from event_counts),
   'analysis_failures', (select jsonb_object_agg(failure_reason, failure_count) from analysis_failure_counts),
+  'plus_by_variant', (select jsonb_object_agg(experiment_variant, counts) from plus_variant_counts),
   'submissions', jsonb_build_object(
     'new_total', submissions.new_total,
     'pending', submissions.pending,

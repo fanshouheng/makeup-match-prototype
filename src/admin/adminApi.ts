@@ -108,6 +108,13 @@ export interface AdminProductMetrics {
   feedback_no: number;
   creator_link_clicked: number;
   share_succeeded: number;
+  plus_offer_viewed: number;
+  plus_offer_opened: number;
+  plus_offer_configured: number;
+  plus_intent_yes: number;
+  plus_intent_price_high: number;
+  plus_intent_not_needed: number;
+  plus_by_variant: Record<AdminPlusVariant, AdminPlusVariantMetrics>;
   analysis_failures: {
     no_face: number;
     multiple_faces: number;
@@ -115,6 +122,17 @@ export interface AdminProductMetrics {
     pose_issue: number;
     component_error: number;
   };
+}
+
+export type AdminPlusVariant = "price_9_9" | "price_19_9" | "price_29_9";
+
+export interface AdminPlusVariantMetrics {
+  plus_offer_viewed: number;
+  plus_offer_opened: number;
+  plus_offer_configured: number;
+  plus_intent_yes: number;
+  plus_intent_price_high: number;
+  plus_intent_not_needed: number;
 }
 
 export type AdminAiDiscoveryStatus = "succeeded" | "failed";

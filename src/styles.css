@@ -1118,6 +1118,232 @@ h3 {
   border-top: 1px solid var(--line);
 }
 
+.plus-offer {
+  margin-top: 32px;
+  padding: 28px 0 4px;
+  border-top: 1px solid var(--line-strong);
+}
+
+.plus-offer-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 28px;
+}
+
+.plus-offer-heading h3 {
+  max-width: 620px;
+  margin-top: 6px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.plus-offer-heading > div:first-child > p:last-child {
+  max-width: 620px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.plus-offer-price {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.plus-offer-price strong {
+  font: 700 25px/1 "Space Mono", Consolas, monospace;
+}
+
+.plus-offer-price span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.plus-offer-features {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 22px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.plus-offer-features > div {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 15px 14px;
+  border-left: 1px solid var(--line);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.plus-offer-features > div:first-child {
+  border-left: 0;
+}
+
+.plus-offer-notice {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  margin-top: 16px;
+  padding: 11px 13px;
+  color: var(--warning-ink);
+  background: var(--warning-bg);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.plus-offer-notice svg {
+  margin-top: 1px;
+}
+
+.plus-offer-toggle {
+  margin-top: 16px;
+}
+
+.plus-offer-toggle svg {
+  transition: transform 160ms ease;
+}
+
+.plus-offer-toggle svg.is-expanded {
+  transform: rotate(180deg);
+}
+
+.plus-configurator {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.plus-configurator fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.plus-configurator fieldset + fieldset {
+  margin-top: 20px;
+}
+
+.plus-configurator legend {
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.plus-configurator legend small {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.plus-option-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.plus-option-grid label {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.plus-option-grid input {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--ink);
+}
+
+.plus-option-grid label:has(input:checked) {
+  border-color: var(--ink);
+  background: #f5f5f2;
+}
+
+.plus-option-grid label:has(input:disabled) {
+  color: var(--faint);
+  cursor: default;
+}
+
+.plus-configure-submit {
+  margin-top: 20px;
+}
+
+.plus-intent-question {
+  margin-top: 22px;
+  padding: 18px;
+  border-left: 2px solid var(--ink);
+  background: #f7f7f4;
+}
+
+.plus-intent-question > div:first-child {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+}
+
+.plus-intent-question > div:first-child p {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.plus-intent-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.plus-intent-actions button {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  color: var(--ink);
+  background: #fff;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.plus-intent-actions button[data-selected="true"] {
+  border-color: var(--ink);
+  color: #fff;
+  background: var(--ink);
+}
+
+.plus-intent-actions button:disabled:not([data-selected="true"]) {
+  color: var(--faint);
+  cursor: default;
+}
+
+.plus-intent-status {
+  min-height: 17px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
 .ai-discovery-heading {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2045,6 +2271,37 @@ h3 {
   .ai-discovery-heading {
     grid-template-columns: 1fr;
     gap: 14px;
+  }
+
+  .plus-offer-heading {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .plus-offer-features {
+    grid-template-columns: 1fr;
+  }
+
+  .plus-offer-features > div {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .plus-offer-features > div:first-child {
+    border-top: 0;
+  }
+
+  .plus-option-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .plus-offer-toggle,
+  .plus-configure-submit {
+    width: 100%;
+  }
+
+  .plus-intent-actions {
+    grid-template-columns: 1fr;
   }
 
   .ai-discovery-heading .button,

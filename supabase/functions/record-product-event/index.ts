@@ -12,7 +12,22 @@ const EVENT_NAMES = new Set([
   "feedback_no",
   "creator_link_clicked",
   "share_succeeded",
+  "plus_offer_viewed",
+  "plus_offer_opened",
+  "plus_offer_configured",
+  "plus_intent_yes",
+  "plus_intent_price_high",
+  "plus_intent_not_needed",
 ]);
+const PLUS_EVENT_NAMES = new Set([
+  "plus_offer_viewed",
+  "plus_offer_opened",
+  "plus_offer_configured",
+  "plus_intent_yes",
+  "plus_intent_price_high",
+  "plus_intent_not_needed",
+]);
+const PLUS_VARIANTS = ["price_9_9", "price_19_9", "price_29_9"] as const;
 const FAILURE_REASONS = new Set([
   "no_face",
   "multiple_faces",
@@ -21,6 +36,11 @@ const FAILURE_REASONS = new Set([
   "component_error",
 ]);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function plusVariantFromSessionId(sessionId: string): typeof PLUS_VARIANTS[number] {
+  const value = Number.parseInt(sessionId.replaceAll("-", "").slice(-8), 16);
+  return PLUS_VARIANTS[value % PLUS_VARIANTS.length];
+}
 
 function configuredOrigins(): string[] {
   return (Deno.env.get("ALLOWED_ORIGINS") ?? "")
@@ -96,18 +116,28 @@ Deno.serve(async (request) => {
     const keys = Object.keys(body);
     const hasFailureReason = Object.prototype.hasOwnProperty.call(body, "failureReason");
     const eventNameIsValid = typeof body.eventName === "string" && EVENT_NAMES.has(body.eventName);
+    const isPlusEvent = typeof body.eventName === "string" && PLUS_EVENT_NAMES.has(body.eventName);
+    const sessionIdIsValid = typeof body.sessionId === "string" && UUID_PATTERN.test(body.sessionId);
     const failureReasonIsValid = body.eventName === "analysis_failed"
       ? !hasFailureReason || (
         typeof body.failureReason === "string" && FAILURE_REASONS.has(body.failureReason)
       )
       : !hasFailureReason;
+    const fieldsAreValid = isPlusEvent
+      ? keys.length === 3 && keys.every((key) => ["sessionId", "eventName", "experimentVariant"].includes(key))
+      : (keys.length === 2 || keys.length === 3) &&
+        keys.every((key) => ["sessionId", "eventName", "failureReason"].includes(key));
+    const experimentVariantIsValid = isPlusEvent
+      ? sessionIdIsValid &&
+        typeof body.experimentVariant === "string" &&
+        body.experimentVariant === plusVariantFromSessionId(body.sessionId as string)
+      : !Object.prototype.hasOwnProperty.call(body, "experimentVariant");
     if (
-      (keys.length !== 2 && keys.length !== 3) ||
-      !keys.every((key) => ["sessionId", "eventName", "failureReason"].includes(key)) ||
-      typeof body.sessionId !== "string" ||
-      !UUID_PATTERN.test(body.sessionId) ||
+      !fieldsAreValid ||
+      !sessionIdIsValid ||
       !eventNameIsValid ||
-      !failureReasonIsValid
+      !failureReasonIsValid ||
+      !experimentVariantIsValid
     ) {
       return reply(origin, 400, "invalid_event");
     }
@@ -120,9 +150,11 @@ Deno.serve(async (request) => {
         session_id: body.sessionId,
         event_name: body.eventName,
         failure_reason: hasFailureReason ? body.failureReason : null,
+        experiment_variant: isPlusEvent ? body.experimentVariant : null,
       },
       { onConflict: "session_id,event_name", ignoreDuplicates: true },
     );
+    if (error?.code === "23505") return reply(origin, 202, "already_recorded");
     if (error) throw error;
 
     return reply(origin, 202, "recorded");

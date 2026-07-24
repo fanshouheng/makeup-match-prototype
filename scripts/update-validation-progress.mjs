@@ -3,7 +3,7 @@ import path from "node:path";
 import process from "node:process";
 
 const PROJECT_REF = "srydzphmmepcywepcccq";
-const EVENT_KEYS = [
+const LEGACY_EVENT_KEYS = [
   "landing_view",
   "photo_selected",
   "women_photo_selected",
@@ -16,6 +16,16 @@ const EVENT_KEYS = [
   "creator_link_clicked",
   "share_succeeded",
 ];
+const PLUS_EVENT_KEYS = [
+  "plus_offer_viewed",
+  "plus_offer_opened",
+  "plus_offer_configured",
+  "plus_intent_yes",
+  "plus_intent_price_high",
+  "plus_intent_not_needed",
+];
+const EVENT_KEYS = [...LEGACY_EVENT_KEYS, ...PLUS_EVENT_KEYS];
+const PLUS_VARIANTS = ["price_9_9", "price_19_9", "price_29_9"];
 const ANALYSIS_FAILURE_KEYS = [
   "no_face",
   "multiple_faces",
@@ -75,6 +85,10 @@ function assertExactKeys(value, expected, label) {
 function normalizeSnapshot(raw) {
   const hasOutreach = Object.prototype.hasOwnProperty.call(raw, "outreach");
   const hasAnalysisFailures = Object.prototype.hasOwnProperty.call(raw, "analysis_failures");
+  const hasPlusByVariant = Object.prototype.hasOwnProperty.call(raw, "plus_by_variant");
+  const hasPlusMetrics = PLUS_EVENT_KEYS.every((key) =>
+    Object.prototype.hasOwnProperty.call(raw.metrics ?? {}, key)
+  );
   assertExactKeys(
     raw,
     [
@@ -83,17 +97,24 @@ function normalizeSnapshot(raw) {
       "period_start",
       "metrics",
       ...(hasAnalysisFailures ? ["analysis_failures"] : []),
+      ...(hasPlusByVariant ? ["plus_by_variant"] : []),
       "submissions",
       ...(hasOutreach ? ["outreach"] : []),
     ],
     "snapshot",
   );
-  assertExactKeys(raw.metrics, EVENT_KEYS, "metrics");
+  assertExactKeys(raw.metrics, hasPlusMetrics ? EVENT_KEYS : LEGACY_EVENT_KEYS, "metrics");
   if (hasAnalysisFailures) {
     assertExactKeys(raw.analysis_failures, ANALYSIS_FAILURE_KEYS, "analysis_failures");
   }
   assertExactKeys(raw.submissions, SUBMISSION_KEYS, "submissions");
   if (hasOutreach) assertExactKeys(raw.outreach, OUTREACH_KEYS, "outreach");
+  if (hasPlusByVariant) {
+    assertExactKeys(raw.plus_by_variant, PLUS_VARIANTS, "plus_by_variant");
+    for (const variant of PLUS_VARIANTS) {
+      assertExactKeys(raw.plus_by_variant[variant], PLUS_EVENT_KEYS, `plus_by_variant.${variant}`);
+    }
+  }
 
   if (raw.project_ref !== PROJECT_REF) throw new Error("Snapshot came from the wrong Supabase project");
   const capturedAt = new Date(raw.captured_at);
@@ -108,11 +129,23 @@ function normalizeSnapshot(raw) {
     return [key, count];
   }));
 
+  const emptyPlusMetrics = () => Object.fromEntries(PLUS_EVENT_KEYS.map((key) => [key, 0]));
+  const plusByVariant = Object.fromEntries(PLUS_VARIANTS.map((variant) => [
+    variant,
+    hasPlusByVariant
+      ? normalizeCounts(raw.plus_by_variant[variant], PLUS_EVENT_KEYS, `plus_by_variant.${variant}`)
+      : emptyPlusMetrics(),
+  ]));
+
   return {
     project_ref: PROJECT_REF,
     captured_at: capturedAt.toISOString(),
     period_start: periodStart.toISOString(),
-    metrics: normalizeCounts(raw.metrics, EVENT_KEYS, "metrics"),
+    metrics: normalizeCounts(
+      { ...emptyPlusMetrics(), ...raw.metrics },
+      EVENT_KEYS,
+      "metrics",
+    ),
     ...(hasAnalysisFailures ? {
       analysis_failures: normalizeCounts(
         raw.analysis_failures,
@@ -120,6 +153,7 @@ function normalizeSnapshot(raw) {
         "analysis_failures",
       ),
     } : {}),
+    plus_by_variant: plusByVariant,
     submissions: normalizeCounts(raw.submissions, SUBMISSION_KEYS, "submissions"),
     ...(hasOutreach ? { outreach: normalizeCounts(raw.outreach, OUTREACH_KEYS, "outreach") } : {}),
   };
@@ -152,16 +186,31 @@ function rateStatus(numerator, denominator, threshold, minimumSample) {
   return numerator / denominator >= threshold ? "达到观察线" : "低于观察线";
 }
 
+function plusDecision(yes, viewed) {
+  if (viewed < 300) return `积累中，还差 ${300 - viewed} 次曝光`;
+  const rate = yes / viewed;
+  if (rate < 0.01) return "停止真实开发";
+  if (rate <= 0.03) return "重新检查价值表达";
+  if (rate <= 0.05) return "进入 Plus MVP";
+  return "准备真实支付";
+}
+
 function createReport(current, previous) {
   const metrics = current.metrics;
   const analysisFailures = current.analysis_failures;
   const submissions = current.submissions;
   const outreach = current.outreach;
+  const plusByVariant = current.plus_by_variant;
   const feedbackTotal = metrics.feedback_yes + metrics.feedback_no;
   const previousMetrics = previous?.metrics;
   const previousAnalysisFailures = previous?.analysis_failures;
   const previousSubmissions = previous?.submissions;
   const previousOutreach = previous?.outreach;
+  const plusPrices = {
+    price_9_9: "¥9.9",
+    price_19_9: "¥19.9",
+    price_29_9: "¥29.9",
+  };
   const metricRows = [
     ["全部匿名访问", "landing_view"],
     ["选择照片", "photo_selected"],
@@ -234,6 +283,17 @@ function createReport(current, previous) {
       return `| ${label} | ${percentage(numerator, denominator)} | ${(threshold * 100).toFixed(0)}% | ${status} |`;
     }),
     "",
+    "## Plus 付费意向实验",
+    "",
+    "| 价格 | 曝光 | 展开 | 配置完成 | 愿意购买 | 价格偏高 | 暂不需要 | 意向率 | 判断 |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+    ...PLUS_VARIANTS.map((variant) => {
+      const data = plusByVariant[variant];
+      return `| ${plusPrices[variant]} | ${data.plus_offer_viewed} | ${data.plus_offer_opened} | ${data.plus_offer_configured} | ${data.plus_intent_yes} | ${data.plus_intent_price_high} | ${data.plus_intent_not_needed} | ${percentage(data.plus_intent_yes, data.plus_offer_viewed)} | ${plusDecision(data.plus_intent_yes, data.plus_offer_viewed)} |`;
+    }),
+    "",
+    "> 本实验不收费、不调用 Plus AI；价格分组之外不保存场景、妆造方向、照片、面部数据、联系方式或支付资料。",
+    "",
     "## 创作者供给",
     "",
     "| 指标 | 当前累计 | 较上次 |",
@@ -270,6 +330,7 @@ function createReport(current, previous) {
     "## 口径说明",
     "",
     "- 同一会话的同一事件只计一次。",
+    "- Plus 三种意向反馈合计每个会话最多记录一次；主指标是愿意购买次数除以对应价格曝光次数。",
     "- 分析失败原因只记录固定分类代码；不会记录照片、面部参数、异常文本或设备身份。",
     "- `使用女生模式选图` 只表示用户选择了女生模式，不代表系统识别或推断了用户性别。",
     "- 所有转化率都从统计起点累计计算；样本较小时只记录，不据此频繁改产品。",

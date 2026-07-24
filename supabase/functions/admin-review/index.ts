@@ -26,7 +26,24 @@ const PRODUCT_EVENT_NAMES = [
   "feedback_no",
   "creator_link_clicked",
   "share_succeeded",
+  "plus_offer_viewed",
+  "plus_offer_opened",
+  "plus_offer_configured",
+  "plus_intent_yes",
+  "plus_intent_price_high",
+  "plus_intent_not_needed",
 ] as const;
+const PLUS_EVENT_NAMES = [
+  "plus_offer_viewed",
+  "plus_offer_opened",
+  "plus_offer_configured",
+  "plus_intent_yes",
+  "plus_intent_price_high",
+  "plus_intent_not_needed",
+] as const;
+const PLUS_VARIANTS = ["price_9_9", "price_19_9", "price_29_9"] as const;
+type PlusEventName = typeof PLUS_EVENT_NAMES[number];
+type PlusVariant = typeof PLUS_VARIANTS[number];
 const PRODUCT_FAILURE_REASONS = [
   "no_face",
   "multiple_faces",
@@ -236,7 +253,7 @@ async function signedPhotoMap(admin: SupabaseClient, paths: string[]): Promise<M
 
 async function productMetrics(admin: SupabaseClient): Promise<Record<string, unknown>> {
   const periodStart = new Date(Date.now() - PRODUCT_METRICS_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  const [counts, failuresResult] = await Promise.all([
+  const [counts, failuresResult, plusResult] = await Promise.all([
     Promise.all(PRODUCT_EVENT_NAMES.map(async (eventName) => {
       const result = await admin.from("product_events")
         .select("session_id", { count: "exact", head: true })
@@ -249,8 +266,13 @@ async function productMetrics(admin: SupabaseClient): Promise<Record<string, unk
       .select("failure_reason")
       .eq("event_name", "analysis_failed")
       .gte("created_at", periodStart),
+    admin.from("product_events")
+      .select("event_name,experiment_variant")
+      .in("event_name", [...PLUS_EVENT_NAMES])
+      .gte("created_at", periodStart),
   ]);
   if (failuresResult.error) throw failuresResult.error;
+  if (plusResult.error) throw plusResult.error;
 
   const failureCounts = Object.fromEntries(
     PRODUCT_FAILURE_REASONS.map((reason) => [reason, 0]),
@@ -265,10 +287,28 @@ async function productMetrics(admin: SupabaseClient): Promise<Record<string, unk
     }
   }
 
+  const plusByVariant = Object.fromEntries(PLUS_VARIANTS.map((variant) => [
+    variant,
+    Object.fromEntries(PLUS_EVENT_NAMES.map((eventName) => [eventName, 0])),
+  ])) as Record<PlusVariant, Record<PlusEventName, number>>;
+  for (const row of plusResult.data ?? []) {
+    const eventName = row.event_name;
+    const variant = row.experiment_variant;
+    if (
+      typeof eventName === "string" &&
+      PLUS_EVENT_NAMES.includes(eventName as PlusEventName) &&
+      typeof variant === "string" &&
+      PLUS_VARIANTS.includes(variant as PlusVariant)
+    ) {
+      plusByVariant[variant as PlusVariant][eventName as PlusEventName] += 1;
+    }
+  }
+
   return {
     period_start: periodStart,
     ...Object.fromEntries(counts),
     analysis_failures: failureCounts,
+    plus_by_variant: plusByVariant,
   };
 }
 
