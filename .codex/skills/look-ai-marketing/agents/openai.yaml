@@ -1,0 +1,4 @@
+interface:
+  display_name: "LOOK AI Marketing"
+  short_description: "基于真实数据主动诊断并执行 LOOK AI 营销实验"
+  default_prompt: "使用 $look-ai-marketing 主动读取 LOOK AI 当前数据，只向我询问必要问题，并制定下一轮可验证的营销实验。"
