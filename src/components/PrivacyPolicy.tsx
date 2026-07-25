@@ -6,7 +6,7 @@ export function PrivacyPolicy() {
     <main className="privacy-page">
       <div className="page-heading privacy-heading">
         <div>
-          <p className="eyebrow">PRIVACY / 最后更新：2026-07-25</p>
+          <p className="eyebrow">PRIVACY / 最后更新：2026-07-26</p>
           <h1>隐私说明</h1>
         </div>
         <p className="heading-note">默认本地分析、男生 AI 报告、Plus 意向测试、AI 推荐与博主申请相互独立</p>
@@ -27,10 +27,10 @@ export function PrivacyPolicy() {
         <div>
           <h2>主动生成男生 AI 面部报告时</h2>
           <p>
-            男生模式先在浏览器本地完成九项面部比例计算。只有你选择报告模式和文风、展开并查看将发送的精确数值、主动勾选同意并完成安全验证后，浏览器才会把九项比例、所选模式和文风经 MAKE UP Edge Function 发送给第三方 AI 服务 DeepSeek，用于生成本次娱乐化报告。不会发送照片、面部关键点坐标、姓名、设备标识、创作者信息或本地匹配结果。
+            男生模式先在浏览器本地完成九项面部比例计算。只有你选择报告模式和评价人、展开并查看将发送的精确数值、主动勾选同意并完成安全验证后，浏览器才会把九项比例、所选模式和评价人经 MAKE UP Edge Function 发送给第三方 AI 服务，用于生成本次娱乐化报告。不会发送照片、面部关键点坐标、姓名、设备标识、创作者信息或本地匹配结果。
           </p>
           <p>
-            MAKE UP 不会把九项比例、发送给 DeepSeek 的提示词或生成报告写入数据库或 Storage。DeepSeek API 当前没有由本产品声明会话不保存的参数；DeepSeek 仍可能依据其<a href="https://cdn.deepseek.com/policies/zh-CN/deepseek-open-platform-terms-of-service.html" rel="noreferrer" target="_blank">开放平台服务协议</a>处理必要的安全与运行日志。页面会明确标注报告由 AI 生成；报告只描述照片中的结构比例，不用于身份识别、颜值评分、医学判断或敏感属性推断。
+            MAKE UP 不会把九项比例、发送给第三方 AI 服务的提示词或生成报告写入数据库或 Storage。第三方 AI 服务仍可能依据其服务规则处理必要的安全与运行日志。页面会明确标注报告由 AI 生成；报告只描述照片中的结构比例，不用于身份识别、颜值评分、医学判断或敏感属性推断。
           </p>
           <p>
             男生 AI 报告与 AI 联网推荐共享每个 IP 每小时最多 3 次的安全限流。限流只保存经过加盐单向哈希的 IP 标识，不保存原始 IP、面部比例或报告内容。不使用男生 AI 报告，不影响本地面部分析和女生创作者匹配。

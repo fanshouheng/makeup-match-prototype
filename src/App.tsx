@@ -523,7 +523,7 @@ function App() {
                 <CheckCircle2 size={18} />
                 <p>
                   {referenceAudience === "men"
-                    ? "照片质量通过，可以选择文风生成男生面部报告。"
+                    ? "照片质量通过，可以选择评价人生成男生面部报告。"
                     : "照片质量通过，已开始匹配相似博主。"}
                 </p>
               </div>

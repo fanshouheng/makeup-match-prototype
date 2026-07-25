@@ -34,7 +34,7 @@ export function buildMaleFaceReportRequest({
   style,
   turnstileToken,
 }: MaleFaceReportInput) {
-  if (!consent) throw new Error("请先同意将本次面部比例发送给 DeepSeek。");
+  if (!consent) throw new Error("请先同意将本次面部比例发送给第三方 AI 服务。");
   if (!turnstileToken) throw new Error("请先完成安全验证。");
   return {
     consentVersion: MALE_FACE_REPORT_CONSENT_VERSION,
@@ -71,13 +71,13 @@ export async function generateMaleFaceReport(
     throw new Error("安全验证已失效，请重新验证后重试。");
   }
   if (code === "service_not_configured") {
-    throw new Error("DeepSeek 报告尚未完成服务配置。");
+    throw new Error("AI 报告尚未完成服务配置。");
   }
   if (code === "invalid_request") {
     throw new Error("本次面部比例无法生成报告，请重新分析后再试。");
   }
   if (code === "invalid_provider_response") {
-    throw new Error("AI 返回的报告不符合安全要求，请换个文风重试。");
+    throw new Error("AI 返回的报告不符合安全要求，请换个人重试。");
   }
   throw new Error("AI 报告暂时不可用，请稍后重试。");
 }

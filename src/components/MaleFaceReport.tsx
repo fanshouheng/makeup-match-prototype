@@ -81,7 +81,7 @@ export function MaleFaceReport({ faceFeatures }: MaleFaceReportProps) {
           <p className="eyebrow">AI REPORT / 男生面部报告</p>
           <h2 id="male-report-title">选一个人来评价这张脸</h2>
         </div>
-        <span><BrainCircuit size={17} />DeepSeek 生成</span>
+        <span><BrainCircuit size={17} />AI 生成</span>
       </div>
 
       <div className="male-report-mode" aria-label="报告模式" role="group">
@@ -103,7 +103,7 @@ export function MaleFaceReport({ faceFeatures }: MaleFaceReportProps) {
       <p className="male-report-mode-note">测试阶段两种模式均免费体验。</p>
 
       <fieldset className="male-report-styles">
-        <legend>选择文风</legend>
+        <legend>选择评价人</legend>
         <div className="male-report-style-grid">
           {MALE_REPORT_STYLES.map((option) => (
             <label key={option.value}>
@@ -127,7 +127,7 @@ export function MaleFaceReport({ faceFeatures }: MaleFaceReportProps) {
               <h3>{report.title}</h3>
             </div>
             <button className="button button-ghost" onClick={() => setReport(undefined)} type="button">
-              <RefreshCw size={16} />换个文风
+              <RefreshCw size={16} />换个人
             </button>
           </div>
           <p className="male-report-summary">{report.summary}</p>
@@ -148,7 +148,7 @@ export function MaleFaceReport({ faceFeatures }: MaleFaceReportProps) {
             <ShieldCheck size={19} />
             <div>
               <h3>发送前由你决定</h3>
-              <p>同意后，以下九项精确比例会经 MAKE UP Edge Function 发送给 DeepSeek，仅用于生成本次报告。不会发送照片、关键点坐标、姓名、设备标识或匹配结果；DeepSeek 仍可能依其规则处理必要的安全与运行日志。</p>
+              <p>同意后，以下九项精确比例会由 MAKE UP 发送给第三方 AI 服务，仅用于生成本次报告。不会发送照片、关键点坐标、姓名、设备标识或匹配结果；第三方 AI 服务仍可能依其规则处理必要的安全与运行日志。</p>
             </div>
           </div>
           <details className="male-report-data-details">
@@ -168,7 +168,7 @@ export function MaleFaceReport({ faceFeatures }: MaleFaceReportProps) {
               onChange={(event) => setConsent(event.target.checked)}
               type="checkbox"
             />
-            <span>我已了解并同意将上述九项精确面部比例发送给 DeepSeek，用于生成本次 AI 报告。</span>
+            <span>我已了解并同意将上述九项精确面部比例发送给第三方 AI 服务，用于生成本次 AI 报告。</span>
           </label>
           <p className="consent-policy-link">
             详细说明见<a href="#privacy" rel="noreferrer" target="_blank">隐私说明</a>。
@@ -194,7 +194,7 @@ export function MaleFaceReport({ faceFeatures }: MaleFaceReportProps) {
           ) : (
             <div className="notice notice-warning compact">
               <AlertCircle size={16} />
-              <p>DeepSeek 报告正在进行安全配置，暂时无法调用。</p>
+              <p>AI 报告正在进行安全配置，暂时无法调用。</p>
             </div>
           )}
           {error && (
