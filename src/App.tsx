@@ -19,6 +19,7 @@ import {
   type MatchFeedback,
   type MatchShareStatus,
 } from "./components/MatchResults";
+import { MaleFaceReport } from "./components/MaleFaceReport";
 import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import { SiteHeader, type SiteView } from "./components/SiteHeader";
 import type {
@@ -120,10 +121,17 @@ function App() {
   const inAppBrowser = isLikelyInAppBrowser(window.navigator.userAgent);
 
   const showMatchScene = Boolean(
+    referenceAudience === "women" &&
     status === "complete" &&
     result?.analysis &&
     result.issues.length === 0 &&
     matches !== undefined,
+  );
+  const showMaleReport = Boolean(
+    referenceAudience === "men" &&
+    status === "complete" &&
+    result?.analysis &&
+    result.issues.length === 0,
   );
 
   useEffect(
@@ -152,6 +160,15 @@ function App() {
       !result?.analysis ||
       result.issues.length > 0
     ) {
+      return;
+    }
+
+    if (referenceAudience === "men") {
+      setMatching(false);
+      setMatchError(undefined);
+      setMatches(undefined);
+      setCreatorsCount(0);
+      setCreatorLibrary(undefined);
       return;
     }
 
@@ -227,6 +244,18 @@ function App() {
     );
     void recordProductEvent("match_result_view");
   }, [creatorsCount, maleContentFilter, matches, referenceAudience, result, showMatchScene]);
+
+  useEffect(() => {
+    if (!showMaleReport || !result) return;
+
+    const viewKey = "men:report";
+    const trackedResult = trackedResultRef.current;
+    if (trackedResult?.result === result && trackedResult.viewKey === viewKey) return;
+
+    trackedResultRef.current = { result, viewKey };
+    track("male_face_report_view");
+    void recordProductEvent("match_result_view");
+  }, [result, showMaleReport]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -494,7 +523,7 @@ function App() {
                 <CheckCircle2 size={18} />
                 <p>
                   {referenceAudience === "men"
-                    ? "照片质量通过，已开始匹配相似男生创作者。"
+                    ? "照片质量通过，可以选择文风生成男生面部报告。"
                     : "照片质量通过，已开始匹配相似博主。"}
                 </p>
               </div>
@@ -547,10 +576,10 @@ function App() {
         <main className={`analysis-page ${referenceAudience === "men" ? "men-reference-page" : ""}`}>
           <div className="reference-mode-control">
             <button
-              aria-label={referenceAudience === "women" ? "切换到男生形象参考" : "切换到女生妆容参考"}
+              aria-label={referenceAudience === "women" ? "切换到男生面部报告" : "切换到女生妆容参考"}
               className="reference-mode-toggle"
               onClick={toggleReferenceAudience}
-              title={referenceAudience === "women" ? "切换到男生形象参考" : "切换到女生妆容参考"}
+              title={referenceAudience === "women" ? "切换到男生面部报告" : "切换到女生妆容参考"}
               type="button"
             >
               <span aria-hidden="true">{referenceAudience === "women" ? "♀" : "♂"}</span>
@@ -560,12 +589,12 @@ function App() {
             <section className="start-upload-screen" aria-labelledby="upload-title">
               <div className="start-upload-copy">
                 <p className="eyebrow">
-                  {referenceAudience === "men" ? "MEN'S REFERENCE / 男生形象参考" : "START / 照片分析"}
+                  {referenceAudience === "men" ? "MEN'S REPORT / 男生面部报告" : "START / 照片分析"}
                 </p>
                 <h1 id="upload-title">上传一张清晰的正面照片</h1>
                 <p>
                   {referenceAudience === "men"
-                    ? "从面部结构出发，寻找可以参考的男生创作者、发型和妆容内容。"
+                    ? "在本地分析面部结构，再由你决定是否将九项精确比例发送给 AI 生成趣味报告。"
                     : "照片将占据分析主视窗。识别完成后，面部关键点和个人比例会显示在右侧。"}
                 </p>
               </div>
@@ -599,8 +628,8 @@ function App() {
                   <h1>
                     {referenceAudience === "men"
                       ? status === "complete"
-                        ? "你的男生形象参考"
-                        : "确认照片，开始寻找男生形象参考"
+                        ? "你的男生面部报告"
+                        : "确认照片，开始分析面部结构"
                       : status === "complete"
                         ? "你的个人分析"
                         : "确认照片，开始寻找妆容参照"}
@@ -645,6 +674,10 @@ function App() {
                 </div>
               </section>
 
+              {showMaleReport && result?.analysis && (
+                <MaleFaceReport faceFeatures={result.analysis.features} />
+              )}
+
               {showMatchScene && matches && matches.length > 1 && result?.analysis && (
                 <MatchResults
                   creatorsCount={creatorsCount}
@@ -667,11 +700,7 @@ function App() {
                 matching && !matches ? (
                   <section className="matches-loading" aria-live="polite">
                     <LoaderCircle className="spin" size={24} />
-                    <p>
-                      {referenceAudience === "men"
-                        ? "正在比较男生创作者库"
-                        : "正在比较公开博主库"}
-                    </p>
+                    <p>正在比较公开博主库</p>
                   </section>
                 ) : matchError ? (
                   <div className="notice notice-error matches-error">

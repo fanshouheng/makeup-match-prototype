@@ -3,11 +3,12 @@
 ## Positioning
 
 MAKE UP is a free, privacy-first makeup-reference prototype. A user selects a
-front-facing photo, the browser compares face-structure proportions locally,
-and the app returns authorized creators and tutorial links. An optional,
-separately consented AI flow sends a sanitized photo copy for names-only public
-creator discovery. It is not identity recognition, appearance scoring, medical
-advice, or a full style generator.
+front-facing photo and the browser measures face-structure proportions locally.
+The women flow returns authorized creators and tutorial links. The men flow can,
+after separate consent, send the nine disclosed exact ratios to DeepSeek for an
+entertainment report. Another separately consented AI flow sends a sanitized
+photo copy for names-only public creator discovery. It is not identity
+recognition, appearance scoring, medical advice, or a full style generator.
 
 - Production: https://makeup.soul.xn--fiqs8s/
 - Source: https://github.com/fanshouheng/makeup-match-prototype
@@ -36,6 +37,11 @@ npm run build
 
 - Default matching keeps ordinary-user photos, face proportions, and rankings in
   the browser.
+- The optional men report may send only the nine exact ratios shown to the user,
+  the selected fixed tone, and the selected fixed writing style after separate
+  consent and Turnstile verification. Do not send the photo, landmarks, identity,
+  device/session identifiers, creator data, or local rankings. Do not persist
+  ratios, prompts, or generated reports, and label the result as AI-generated.
 - Optional AI discovery may send only a canvas-reencoded JPEG after separate
   consent and Turnstile verification. Do not persist the photo, AI result, or
   returned creator names; request provider-side conversation storage to be off.
@@ -69,8 +75,9 @@ npm run build
 and Speed Insights, Supabase for consent-backed creator intake, Cloudflare
 Turnstile for submission protection, and manual review before publication.
 The result page supports login-free yes/no feedback, local share-poster
-generation, and separately consented AI names-only discovery. Feedback, share,
-and AI telemetry must remain aggregate and must not include user photos, face
-proportions, match scores, creator names, AI results, or rankings.
+generation, a separately consented DeepSeek men report, and separately consented
+AI names-only discovery. Feedback, share, and AI telemetry must remain aggregate
+and must not include user photos, face proportions, match scores, creator names,
+AI results, or rankings.
 Read `README.md`, `SUPABASE_SETUP.md`, and `docs/ADMIN_REVIEW.md` before changing
 the public data flow or deployment contract.

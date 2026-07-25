@@ -63,6 +63,7 @@ ALLOWED_ORIGINS=https://makeup.soul.xn--fiqs8s,https://makeup-match-prototype.ve
 RATE_LIMIT_SALT=至少 32 个随机字符
 ARK_API_KEY=火山引擎方舟 API Key
 ARK_MODEL=支持图片理解与联网搜索的模型或推理接入点 ID
+DEEPSEEK_API_KEY=DeepSeek 开放平台 API Key
 ```
 
 多个允许域名使用英文逗号分隔。不要在 `ALLOWED_ORIGINS` 中使用 `*`。
@@ -70,6 +71,8 @@ ARK_MODEL=支持图片理解与联网搜索的模型或推理接入点 ID
 本地联调时可以临时增加 `ALLOW_LOCAL_ORIGINS=true`，完成测试后应删除或改回 `false`。正式 Turnstile 站点也必须允许相应的本地域名。
 
 `ARK_API_KEY` 和 `ARK_MODEL` 只供 `ai-creator-discovery` 使用。Supabase 托管的 Edge Function 会自动提供 `SUPABASE_URL`、`SUPABASE_SECRET_KEYS` 等项目级变量，不要把这些值提交到 Git，也不要在日志中输出任何完整密钥。
+
+`DEEPSEEK_API_KEY` 只供 `male-face-report` 使用，函数固定调用 DeepSeek 对话 API 的 `deepseek-v4-pro`。密钥只能写入 Edge Function Secrets；已经粘贴到聊天、Issue、日志或前端环境变量中的密钥必须先撤销并轮换，不能继续部署使用。
 
 对应火山引擎账号必须先开通方舟联网搜索插件；未开通时接口会返回 `ToolNotOpen`，前端显示“AI 联网搜索尚未完成配置”。不要在插件未开通、未完成一次真实联网请求前发布 AI 入口。
 
@@ -114,7 +117,22 @@ Edge Function 验证通过后，执行：
 7. 缺少 `ARK_API_KEY` 或 `ARK_MODEL` 时返回 `service_not_configured`；联网搜索插件未开通时返回 `web_search_not_configured`。
 8. 真正发送到 AI 服务的请求会记录固定运行元数据；日志不包含照片、面部比例、提示词、返回名字、推荐结果或原始 IP。
 
-## 8. 产品事件与管理台指标
+## 8. 部署并验证男生 DeepSeek 报告
+
+部署 `supabase/functions/male-face-report/index.ts`，并设置 `verify_jwt = false`。该公开函数只接受允许来源，并在函数内验证 Turnstile、同意版本、固定九项比例、数值范围、报告模式、文风和共享 AI 限流。
+
+上线前验证：
+
+1. 未勾选同意或未完成 Turnstile 时，前端不会调用 Edge Function。
+2. 请求只包含九项精确比例、固定模式、固定文风、同意版本和 Turnstile token；不包含照片、关键点、姓名、设备标识、创作者信息或会话 ID。
+3. 非允许来源、额外字段、缺失比例、超出范围的数值和错误同意版本会被拒绝。
+4. 男生报告与 AI 联网推荐共享每 IP 每小时 3 次的限流，只保存加盐单向哈希，不保存原始 IP 或面部比例。
+5. DeepSeek 只接受服务端 Secret，浏览器产物和网络响应中不出现 `DEEPSEEK_API_KEY`。
+6. DeepSeek 输出必须是 3 至 5 项结构化 JSON；未知或重复特征、过长内容和禁用羞辱词会被拒绝。
+7. MAKE UP 数据库、Storage 和函数日志中没有精确比例、完整提示词或生成报告。
+8. 页面明确标注 AI 生成，并说明 DeepSeek 可能依其规则处理必要的安全与运行日志。
+
+## 9. 产品事件与管理台指标
 
 部署 `supabase/functions/record-product-event/index.ts`，并保持 `verify_jwt = false`。该函数只接受允许来源提交的随机会话 UUID、固定事件名，以及分析失败时可选的固定原因代码；`product_events` 不向 `anon` 或 `authenticated` 开放读取或直写权限。
 
@@ -130,7 +148,7 @@ Edge Function 验证通过后，执行：
 
 管理台的“AI 调用”页签显示最近 7 天的调用数、成功率、最近记录平均耗时和最多 50 条调用记录。只有真正发送到第三方 AI 服务的请求会计入；安全验证失败、限流和无效图片不会计入。
 
-## 9. 审核与维护
+## 10. 审核与维护
 
 申请默认进入 `pending`，不会自动公开。身份核验、批准、拒绝、撤回和删除步骤见 `docs/ADMIN_REVIEW.md`。
 

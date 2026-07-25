@@ -9,3 +9,6 @@ verify_jwt = false
 
 [functions.ai-creator-discovery]
 verify_jwt = false
+
+[functions.male-face-report]
+verify_jwt = false

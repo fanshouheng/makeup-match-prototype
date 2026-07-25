@@ -24,7 +24,7 @@ export function SiteHeader({
         <span className="wordmark-name">MAKE UP</span>
         <span className="wordmark-product">
           {currentView === "analysis" && referenceAudience === "men"
-            ? "MEN'S REFERENCE"
+            ? "MEN'S REPORT"
             : "MAKEUP REFERENCE"}
         </span>
       </button>
