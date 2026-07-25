@@ -4,7 +4,7 @@ import type {
   ReferenceAudience,
 } from "../domain/creator";
 
-export const LOOK_AI_HOME_URL = "https://makeup.soul.xn--fiqs8s/";
+export const MAKE_UP_HOME_URL = "https://makeup.soul.xn--fiqs8s/";
 export type MatchShareMethod = "native" | "image";
 
 interface NativeShareSupport {
@@ -40,7 +40,7 @@ export function buildMatchShareText({
   creatorName,
   referenceAudience,
 }: MatchShareCopyDetails) {
-  return `我在 LOOK AI 找到的首选${referenceLabel(referenceAudience, contentFilter)}是「${creatorName}」。`;
+  return `我在 MAKE UP 找到的首选${referenceLabel(referenceAudience, contentFilter)}是「${creatorName}」。`;
 }
 
 export function shouldUseNativeShare({
@@ -159,7 +159,7 @@ export async function createMatchSharePoster(
   ]);
 
   const qrCanvas = document.createElement("canvas");
-  await QRCode.toCanvas(qrCanvas, LOOK_AI_HOME_URL, {
+  await QRCode.toCanvas(qrCanvas, MAKE_UP_HOME_URL, {
     color: { dark: "#111111", light: "#ffffff" },
     errorCorrectionLevel: "H",
     margin: 2,
@@ -176,7 +176,7 @@ export async function createMatchSharePoster(
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.fillStyle = "#111111";
   setFont(context, 54, 700);
-  context.fillText("LOOK AI", 64, 112);
+  context.fillText("MAKE UP", 64, 112);
 
   drawPhotoPanel(context, userPhoto, 64, "用户图像");
   drawPhotoPanel(
@@ -207,7 +207,7 @@ function downloadPoster(blob: Blob) {
   const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = objectUrl;
-  link.download = "LOOK-AI-匹配结果.png";
+  link.download = "MAKE-UP-匹配结果.png";
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
 }
@@ -223,9 +223,9 @@ export async function shareMatchResult(
     viewportWidth: window.innerWidth,
   })) {
     await navigator.share({
-      title: "LOOK AI 匹配结果",
+      title: "MAKE UP 匹配结果",
       text,
-      url: LOOK_AI_HOME_URL,
+      url: MAKE_UP_HOME_URL,
     });
     return "native";
   }

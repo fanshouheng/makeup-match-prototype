@@ -109,7 +109,7 @@ Edge Function 验证通过后，执行：
 2. 浏览器只发送最长边不超过 1024 像素、大小不超过 1.5 MB 的 JPEG 副本。
 3. 非允许来源、无效图片、错误同意版本或第 4 次请求会被拒绝。
 4. AI 响应只接受 1 至 5 个名字，不接受链接、换行或额外字段。
-5. `store: false` 生效，LOOK AI 数据库和 Storage 中没有照片副本、AI 结果或名字。
+5. `store: false` 生效，MAKE UP 数据库和 Storage 中没有照片副本、AI 结果或名字。
 6. 候选博主照片不会被下载或分析，AI 名字不会自动进入公开创作者库。
 7. 缺少 `ARK_API_KEY` 或 `ARK_MODEL` 时返回 `service_not_configured`；联网搜索插件未开通时返回 `web_search_not_configured`。
 8. 真正发送到 AI 服务的请求会记录固定运行元数据；日志不包含照片、面部比例、提示词、返回名字、推荐结果或原始 IP。

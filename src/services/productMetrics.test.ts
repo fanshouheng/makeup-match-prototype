@@ -9,7 +9,7 @@ import {
 
 function memoryStorage(initialValue?: string) {
   const values = new Map<string, string>();
-  if (initialValue) values.set("look-ai-product-metrics-session", initialValue);
+  if (initialValue) values.set("make-up-product-metrics-session", initialValue);
   return {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => values.set(key, value),

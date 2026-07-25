@@ -252,7 +252,7 @@ function createReport(current, previous) {
     : undefined;
 
   const lines = [
-    "# LOOK AI 30 天验证进度",
+    "# MAKE UP 30 天验证进度",
     "",
     `更新时间：${formatDate(current.captured_at)}（Asia/Shanghai）`,
     `完整埋点统计起点：${formatDate(current.period_start)}（Asia/Shanghai）`,
@@ -354,7 +354,7 @@ function main() {
     return;
   }
 
-  const output = path.resolve(args.output ?? "output/validation-progress/LOOK_AI_验证进度.md");
+  const output = path.resolve(args.output ?? "output/validation-progress/MAKE_UP_验证进度.md");
   const snapshots = path.resolve(args.snapshots ?? "output/validation-progress/snapshots.jsonl");
   const inputText = args.input ? fs.readFileSync(path.resolve(args.input), "utf8") : fs.readFileSync(0, "utf8");
   const current = normalizeSnapshot(JSON.parse(inputText));

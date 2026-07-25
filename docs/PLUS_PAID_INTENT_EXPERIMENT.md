@@ -1,4 +1,4 @@
-# LOOK AI Plus 付费意向实验
+# MAKE UP Plus 付费意向实验
 
 状态：已上线
 

@@ -16,12 +16,12 @@ export function SiteHeader({
   return (
     <header className="site-header">
       <button
-        aria-label="LOOK AI 首页"
+        aria-label="MAKE UP 首页"
         className="wordmark"
         onClick={() => onNavigate("home")}
         type="button"
       >
-        <span className="wordmark-name">LOOK AI</span>
+        <span className="wordmark-name">MAKE UP</span>
         <span className="wordmark-product">
           {currentView === "analysis" && referenceAudience === "men"
             ? "MEN'S REFERENCE"

@@ -115,7 +115,7 @@ export function AiCreatorDiscovery({
         ) : (
           <div className="ai-discovery-consent" id="ai-discovery-content">
             <p>
-              开始后，浏览器会生成一张去除照片元数据的压缩副本，并发送给第三方 AI 服务完成本次分析和联网推荐。副本不会写入 LOOK AI 数据库。
+              开始后，浏览器会生成一张去除照片元数据的压缩副本，并发送给第三方 AI 服务完成本次分析和联网推荐。副本不会写入 MAKE UP 数据库。
             </p>
             <label className="consent-field ai-consent-field">
               <input

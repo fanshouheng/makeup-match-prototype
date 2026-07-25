@@ -125,7 +125,7 @@ describe("MatchResults", () => {
     expect(html).toContain("查看 Plus 方案");
     expect(html).toContain("当前仅测试购买意向，不会扣款，也不收集支付信息");
     expect(html).toContain("¥19.9");
-    expect(html.indexOf("plus-spotlight")).toBeLessThan(html.indexOf("look-ai-plus-offer"));
+    expect(html.indexOf("plus-spotlight")).toBeLessThan(html.indexOf("make-up-plus-offer"));
   });
 
   it("shows a recorded feedback and downloaded-share state", () => {

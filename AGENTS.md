@@ -2,7 +2,7 @@
 
 ## Positioning
 
-LOOK AI is a free, privacy-first makeup-reference prototype. A user selects a
+MAKE UP is a free, privacy-first makeup-reference prototype. A user selects a
 front-facing photo, the browser compares face-structure proportions locally,
 and the app returns authorized creators and tutorial links. An optional,
 separately consented AI flow sends a sanitized photo copy for names-only public

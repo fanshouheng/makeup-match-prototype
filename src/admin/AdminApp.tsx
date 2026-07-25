@@ -122,8 +122,8 @@ function LoginScreen() {
   return (
     <main className="admin-auth-shell">
       <section className="admin-auth-panel" aria-labelledby="admin-login-title">
-        <div className="admin-auth-brand" aria-label="LOOK AI 管理台">
-          <span className="admin-wordmark">LOOK</span>
+        <div className="admin-auth-brand" aria-label="MAKE UP 管理台">
+          <span className="admin-wordmark">MAKE UP</span>
           <span className="admin-wordmark-product">MAKEUP REFERENCE<br />PRIVATE CONSOLE</span>
         </div>
         <p className="admin-kicker">ADMIN ACCESS</p>
@@ -772,7 +772,7 @@ export default function AdminApp() {
   return (
     <main className="admin-shell">
       <header className="admin-topbar">
-        <div className="admin-topbar-brand"><span className="admin-wordmark">LOOK</span><div><p className="admin-kicker">MAKEUP REFERENCE</p><h1>管理台</h1></div></div>
+        <div className="admin-topbar-brand"><span className="admin-wordmark">MAKE UP</span><div><p className="admin-kicker">MAKEUP REFERENCE</p><h1>管理台</h1></div></div>
         <div className="admin-topbar-actions"><span className="admin-user-email">{session.user.email}</span><button className="admin-icon-button" type="button" onClick={() => void loadDashboard()} aria-label="刷新数据" title="刷新数据"><RefreshCw size={17} /></button><button className="admin-icon-button" type="button" onClick={() => void adminClient.auth.signOut()} aria-label="退出登录" title="退出登录"><LogOut size={17} /></button></div>
       </header>
       <section className="admin-content" aria-label="产品数据、创作者审核与库管理">

@@ -9,7 +9,7 @@ describe("buildMatchShareText", () => {
       referenceAudience: "women",
     });
 
-    expect(text).toBe("我在 LOOK AI 找到的首选妆容参考是「示例博主」。");
+    expect(text).toBe("我在 MAKE UP 找到的首选妆容参考是「示例博主」。");
     expect(text).not.toContain("https://");
   });
 

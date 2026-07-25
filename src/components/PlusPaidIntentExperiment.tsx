@@ -39,7 +39,7 @@ const STYLES = [
 
 type IntentResponse = "yes" | "price_high" | "not_needed";
 
-const PLUS_OFFER_ID = "look-ai-plus-offer";
+const PLUS_OFFER_ID = "make-up-plus-offer";
 
 const RESPONSE_EVENT: Record<IntentResponse, PlusOfferEventName> = {
   yes: "plus_intent_yes",
@@ -160,7 +160,7 @@ export function PlusPaidIntentExperiment() {
         </div>
       </div>
 
-      <div className="plus-offer-features" aria-label="LOOK AI Plus 内容">
+      <div className="plus-offer-features" aria-label="MAKE UP Plus 内容">
         <div><FileText size={18} /><span>详细面部结构报告</span></div>
         <div><Palette size={18} /><span>多场景妆容方案</span></div>
         <div><Search size={18} /><span>按方案发现博主</span></div>

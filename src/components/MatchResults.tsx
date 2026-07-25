@@ -176,7 +176,7 @@ export function MatchResults({
               暂未找到足够接近的{isMen ? "创作者" : "博主"}
             </h3>
             <p>
-              LOOK AI 还在初期阶段，{creatorLibraryLabel}
+              MAKE UP 还在初期阶段，{creatorLibraryLabel}
               仍在完善。与其给你一个勉强的答案，我们更愿意诚实地告诉你：这次还没有足够合适的参照。
             </p>
           </div>
@@ -315,7 +315,7 @@ export function MatchResults({
                   <div>
                     <h3>谢谢你告诉我们</h3>
                     <p>
-                      LOOK AI 还在初期阶段，{creatorLibraryLabel}仍在完善，这次推荐可能还不够贴合。
+                      MAKE UP 还在初期阶段，{creatorLibraryLabel}仍在完善，这次推荐可能还不够贴合。
                     </p>
                     <p className="match-feedback-guidance">
                       从这张照片的面部比例来看，你的脸型特征是：{faceSuggestion.description}。

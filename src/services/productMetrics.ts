@@ -53,7 +53,7 @@ const FAILURE_REASON_BY_ISSUE: Record<QualityIssueCode, AnalysisFailureReason> =
   "expressive-mouth": "pose_issue",
 };
 
-const SESSION_STORAGE_KEY = "look-ai-product-metrics-session";
+const SESSION_STORAGE_KEY = "make-up-product-metrics-session";
 const CAMPAIGN_SOURCE_PATTERN = /^(xhs|creator|community)_\d{2}$/;
 const PRODUCT_METRIC_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

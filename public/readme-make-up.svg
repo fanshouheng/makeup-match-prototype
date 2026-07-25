@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 170" role="img" aria-labelledby="title">
-  <title id="title">LOOK AI</title>
+  <title id="title">MAKE UP</title>
   <text
     x="250"
     y="133"
     fill="#1a1a1a"
     font-family="Inter, Helvetica Neue, Arial, sans-serif"
-    font-size="118"
+    font-size="104"
     font-weight="700"
-    letter-spacing="10"
+    letter-spacing="0"
     text-anchor="middle"
-  >LOOK AI</text>
+  >MAKE UP</text>
 </svg>
