@@ -63,6 +63,15 @@ describe("parseMaleFaceReport", () => {
         : item),
     })).toThrow("invalid_report");
   });
+
+  it("rejects medical and physical injury similes", () => {
+    expect(() => parseMaleFaceReport({
+      ...report,
+      observations: report.observations.map((item, index) => index === 1
+        ? { ...item, comment: "两眼挤得像斗鸡眼，下巴尖得像要脱臼。" }
+        : item),
+    })).toThrow("invalid_report");
+  });
 });
 
 describe("parseDeepSeekMaleFaceReport", () => {
