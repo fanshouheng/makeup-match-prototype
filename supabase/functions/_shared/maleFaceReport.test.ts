@@ -72,6 +72,15 @@ describe("parseMaleFaceReport", () => {
         : item),
     })).toThrow("invalid_report");
   });
+
+  it("rejects temperament and character judgments", () => {
+    expect(() => parseMaleFaceReport({
+      ...report,
+      observations: report.observations.map((item, index) => index === 1
+        ? { ...item, comment: "眼距挤在一起，显得小家子气又刁钻。" }
+        : item),
+    })).toThrow("invalid_report");
+  });
 });
 
 describe("parseDeepSeekMaleFaceReport", () => {
