@@ -1,4 +1,3 @@
-import { createClient } from "npm:@supabase/supabase-js@2.110.7";
 import {
   MALE_FACE_REPORT_FEATURE_KEYS,
   parseDeepSeekMaleFaceReport,
@@ -120,31 +119,6 @@ function reply(origin: string, status: number, body: unknown): Response {
   });
 }
 
-function keyFromCollection(name: string): string | undefined {
-  const collection = Deno.env.get(name);
-  if (!collection) return undefined;
-  try {
-    const values = Object.values(JSON.parse(collection) as Record<string, unknown>);
-    return values.find((value): value is string => typeof value === "string" && value.length > 0);
-  } catch {
-    return undefined;
-  }
-}
-
-function secretKey(): string | undefined {
-  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
-    Deno.env.get("SUPABASE_SECRET_KEY") ??
-    keyFromCollection("SUPABASE_SECRET_KEYS");
-}
-
-async function hashRateKey(value: string, salt: string): Promise<string> {
-  const bytes = new TextEncoder().encode(`${salt}:${value}`);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 async function verifyTurnstile(
   token: string,
   secret: string,
@@ -232,7 +206,7 @@ function parseRequest(value: unknown): ReportRequest {
 
 function buildMessages(input: ReportRequest) {
   const modeInstruction = input.mode === "roast"
-    ? "生成轻锐评：幽默、可以损，但不能羞辱、贬低人格、暗示残疾或攻击无法改变的身体特征。"
+    ? "生成明确偏负面的锐评：每条评论都要从比例相对关系出发挑刺，可以刻薄并使用轻度贬义比喻；禁止正向评价、先贬后夸、转折挽尊，以及用有神、高级、耐看、利落、可爱、帅等词暗夸。仍不得羞辱、贬低人格、暗示残疾或攻击无法改变的身体特征。"
     : "生成夸夸报告：必须从比例事实出发做积极重述，不得硬夸颜值、性格、能力或身份。";
   const featureData = Object.fromEntries(
     MALE_FACE_REPORT_FEATURE_KEYS.map((key) => [
@@ -277,16 +251,7 @@ Deno.serve(async (request) => {
 
   const deepSeekApiKey = Deno.env.get("DEEPSEEK_API_KEY");
   const turnstileSecret = Deno.env.get("CLOUDFLARE_SECRET_KEY");
-  const rateLimitSalt = Deno.env.get("RATE_LIMIT_SALT");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const adminKey = secretKey();
-  if (
-    !deepSeekApiKey ||
-    !turnstileSecret ||
-    !rateLimitSalt ||
-    !supabaseUrl ||
-    !adminKey
-  ) {
+  if (!deepSeekApiKey || !turnstileSecret) {
     return reply(origin, 503, { code: "service_not_configured" });
   }
 
@@ -298,17 +263,6 @@ Deno.serve(async (request) => {
     if (!await verifyTurnstile(input.turnstileToken, turnstileSecret, clientIp)) {
       return reply(origin, 403, { code: "captcha_failed" });
     }
-
-    const admin = createClient(supabaseUrl, adminKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const rateKey = await hashRateKey(`ip:${clientIp}`, rateLimitSalt);
-    const { data: allowed, error: rateError } = await admin.rpc(
-      "consume_ai_creator_discovery_rate_limit",
-      { rate_key: rateKey },
-    );
-    if (rateError) return reply(origin, 500, { code: "rate_limit_failed" });
-    if (!allowed) return reply(origin, 429, { code: "rate_limited" });
 
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       let providerResponse: Response;

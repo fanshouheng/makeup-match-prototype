@@ -64,9 +64,6 @@ export async function generateMaleFaceReport(
     code = payload?.code;
   }
 
-  if (code === "rate_limited") {
-    throw new Error("AI 报告次数较多，请一小时后再试。");
-  }
   if (code === "captcha_failed") {
     throw new Error("安全验证已失效，请重新验证后重试。");
   }
