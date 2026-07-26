@@ -80,6 +80,11 @@ describe("parseMaleFaceReport", () => {
         ? { ...item, comment: "眼距挤在一起，显得小家子气又刁钻。" }
         : item),
     })).toThrow("invalid_report");
+
+    expect(() => parseMaleFaceReport({
+      ...report,
+      summary: "这双眼睛看着精打细算。",
+    })).toThrow("invalid_report");
   });
 });
 
