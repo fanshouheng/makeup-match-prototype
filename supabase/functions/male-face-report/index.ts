@@ -310,43 +310,47 @@ Deno.serve(async (request) => {
     if (rateError) return reply(origin, 500, { code: "rate_limit_failed" });
     if (!allowed) return reply(origin, 429, { code: "rate_limited" });
 
-    let providerResponse: Response;
-    try {
-      providerResponse = await fetch(DEEPSEEK_CHAT_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${deepSeekApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: DEEPSEEK_MODEL,
-          messages: buildMessages(input),
-          response_format: { type: "json_object" },
-          max_tokens: 1200,
-          temperature: 0.8,
-          stream: false,
-        }),
-        signal: AbortSignal.timeout(30_000),
-      });
-    } catch (error) {
-      const timeout = error instanceof DOMException &&
-        (error.name === "TimeoutError" || error.name === "AbortError");
-      return reply(origin, timeout ? 504 : 502, {
-        code: timeout ? "timeout" : "provider_request_failed",
-      });
-    }
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      let providerResponse: Response;
+      try {
+        providerResponse = await fetch(DEEPSEEK_CHAT_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${deepSeekApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: DEEPSEEK_MODEL,
+            messages: buildMessages(input),
+            response_format: { type: "json_object" },
+            thinking: { type: "disabled" },
+            max_tokens: 1600,
+            temperature: 0.8,
+            stream: false,
+          }),
+          signal: AbortSignal.timeout(30_000),
+        });
+      } catch (error) {
+        const timeout = error instanceof DOMException &&
+          (error.name === "TimeoutError" || error.name === "AbortError");
+        return reply(origin, timeout ? 504 : 502, {
+          code: timeout ? "timeout" : "provider_request_failed",
+        });
+      }
 
-    if (!providerResponse.ok) {
-      console.error("male_face_report_provider_status", providerResponse.status);
-      return reply(origin, 502, { code: "provider_request_failed" });
-    }
+      if (!providerResponse.ok) {
+        console.error("male_face_report_provider_status", providerResponse.status);
+        return reply(origin, 502, { code: "provider_request_failed" });
+      }
 
-    try {
-      const report = parseDeepSeekMaleFaceReport(await providerResponse.json());
-      return reply(origin, 200, report);
-    } catch {
-      return reply(origin, 502, { code: "invalid_provider_response" });
+      try {
+        const report = parseDeepSeekMaleFaceReport(await providerResponse.json());
+        return reply(origin, 200, report);
+      } catch {
+        console.warn("male_face_report_invalid_provider_response", attempt);
+      }
     }
+    return reply(origin, 502, { code: "invalid_provider_response" });
   } catch (error) {
     if (error instanceof SyntaxError || (error instanceof Error && error.message === "invalid_request")) {
       return reply(origin, 400, { code: "invalid_request" });

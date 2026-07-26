@@ -77,7 +77,7 @@ export async function generateMaleFaceReport(
     throw new Error("本次面部比例无法生成报告，请重新分析后再试。");
   }
   if (code === "invalid_provider_response") {
-    throw new Error("AI 返回的报告不符合安全要求，请换个人重试。");
+    throw new Error("AI 报告生成不完整，请重新生成。");
   }
   throw new Error("AI 报告暂时不可用，请稍后重试。");
 }
