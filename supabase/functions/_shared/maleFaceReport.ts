@@ -28,7 +28,7 @@ export interface MaleFaceReport {
 }
 
 const BANNED_REPORT_TEXT =
-  /(?:瞎|失明|残疾|残障|畸形|智障|弱智|猥琐|丑陋|性能力|娘炮|种族|民族|疾病|看不见|什么也看不见)/i;
+  /(?:瞎|失明|残疾|残障|畸形|智障|弱智|猥琐|丑陋|性能力|娘炮|种族|民族|疾病|看不见|什么也看不见|算计|心眼|气量|刻薄相|精明|不好糊弄|不吃亏|睁开费劲)/i;
 
 function requiredText(value: unknown, maxLength: number): string {
   if (typeof value !== "string") throw new Error("invalid_report");

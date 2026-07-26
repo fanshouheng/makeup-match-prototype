@@ -54,6 +54,15 @@ describe("parseMaleFaceReport", () => {
         : item),
     })).toThrow("invalid_report");
   });
+
+  it("rejects personality judgments inferred from facial proportions", () => {
+    expect(() => parseMaleFaceReport({
+      ...report,
+      observations: report.observations.map((item, index) => index === 1
+        ? { ...item, comment: "下颌一收，满脸都是算计和心眼。" }
+        : item),
+    })).toThrow("invalid_report");
+  });
 });
 
 describe("parseDeepSeekMaleFaceReport", () => {
