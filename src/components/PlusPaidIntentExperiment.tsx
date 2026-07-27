@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
-  ArrowDown,
+  ArrowRight,
   CheckCircle2,
   ChevronDown,
   FileText,
@@ -9,12 +9,6 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import {
-  getPlusOfferVariant,
-  PLUS_OFFER_PRICES,
-  recordPlusOfferEvent,
-  type PlusOfferEventName,
-} from "../services/productMetrics";
 import { PlusExampleDeliverable } from "./PlusExampleDeliverable";
 
 const SCENES = [
@@ -37,33 +31,10 @@ const STYLES = [
   { value: "auto", label: "让 AI 建议" },
 ] as const;
 
-type IntentResponse = "yes" | "price_high" | "not_needed";
-
 const PLUS_OFFER_ID = "make-up-plus-offer";
-
-const RESPONSE_EVENT: Record<IntentResponse, PlusOfferEventName> = {
-  yes: "plus_intent_yes",
-  price_high: "plus_intent_price_high",
-  not_needed: "plus_intent_not_needed",
-};
-
-const RESPONSE_MESSAGE: Record<IntentResponse, string> = {
-  yes: "已记录：愿意按当前价格购买",
-  price_high: "已记录：当前价格偏高",
-  not_needed: "已记录：暂时不需要",
-};
+const PLUS_PRICE = 9.9;
 
 export function PlusPaidIntentSpotlight() {
-  const [variant] = useState(getPlusOfferVariant);
-  const price = PLUS_OFFER_PRICES[variant];
-
-  const showFullOffer = () => {
-    document.getElementById(PLUS_OFFER_ID)?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  };
-
   return (
     <aside className="plus-spotlight" aria-labelledby="plus-spotlight-title">
       <div className="plus-spotlight-mark" aria-hidden="true">
@@ -71,33 +42,30 @@ export function PlusPaidIntentSpotlight() {
         PLUS
       </div>
       <div className="plus-spotlight-copy">
-        <p className="eyebrow">付费功能测试</p>
+        <p className="eyebrow">限量付费内测</p>
         <h3 id="plus-spotlight-title">把面部分析，变成可执行的妆造方案</h3>
         <p>详细面部报告 · 多场景妆容方案 · 按方案发现博主</p>
       </div>
       <div className="plus-spotlight-action">
-        <p className="plus-spotlight-price" aria-label={`${price} 元每次`}>
-          <strong>¥{price}</strong><span>/ 次</span>
+        <p className="plus-spotlight-price" aria-label={`${PLUS_PRICE} 元每次`}>
+          <strong>¥{PLUS_PRICE}</strong><span>/ 次</span>
         </p>
-        <button className="button plus-spotlight-button" onClick={showFullOffer} type="button">
-          查看 Plus 方案
-          <ArrowDown aria-hidden="true" size={15} />
-        </button>
-        <small>仅测试意向，不会扣款</small>
+        <a className="button plus-spotlight-button" href="/plus">
+          了解 Plus 内测
+          <ArrowRight aria-hidden="true" size={15} />
+        </a>
+        <small>微信确认 · 邀请码激活</small>
       </div>
     </aside>
   );
 }
 
 export function PlusPaidIntentExperiment() {
-  const [variant] = useState(getPlusOfferVariant);
   const [expanded, setExpanded] = useState(false);
   const [scenes, setScenes] = useState<string[]>([]);
   const [customScene, setCustomScene] = useState("");
   const [style, setStyle] = useState("");
   const [configured, setConfigured] = useState(false);
-  const [response, setResponse] = useState<IntentResponse>();
-  const price = PLUS_OFFER_PRICES[variant];
   const customSceneText = customScene.trim();
   const selectedSceneCount = scenes.length + (customSceneText ? 1 : 0);
   const selectedSceneLabels = SCENES
@@ -110,14 +78,8 @@ export function PlusPaidIntentExperiment() {
     ...(selectedStyleLabel ? [`妆造：${selectedStyleLabel}`] : []),
   ];
 
-  useEffect(() => {
-    void recordPlusOfferEvent("plus_offer_viewed", variant);
-  }, [variant]);
-
   const toggleExpanded = () => {
-    const nextExpanded = !expanded;
-    setExpanded(nextExpanded);
-    if (nextExpanded) void recordPlusOfferEvent("plus_offer_opened", variant);
+    setExpanded((current) => !current);
   };
 
   const toggleScene = (scene: string) => {
@@ -132,30 +94,22 @@ export function PlusPaidIntentExperiment() {
   const confirmConfiguration = () => {
     if (selectedSceneCount === 0 || !style || configured) return;
     setConfigured(true);
-    void recordPlusOfferEvent("plus_offer_configured", variant);
   };
 
   const editConfiguration = () => {
-    if (response) return;
     setConfigured(false);
-  };
-
-  const submitResponse = (nextResponse: IntentResponse) => {
-    if (response) return;
-    setResponse(nextResponse);
-    void recordPlusOfferEvent(RESPONSE_EVENT[nextResponse], variant);
   };
 
   return (
     <section className="plus-offer" id={PLUS_OFFER_ID} aria-labelledby="plus-offer-title">
       <div className="plus-offer-heading">
         <div>
-          <p className="eyebrow">PLUS / 付费功能测试</p>
+          <p className="eyebrow">PLUS / 限量付费内测</p>
           <h3 id="plus-offer-title">从面部结构到妆容方案，再找到参考博主</h3>
           <p>完整面部报告、多个场景方案和按方案联网发现博主。</p>
         </div>
-        <div className="plus-offer-price" aria-label={`${price} 元每次`}>
-          <strong>¥{price}</strong>
+        <div className="plus-offer-price" aria-label={`${PLUS_PRICE} 元每次`}>
+          <strong>¥{PLUS_PRICE}</strong>
           <span>/ 次</span>
         </div>
       </div>
@@ -168,7 +122,7 @@ export function PlusPaidIntentExperiment() {
 
       <div className="plus-offer-notice">
         <ShieldCheck size={16} />
-        <span>当前仅测试购买意向，不会扣款，也不收集支付信息。</span>
+        <span>本站不展示收款码。请先进入 Plus 页面添加微信，确认名额、交付内容、时间和退款方式后再付款。</span>
       </div>
 
       <button
@@ -246,53 +200,21 @@ export function PlusPaidIntentExperiment() {
                 onEdit={editConfiguration}
                 selectionSummary={selectionSummary}
               />
-              <div className="plus-intent-question">
+              <div className="plus-early-access-cta">
                 <div>
                   <CheckCircle2 size={20} />
                   <div>
-                    <small>看完示例，再告诉我们</small>
-                    <p>如果正式版会按你的场景生成同等完整度的报告和两套方案，你愿意按 ¥{price} / 次使用吗？</p>
+                    <small>限量付费内测</small>
+                    <p>想生成你的专属方案？进入 Plus 页面后，先添加微信确认本期名额和交付安排。</p>
                   </div>
                 </div>
-                <div className="plus-intent-actions">
-                  <button
-                    aria-pressed={response === "yes"}
-                    data-selected={response === "yes"}
-                    disabled={Boolean(response)}
-                    onClick={() => submitResponse("yes")}
-                    type="button"
-                  >
-                    愿意为完整版付费
-                  </button>
-                  <button
-                    aria-pressed={response === "price_high"}
-                    data-selected={response === "price_high"}
-                    disabled={Boolean(response)}
-                    onClick={() => submitResponse("price_high")}
-                    type="button"
-                  >
-                    内容有用，但价格高
-                  </button>
-                  <button
-                    aria-pressed={response === "not_needed"}
-                    data-selected={response === "not_needed"}
-                    disabled={Boolean(response)}
-                    onClick={() => submitResponse("not_needed")}
-                    type="button"
-                  >
-                    暂时不需要
-                  </button>
-                </div>
-                <p className="plus-intent-status" role="status">
-                  {response
-                    ? `${RESPONSE_MESSAGE[response]}。本次不会扣款。`
-                    : "仍是意向测试，不会扣款；你的场景描述不会发送到统计服务。"}
+                <p className="plus-early-access-note">
+                  ¥{PLUS_PRICE} / 次。人工确认付款后会收到一次性邀请码，用邮箱和密码注册即可直接登录。免费匹配不受影响。
                 </p>
-                {response === "yes" && (
-                  <a className="button button-secondary plus-early-access-link" href="/plus">
-                    准备购买，领取邀请码
-                  </a>
-                )}
+                <a className="button button-primary plus-early-access-link" href="/plus">
+                  前往 Plus 购买与激活
+                  <ArrowRight aria-hidden="true" size={16} />
+                </a>
               </div>
             </>
           )}

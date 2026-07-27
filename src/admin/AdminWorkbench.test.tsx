@@ -64,6 +64,7 @@ describe("AdminWorkbench", () => {
     expect(html).toContain("0 / 20");
     expect(html).toContain("42 / 50");
     expect(html).toContain("暂停收费 AI 功能开发");
+    expect(html).toContain("当前只运行 ¥9.9 邀请制人工内测");
     expect(html).toContain("10.0%");
     expect(html).toContain("暂缓事项");
   });

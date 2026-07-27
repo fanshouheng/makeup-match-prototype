@@ -587,10 +587,10 @@ function MetricsPanel({
       <section className="admin-plus-breakdown" aria-labelledby="admin-plus-title">
         <div className="admin-ai-heading">
           <div>
-            <span>PLUS PURCHASE INTENT</span>
-            <h3 id="admin-plus-title">Plus 价格实验</h3>
+            <span>PLUS INTENT ARCHIVE</span>
+            <h3 id="admin-plus-title">Plus 历史意向数据</h3>
           </div>
-          <p>主指标为愿意购买 / 曝光；每档满 300 次曝光后判断。</p>
+          <p>三档随机价格实验已结束；当前结果页固定 ¥9.9/次，并统一导向邀请制内测。</p>
         </div>
         <div className="admin-ai-table-wrap">
           <table className="admin-ai-table admin-plus-table">
@@ -603,7 +603,7 @@ function MetricsPanel({
                 <th>愿意购买</th>
                 <th>价格偏高</th>
                 <th>暂不需要</th>
-                <th>判断</th>
+                <th>历史判断</th>
               </tr>
             </thead>
             <tbody>
@@ -626,7 +626,7 @@ function MetricsPanel({
           </table>
         </div>
         <p className="admin-metrics-note">
-          这里只记录价格分组与固定动作，不记录场景、妆造方向、照片、面部数据、联系方式或支付信息。
+          表格只保留切换前的历史价格分组与固定动作；当前结果页不再发送 Plus 实验事件。历史数据不包含场景、妆造方向、照片、面部数据、联系方式或支付信息。
         </p>
       </section>
       <section className="admin-failure-breakdown" aria-labelledby="admin-failure-title">

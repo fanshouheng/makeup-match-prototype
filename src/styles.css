@@ -1196,6 +1196,7 @@ h3 {
   border-color: #fff;
   color: #171715;
   background: #fff;
+  text-decoration: none;
 }
 
 .plus-spotlight-button:hover {
@@ -1706,63 +1707,33 @@ h3 {
   font-size: 11px;
 }
 
-.plus-intent-question {
+.plus-early-access-cta {
   margin-top: 18px;
   padding: 18px;
   border-left: 2px solid var(--ink);
   background: #f7f7f4;
 }
 
-.plus-intent-question > div:first-child {
+.plus-early-access-cta > div:first-child {
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr);
   align-items: start;
   gap: 9px;
 }
 
-.plus-intent-question > div:first-child p {
+.plus-early-access-cta > div:first-child p {
   margin-top: 2px;
   font-size: 14px;
   font-weight: 600;
   line-height: 1.6;
 }
 
-.plus-intent-question > div:first-child small {
+.plus-early-access-cta > div:first-child small {
   color: var(--muted);
   font-size: 11px;
 }
 
-.plus-intent-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 15px;
-}
-
-.plus-intent-actions button {
-  min-height: 40px;
-  padding: 8px 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  color: var(--ink);
-  background: #fff;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.plus-intent-actions button[data-selected="true"] {
-  border-color: var(--ink);
-  color: #fff;
-  background: var(--ink);
-}
-
-.plus-intent-actions button:disabled:not([data-selected="true"]) {
-  color: var(--faint);
-  cursor: default;
-}
-
-.plus-intent-status {
-  min-height: 17px;
+.plus-early-access-note {
   margin-top: 10px;
   color: var(--muted);
   font-size: 12px;
@@ -3169,8 +3140,9 @@ h3 {
     width: 100%;
   }
 
-  .plus-intent-actions {
-    grid-template-columns: 1fr;
+  .plus-early-access-link {
+    width: 100%;
+    justify-content: center;
   }
 
   .ai-discovery-heading .button,

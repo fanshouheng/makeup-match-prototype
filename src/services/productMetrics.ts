@@ -14,28 +14,6 @@ export type ProductEventName =
   | "creator_link_clicked"
   | "share_succeeded";
 
-export type PlusOfferEventName =
-  | "plus_offer_viewed"
-  | "plus_offer_opened"
-  | "plus_offer_configured"
-  | "plus_intent_yes"
-  | "plus_intent_price_high"
-  | "plus_intent_not_needed";
-
-export type PlusOfferVariant = "price_9_9" | "price_19_9" | "price_29_9";
-
-export const PLUS_OFFER_PRICES: Record<PlusOfferVariant, number> = {
-  price_9_9: 9.9,
-  price_19_9: 19.9,
-  price_29_9: 29.9,
-};
-
-const PLUS_OFFER_VARIANTS: PlusOfferVariant[] = [
-  "price_9_9",
-  "price_19_9",
-  "price_29_9",
-];
-
 export type AnalysisFailureReason =
   | "no_face"
   | "multiple_faces"
@@ -72,7 +50,6 @@ const FAILURE_REASON_BY_ISSUE: Record<QualityIssueCode, AnalysisFailureReason> =
 
 const SESSION_STORAGE_KEY = "make-up-product-metrics-session";
 const CAMPAIGN_SOURCE_PATTERN = /^(xhs|creator|community)_\d{2}$/;
-const PRODUCT_METRIC_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function photoSelectionEventNames(
   referenceAudience: "women" | "men",
@@ -110,15 +87,6 @@ export function campaignSourceFromSearch(search: string): string | undefined {
   return source && CAMPAIGN_SOURCE_PATTERN.test(source) ? source : undefined;
 }
 
-export function plusOfferVariantFromSessionId(sessionId: string): PlusOfferVariant {
-  if (!PRODUCT_METRIC_UUID_PATTERN.test(sessionId)) return "price_19_9";
-  const tail = sessionId.replaceAll("-", "").slice(-8);
-  const value = Number.parseInt(tail, 16);
-  return Number.isFinite(value)
-    ? PLUS_OFFER_VARIANTS[value % PLUS_OFFER_VARIANTS.length]
-    : "price_19_9";
-}
-
 let fallbackSessionId: string | undefined;
 
 function productMetricSessionId(): string | undefined {
@@ -129,11 +97,6 @@ function productMetricSessionId(): string | undefined {
   } catch {
     return fallbackSessionId;
   }
-}
-
-export function getPlusOfferVariant(): PlusOfferVariant {
-  const sessionId = productMetricSessionId();
-  return sessionId ? plusOfferVariantFromSessionId(sessionId) : "price_19_9";
 }
 
 async function invokeProductEvent(body: Record<string, unknown>): Promise<void> {
@@ -176,14 +139,4 @@ export async function recordMatchNegativeFeedback({
     reasonCodes,
     ...(otherReason?.trim() ? { otherReason: otherReason.trim() } : {}),
   });
-}
-
-export async function recordPlusOfferEvent(
-  eventName: PlusOfferEventName,
-  experimentVariant: PlusOfferVariant,
-): Promise<void> {
-  const sessionId = productMetricSessionId();
-  if (!sessionId) return;
-
-  await invokeProductEvent({ sessionId, eventName, experimentVariant });
 }

@@ -163,7 +163,7 @@ export function AdminWorkbench({
       <div className="admin-workbench-paused">
         <p><Ban size={16} /><span><strong>暂停收费 AI 功能开发</strong>现有入口只保持稳定，不继续扩展能力。</span></p>
         <p><Ban size={16} /><span><strong>暂停凭低符合率直接调权重</strong>当前反馈仍混合了匹配、内容价值和理解偏差。</span></p>
-        <p><Ban size={16} /><span><strong>暂停真实收费与付费排名</strong>Plus 未达到每档 300 次曝光的进入条件。</span></p>
+        <p><Ban size={16} /><span><strong>暂停扩展自动收费与付费排名</strong>当前只运行 ¥9.9 邀请制人工内测，付款不会改变免费匹配排名。</span></p>
         <p><Ban size={16} /><span><strong>暂停盲目扩充博主库</strong>继续处理主动授权申请；只有“博主不像”最多时才检查覆盖和排序。</span></p>
       </div>
     </section>

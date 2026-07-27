@@ -65,8 +65,8 @@ describe("MatchResults", () => {
     expect(html).toContain("这个结果是否符合你的感觉？");
     expect(html).toContain("分享结果");
     expect(html).toContain("抖音主页");
-    expect(html).not.toContain("PLUS / 付费功能测试");
-    expect(html).not.toContain("查看 Plus 方案");
+    expect(html).not.toContain("PLUS / 限量付费内测");
+    expect(html).not.toContain("了解 Plus 内测");
   });
 
   it("labels and links a Xiaohongshu creator", () => {
@@ -126,11 +126,13 @@ describe("MatchResults", () => {
     expect(html).toContain("和你面部结构更接近的博主");
     expect(html).toContain("可以优先参考她的妆容思路");
     expect(html).not.toContain("综合参考");
-    expect(html).toContain("PLUS / 付费功能测试");
+    expect(html).toContain("PLUS / 限量付费内测");
     expect(html).toContain("把面部分析，变成可执行的妆造方案");
-    expect(html).toContain("查看 Plus 方案");
-    expect(html).toContain("当前仅测试购买意向，不会扣款，也不收集支付信息");
-    expect(html).toContain("¥19.9");
+    expect(html).toContain("了解 Plus 内测");
+    expect(html).toContain("微信确认 · 邀请码激活");
+    expect(html).toContain("¥9.9");
+    expect(html).toContain('href="/plus"');
+    expect(html).not.toContain("仅测试购买意向");
     expect(html.indexOf("plus-spotlight")).toBeLessThan(html.indexOf("make-up-plus-offer"));
   });
 
