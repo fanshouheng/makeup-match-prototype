@@ -47,6 +47,10 @@ describe("AdminWorkbench", () => {
     expect(html).toContain("今天先做");
     expect(html).toContain("四条大方向");
     expect(html).toContain("证明用户价值");
+    expect(html).toContain("宣传与增长");
+    expect(html).toContain("小红书 · xhs_01");
+    expect(html).toContain("完成匹配后选择“符合”或“不太符合”");
+    expect(html).toContain("开发复盘、Vibe Coding、开源进展单独记录");
     expect(html).toContain("0 / 20");
     expect(html).toContain("100 / 300");
     expect(html).toContain("10.0%");

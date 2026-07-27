@@ -4,7 +4,10 @@ import {
   BarChart3,
   CheckCircle2,
   CircleDot,
+  FileText,
+  Megaphone,
   MessageCircle,
+  Share2,
   ShieldCheck,
   Target,
   UsersRound,
@@ -38,9 +41,9 @@ const DIRECTIONS = [
   {
     index: "02",
     priority: "P1",
-    title: "找到目标用户",
-    outcome: "知道哪些女性受众渠道带来了有效使用，而不只是访问量。",
-    actions: ["一次只跑 1 个渠道、1 个内容、1 个 CTA", "使用固定渠道编号并记录时间窗口", "每 200 次目标渠道访问只检查最大阻塞点"],
+    title: "宣传并找到目标用户",
+    outcome: "通过宣传知道哪些女性受众渠道带来了有效使用，而不只是访问量。",
+    actions: ["一次只跑 1 个渠道、1 个内容、1 个 CTA", "内容围绕用户问题、实际结果和隐私机制", "每 200 次目标渠道访问只检查最大阻塞点"],
   },
   {
     index: "03",
@@ -101,6 +104,7 @@ export function AdminWorkbench({
         <li><span>01</span><div><strong>约并观察 1 至 3 位目标用户</strong><p>先看她实际选图、看结果和点内容，再问哪里犹豫，不先解释产品。</p></div><em>手工执行</em></li>
         <li><span>02</span><div><strong>把“不符合”追问成固定原因</strong><p>记录为轮廓、五官比例、姿态影响、结果不清楚或需求本身不成立。</p></div><em>核心证据</em></li>
         <li><span>03</span><div><strong>联系今天的 4 至 5 位合规创作者</strong><p>只说明免费现状、照片用途、授权范围和撤回方式；三天后最多跟进一次。</p></div><button className="admin-secondary-button" type="button" onClick={() => onNavigate("outreach")}><MessageCircle size={15} />去跟进</button></li>
+        <li><span>04</span><div><strong>起草 1 条目标用户宣传内容</strong><p>只讲一个问题、一个使用结果和一个动作，不把开发过程当作女性用户获客内容。</p></div><em>xhs_01</em></li>
       </ol>
 
       <div className="admin-workbench-section-heading">
@@ -116,6 +120,30 @@ export function AdminWorkbench({
             <ul>{direction.actions.map((action) => <li key={action}><CircleDot size={13} />{action}</li>)}</ul>
           </article>
         ))}
+      </div>
+
+      <div className="admin-workbench-section-heading">
+        <div><p className="admin-kicker">PROMOTION</p><h3>宣传与增长</h3></div>
+        <span>宣传是验证，不是只追播放量</span>
+      </div>
+      <div className="admin-promotion">
+        <article className="admin-promotion-plan">
+          <div className="admin-promotion-label"><Megaphone size={17} /><span>本周主宣传实验</span><em>女性妆容用户</em></div>
+          <h4>小红书只测试一个用户问题</h4>
+          <blockquote>“不知道自己该照着谁学妆？先按脸部结构筛一轮参考。”</blockquote>
+          <dl>
+            <div><dt>渠道</dt><dd>小红书 · xhs_01</dd></div>
+            <div><dt>唯一动作</dt><dd>完成匹配后选择“符合”或“不太符合”</dd></div>
+            <div><dt>可用素材</dt><dd>自有、生成或已明确授权的演示素材</dd></div>
+            <div><dt>复盘触发</dt><dd>200 次目标渠道访问或 7 天，以先到为准</dd></div>
+          </dl>
+          <button className="admin-secondary-button" type="button" onClick={() => onNavigate("metrics")}><BarChart3 size={15} />查看宣传后的漏斗</button>
+        </article>
+        <div className="admin-promotion-tracks">
+          <article><FileText size={17} /><div><span>用户宣传</span><strong>写用户问题、实际结果、隐私机制</strong><p>内容面向正在找妆容参考的女生，只要求完成一次匹配并反馈。</p></div></article>
+          <article><Share2 size={17} /><div><span>创作者传播</span><strong>邀请已授权创作者联合发布或转发</strong><p>入库授权不等于宣传授权；发布前单独确认，合作关系要清楚标注。</p></div></article>
+          <article><Megaphone size={17} /><div><span>品牌与开源</span><strong>开发复盘、Vibe Coding、开源进展单独记录</strong><p>这类内容可以积累品牌声誉，但不能算作女性目标用户需求证据。</p></div></article>
+        </div>
       </div>
 
       <div className="admin-workbench-section-heading">
