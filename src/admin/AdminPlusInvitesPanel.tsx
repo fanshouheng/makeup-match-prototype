@@ -1,0 +1,81 @@
+import { Check, Copy, KeyRound, LoaderCircle, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { issuePlusInvite, type AdminIssuedPlusInvite } from "./adminApi";
+
+function formatDate(value: string): string {
+  return new Intl.DateTimeFormat("zh-CN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+export function AdminPlusInvitesPanel() {
+  const [issued, setIssued] = useState<AdminIssuedPlusInvite | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleIssue() {
+    setBusy(true);
+    setError("");
+    setCopied(false);
+    try {
+      setIssued(await issuePlusInvite());
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "邀请码签发失败。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCopy() {
+    if (!issued) return;
+    try {
+      await navigator.clipboard.writeText(issued.inviteCode);
+      setCopied(true);
+    } catch {
+      setError("无法自动复制，请手动选中邀请码。");
+    }
+  }
+
+  return (
+    <section className="admin-plus-invites" aria-labelledby="admin-plus-invites-title">
+      <div className="admin-plus-invites-heading">
+        <div>
+          <p className="admin-kicker">PLUS / INVITE ACCESS</p>
+          <h2 id="admin-plus-invites-title">签发一次性邀请码</h2>
+          <p>仅在微信内确认付款后签发。邀请码 30 天内有效，只能激活一个邮箱账号。</p>
+        </div>
+        <button className="admin-primary-button" disabled={busy} onClick={() => void handleIssue()} type="button">
+          {busy ? <LoaderCircle className="admin-spin" size={16} /> : <KeyRound size={16} />}
+          生成邀请码
+        </button>
+      </div>
+
+      <div className="admin-plus-invites-policy">
+        <ShieldCheck size={18} />
+        <p>数据库只保存邀请码哈希。明文只在本次签发后显示，请立即发送给对应用户；管理台之后无法找回。</p>
+      </div>
+
+      {issued ? (
+        <div className="admin-issued-invite" role="status">
+          <div>
+            <small>刚刚签发 · {formatDate(issued.expiresAt)} 到期</small>
+            <strong>{issued.inviteCode}</strong>
+          </div>
+          <button className="admin-secondary-button" onClick={() => void handleCopy()} type="button">
+            {copied ? <Check size={16} /> : <Copy size={16} />}
+            {copied ? "已复制" : "复制邀请码"}
+          </button>
+        </div>
+      ) : (
+        <div className="admin-plus-invites-empty">
+          <KeyRound size={26} />
+          <p>本页不会列出或恢复历史邀请码。</p>
+        </div>
+      )}
+
+      {error && <div className="admin-alert" role="alert">{error}</div>}
+    </section>
+  );
+}

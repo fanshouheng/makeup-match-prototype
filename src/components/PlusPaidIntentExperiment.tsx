@@ -288,6 +288,11 @@ export function PlusPaidIntentExperiment() {
                     ? `${RESPONSE_MESSAGE[response]}。本次不会扣款。`
                     : "仍是意向测试，不会扣款；你的场景描述不会发送到统计服务。"}
                 </p>
+                {response === "yes" && (
+                  <a className="button button-secondary plus-early-access-link" href="/plus">
+                    准备购买，领取邀请码
+                  </a>
+                )}
               </div>
             </>
           )}

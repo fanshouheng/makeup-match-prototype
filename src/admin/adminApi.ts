@@ -174,6 +174,11 @@ export interface AdminListResponse {
   ai_discovery: AdminAiDiscoveryData;
 }
 
+export interface AdminIssuedPlusInvite {
+  inviteCode: string;
+  expiresAt: string;
+}
+
 interface AdminRequest {
   action: "list" | "verify" | "approve" | "reject" | "cleanup" | "set_active" | "delete_creator" | "save_outreach" | "delete_outreach";
   metricsStartDate?: string;
@@ -283,4 +288,24 @@ export async function getAdminSession(): Promise<Session | null> {
   const { data, error } = await adminClient.auth.getSession();
   if (error) throw error;
   return data.session;
+}
+
+export async function issuePlusInvite(): Promise<AdminIssuedPlusInvite> {
+  const { data, error } = await adminClient.functions.invoke("plus-access", {
+    body: { action: "issue" },
+  });
+  if (!error) return data as AdminIssuedPlusInvite;
+
+  let code: string | undefined;
+  if ("context" in error && error.context instanceof Response) {
+    const payload = await error.context
+      .clone()
+      .json()
+      .catch(() => undefined) as { code?: string } | undefined;
+    code = payload?.code;
+  }
+  if (code === "not_admin") throw new Error("这个账号没有邀请码签发权限。");
+  if (code === "auth_required") throw new Error("登录状态已失效，请重新登录。");
+  if (code === "service_not_configured") throw new Error("Plus 账号服务配置不完整。");
+  throw new Error("邀请码签发失败，请稍后重试。");
 }

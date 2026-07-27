@@ -1,0 +1,504 @@
+.plus-account-shell {
+  min-height: 100vh;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.plus-account-topbar {
+  position: sticky;
+  z-index: 10;
+  top: 0;
+  display: flex;
+  width: min(1180px, calc(100% - 48px));
+  min-height: 76px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 auto;
+  border-bottom: 1px solid var(--line);
+  background: rgb(250 250 247 / 94%);
+  backdrop-filter: blur(14px);
+}
+
+.plus-account-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.plus-account-brand strong {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.plus-account-brand span,
+.plus-beta-price span,
+.plus-membership-title small {
+  color: var(--muted);
+  font: 500 9px/1.4 "Space Mono", "Cascadia Mono", Consolas, monospace;
+}
+
+.plus-account-free-link {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 650;
+  text-underline-offset: 4px;
+}
+
+.plus-account-main {
+  width: min(1120px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 72px 0 96px;
+}
+
+.plus-account-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: end;
+  gap: 48px;
+  padding-bottom: 46px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.plus-account-heading h1 {
+  max-width: 760px;
+  margin: 8px 0 0;
+  font-size: 72px;
+  font-weight: 530;
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.plus-account-heading > div:first-child > p:last-child {
+  max-width: 720px;
+  margin: 20px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.plus-beta-price {
+  min-width: 150px;
+  padding-left: 24px;
+  border-left: 1px solid var(--line);
+  text-align: right;
+}
+
+.plus-beta-price span {
+  display: block;
+}
+
+.plus-beta-price strong {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 42px;
+  font-weight: 560;
+}
+
+.plus-beta-price small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.plus-purchase-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, .6fr);
+  gap: 72px;
+  padding: 58px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.plus-purchase-copy {
+  display: grid;
+}
+
+.plus-flow-step {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 18px;
+  padding: 22px 0;
+  border-top: 1px solid var(--line);
+}
+
+.plus-flow-step:first-child {
+  border-top-color: var(--ink);
+}
+
+.plus-flow-step > span {
+  color: var(--muted);
+  font: 500 11px/1.5 "Space Mono", "Cascadia Mono", Consolas, monospace;
+}
+
+.plus-flow-step h2 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 620;
+  letter-spacing: 0;
+}
+
+.plus-flow-step p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.plus-wechat-contact {
+  align-self: start;
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.plus-wechat-contact img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+
+.plus-wechat-contact figcaption {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.plus-access-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, .8fr);
+  gap: 72px;
+  padding-top: 64px;
+}
+
+.plus-access-intro h2 {
+  margin: 8px 0 0;
+  font-size: 36px;
+  font-weight: 560;
+  letter-spacing: 0;
+}
+
+.plus-access-intro > p:last-of-type {
+  max-width: 620px;
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.plus-benefits {
+  display: grid;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.plus-benefits p {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.plus-benefits svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--ink);
+}
+
+.plus-benefits strong {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.plus-access-tool {
+  min-height: 290px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.plus-access-form {
+  display: grid;
+  gap: 9px;
+}
+
+.plus-auth-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.plus-auth-tabs button {
+  min-height: 42px;
+  padding: 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.plus-auth-tabs button[aria-selected="true"] {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+}
+
+.plus-access-form label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.plus-access-form input {
+  width: 100%;
+  height: 48px;
+  box-sizing: border-box;
+  padding: 0 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+}
+
+.plus-access-form input:focus {
+  border-color: var(--ink);
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.plus-password-field {
+  position: relative;
+}
+
+.plus-password-field input {
+  padding-right: 48px;
+}
+
+.plus-password-field > button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.plus-password-field > button:hover {
+  color: var(--ink);
+  background: rgb(26 26 26 / 6%);
+}
+
+.plus-access-form .button {
+  min-height: 48px;
+  margin-top: 9px;
+}
+
+.plus-access-loading {
+  display: flex;
+  min-height: 230px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.plus-access-error {
+  margin: 18px 0 0;
+  color: #843a34;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.plus-signed-in {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.plus-signed-in small,
+.plus-signed-in strong {
+  display: block;
+}
+
+.plus-signed-in small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.plus-signed-in strong {
+  max-width: 270px;
+  margin-top: 4px;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plus-signed-in button {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+}
+
+.plus-membership-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.plus-membership-title > svg {
+  width: 42px;
+  height: 42px;
+  padding: 10px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  color: #245b48;
+  background: #eaf3ee;
+}
+
+.plus-membership-title h3 {
+  margin: 3px 0 0;
+  font-size: 21px;
+  letter-spacing: 0;
+}
+
+.plus-membership-active dl {
+  margin: 24px 0;
+  border-top: 1px solid var(--line);
+}
+
+.plus-membership-active dl > div {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.plus-membership-active dt {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.plus-membership-active dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .plus-account-topbar,
+  .plus-account-main {
+    width: calc(100% - 32px);
+  }
+
+  .plus-account-main {
+    padding: 48px 0 72px;
+  }
+
+  .plus-account-heading,
+  .plus-purchase-flow,
+  .plus-access-section {
+    grid-template-columns: 1fr;
+  }
+
+  .plus-account-heading,
+  .plus-purchase-flow,
+  .plus-access-section {
+    gap: 34px;
+  }
+
+  .plus-account-heading h1 {
+    font-size: 42px;
+  }
+
+  .plus-beta-price {
+    padding: 16px 0 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+    text-align: left;
+  }
+
+  .plus-wechat-contact {
+    width: min(100%, 320px);
+    box-sizing: border-box;
+    justify-self: center;
+  }
+
+  .plus-access-section {
+    padding-top: 48px;
+  }
+}
+
+@media (max-width: 480px) {
+  .plus-account-brand {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .plus-account-brand strong {
+    font-size: 25px;
+  }
+
+  .plus-account-heading h1 {
+    font-size: 36px;
+  }
+
+  .plus-access-intro h2 {
+    font-size: 30px;
+  }
+
+  .plus-access-tool {
+    min-height: 0;
+    padding: 22px 18px;
+  }
+
+  .plus-membership-active dl > div {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .plus-membership-active dd {
+    text-align: left;
+  }
+}

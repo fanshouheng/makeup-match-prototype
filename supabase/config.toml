@@ -12,3 +12,6 @@ verify_jwt = false
 
 [functions.male-face-report]
 verify_jwt = false
+
+[functions.plus-access]
+verify_jwt = false

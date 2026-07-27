@@ -20,9 +20,10 @@
 12. `supabase/migrations/20260723174626_add_creator_platform_support.sql`
 13. `supabase/migrations/20260723124712_ai_creator_discovery_rate_limit.sql`
 14. `supabase/migrations/20260723232454_ai_creator_discovery_logs.sql`
-15. `supabase/migrations/20260727125231_match_negative_feedback.sql`
+15. `supabase/migrations/20260727114006_plus_invite_memberships.sql`
+16. `supabase/migrations/20260727125231_match_negative_feedback.sql`
 
-第二、三个迁移只增加私有限流能力并显式拒绝客户端访问，不会关闭现有提交入口。第四个迁移为现有申请和公开创作者补充参考页面与内容方向，已有记录默认保持为“女生 + 妆容”。第五个迁移创建匿名会话事件表。第六个迁移约束女生参考只使用妆容内容，第七个迁移补充访问和创作者链接点击事件，第八、九个迁移分别补充男生和女生模式选图事件；产品事件表不向匿名或已登录客户端开放读写权限。第十个迁移创建私有博主跟进台账，只允许 `service_role` 访问，不能向 `anon` 或 `authenticated` 授权。第十一个迁移为分析失败增加固定原因代码；旧事件保持未分类，不做历史猜测。第十二个迁移增加抖音/小红书平台与通用主页字段，并保留旧抖音字段用于滚动部署兼容。第十三个迁移为可选 AI 推荐创建私有限流表和原子计数函数。第十四个迁移创建私有 AI 调用日志，只保存时间、状态、耗时、固定错误分类和参考模式。两张 AI 表都只允许 `service_role` 使用。
+第二、三个迁移只增加私有限流能力并显式拒绝客户端访问，不会关闭现有提交入口。第四个迁移为现有申请和公开创作者补充参考页面与内容方向，已有记录默认保持为“女生 + 妆容”。第五个迁移创建匿名会话事件表。第六个迁移约束女生参考只使用妆容内容，第七个迁移补充访问和创作者链接点击事件，第八、九个迁移分别补充男生和女生模式选图事件；产品事件表不向匿名或已登录客户端开放读写权限。第十个迁移创建私有博主跟进台账，只允许 `service_role` 访问，不能向 `anon` 或 `authenticated` 授权。第十一个迁移为分析失败增加固定原因代码；旧事件保持未分类，不做历史猜测。第十二个迁移增加抖音/小红书平台与通用主页字段，并保留旧抖音字段用于滚动部署兼容。第十三个迁移为可选 AI 推荐创建私有限流表和原子计数函数。第十四个迁移创建私有 AI 调用日志，只保存时间、状态、耗时、固定错误分类和参考模式。第十五个迁移创建私有一次性邀请码和用户自读的 Plus 权益表，并提供仅 `service_role` 可调用的原子兑换函数。
 
 暂时不要执行 `202607170003_lock_creator_submission_writes.sql`。它会关闭浏览器直接写数据库和存储的旧入口，应在 Edge Function 验证成功后最后执行。
 
@@ -65,6 +66,7 @@ RATE_LIMIT_SALT=至少 32 个随机字符
 ARK_API_KEY=火山引擎方舟 API Key
 ARK_MODEL=支持图片理解与联网搜索的模型或推理接入点 ID
 DEEPSEEK_API_KEY=DeepSeek 开放平台 API Key
+ADMIN_EMAILS=允许签发邀请码和访问管理台的邮箱，多个邮箱用英文逗号分隔
 ```
 
 多个允许域名使用英文逗号分隔。不要在 `ALLOWED_ORIGINS` 中使用 `*`。
@@ -76,6 +78,8 @@ DEEPSEEK_API_KEY=DeepSeek 开放平台 API Key
 `DEEPSEEK_API_KEY` 只供 `male-face-report` 使用，函数固定调用 DeepSeek 对话 API 的 `deepseek-v4-pro`。密钥只能写入 Edge Function Secrets；已经粘贴到聊天、Issue、日志或前端环境变量中的密钥必须先撤销并轮换，不能继续部署使用。
 
 对应火山引擎账号必须先开通方舟联网搜索插件；未开通时接口会返回 `ToolNotOpen`，前端显示“AI 联网搜索尚未完成配置”。不要在插件未开通、未完成一次真实联网请求前发布 AI 入口。
+
+在 Supabase Dashboard -> Authentication -> URL Configuration 中，把正式站点设为 Site URL，并把管理员邮箱链接使用的 `https://你的域名/admin` 加入 Redirect URLs；需要本地联调管理台时再临时加入本地 `/admin` 地址。Plus 使用邮箱密码登录，不依赖邮件回跳；其前端使用独立的 `make-up-plus-auth` 本地存储键，不会覆盖 `/admin` 的管理员登录态。
 
 ## 5. 部署并验证 Edge Function
 
@@ -156,3 +160,16 @@ Edge Function 验证通过后，执行：
 申请默认进入 `pending`，不会自动公开。身份核验、批准、拒绝、撤回和删除步骤见 `docs/ADMIN_REVIEW.md`。
 
 普通用户的默认匹配照片只在浏览器本地处理。可选 AI 推荐只转发用户单独同意的压缩副本，不写入 Supabase 数据库或 Storage；只有博主申请时主动提交的授权照片会进入持久化存储。
+
+## 11. 部署并验证 Plus 邀请账号
+
+执行第十五个迁移后，部署 `supabase/functions/plus-access/index.ts`，并保持 `verify_jwt = false`。`register` 在登录前调用，因此网关不预先校验 JWT；函数会先校验邮箱、密码和一次性邀请码，再通过服务端创建已确认邮箱的 Supabase Auth 用户并原子兑换邀请码，兑换失败时删除刚创建的用户。`status`、`redeem` 和 `issue` 仍在函数内部验证 JWT，`issue` 还会校验 `ADMIN_EMAILS`。浏览器端不得接触 `service_role` 或 secret key。上线前验证：
+
+1. 免费匹配在未登录时仍可完整使用。
+2. 新用户填写邮箱、至少 8 位密码和有效邀请码后直接登录，不发送确认邮件；以后只用邮箱和密码登录，不再要求邀请码。
+3. Plus 登录态使用独立存储键，不会覆盖 `/admin` 的管理员登录态。
+4. 非管理员调用 `issue` 返回 `not_admin`；管理员签发后只收到一次邀请码明文，数据库只有 64 位哈希。
+5. 无效、过期或已被其他账号兑换的邀请码分别被拒绝；创建账号后若原子兑换失败，函数会清理刚创建的账号，并应在上线验证中确认没有留下可登录但未激活的孤立账号。
+6. 两个账号同时使用同一邀请码注册或兑换时只有一个成功；成功账号能读取自己的权益，不能读取其他账号或邀请码表。
+7. 激活后显示 3 次体验额度和 180 天有效期；网站数据库和 Storage 中没有密码明文、照片、面部比例、报告、场景、付款凭证或微信聊天。
+8. `/plus` 不展示收款码、不声明自动确认付款，并要求用户付款前在微信确认名额、交付内容、时间和退款方式。

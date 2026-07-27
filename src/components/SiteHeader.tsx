@@ -29,6 +29,7 @@ export function SiteHeader({
         </span>
       </button>
       <nav className="site-nav" aria-label="站点导航">
+        <a href="/plus">Plus</a>
         <button
           aria-current={currentView === "creators" ? "page" : undefined}
           onClick={() => onNavigate("creators")}

@@ -33,7 +33,7 @@
 .admin-intro-actions { display: flex; align-items: center; gap: 10px; }
 .admin-data-badge { min-height: 46px; gap: 10px; padding: 7px 13px; border: 1px solid var(--admin-line); border-radius: 8px; color: var(--admin-ink); font-size: 12px; font-weight: 650; line-height: 1.45; }
 .admin-data-badge small { color: var(--admin-muted); font-weight: 400; }
-.admin-tabs { display: grid; grid-template-columns: repeat(6, max-content); gap: 26px; margin-bottom: 22px; border-bottom: 1px solid var(--admin-line); }
+.admin-tabs { display: grid; grid-template-columns: repeat(7, max-content); gap: 24px; margin-bottom: 22px; border-bottom: 1px solid var(--admin-line); }
 .admin-tab { min-height: 45px; gap: 7px; padding: 0; border: 0; border-bottom: 1px solid transparent; color: var(--admin-muted); background: transparent; font-size: 12px; font-weight: 600; cursor: pointer; }
 .admin-tab span { display: inline-grid; min-width: 20px; height: 20px; padding: 0 5px; place-items: center; border: 1px solid var(--admin-line); border-radius: 999px; font-size: 10px; }
 .admin-tab-active { color: var(--admin-ink); border-bottom-color: var(--admin-ink); }
@@ -164,6 +164,20 @@
 .admin-plus-table { min-width: 920px; table-layout: auto; }
 .admin-plus-table th { width: auto !important; white-space: nowrap; }
 .admin-plus-table td { white-space: nowrap; }
+.admin-plus-invites { padding-top: 8px; }
+.admin-plus-invites-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; padding: 28px 0; border-top: 1px solid var(--admin-ink); }
+.admin-plus-invites-heading h2 { margin: 5px 0 0; font-size: 26px; font-weight: 600; letter-spacing: 0; }
+.admin-plus-invites-heading p:not(.admin-kicker) { max-width: 680px; margin: 9px 0 0; color: var(--admin-muted); font-size: 12px; line-height: 1.7; }
+.admin-plus-invites-policy { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--admin-line); border-bottom: 1px solid var(--admin-line); color: var(--admin-muted); background: var(--admin-soft); }
+.admin-plus-invites-policy svg { flex: 0 0 auto; color: var(--admin-ink); }
+.admin-plus-invites-policy p { margin: 0; font-size: 11px; line-height: 1.65; }
+.admin-issued-invite { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 26px; padding: 26px 0; border-bottom: 1px solid var(--admin-line); }
+.admin-issued-invite small, .admin-issued-invite strong { display: block; }
+.admin-issued-invite small { color: var(--admin-muted); font-size: 10px; }
+.admin-issued-invite strong { margin-top: 9px; font: 600 25px/1.3 "Space Mono", "Cascadia Mono", Consolas, monospace; letter-spacing: 0; }
+.admin-plus-invites-empty { display: grid; min-height: 220px; place-items: center; align-content: center; gap: 10px; color: var(--admin-muted); border-bottom: 1px solid var(--admin-line); }
+.admin-plus-invites-empty svg { color: var(--admin-ink); }
+.admin-plus-invites-empty p { margin: 0; font-size: 12px; }
 .admin-ai { padding-top: 8px; }
 .admin-ai-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin: 28px 0 12px; }
 .admin-ai-heading span { color: var(--admin-muted); font-size: 10px; font-weight: 600; }
@@ -286,6 +300,7 @@
   .admin-promotion-plan { padding-right: 0; border-right: 0; border-bottom: 1px solid var(--admin-line); }
   .admin-promotion-tracks article { padding-left: 0; }
   .admin-ai-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .admin-plus-invites-heading { align-items: flex-start; flex-direction: column; }
   .admin-outreach-controls { width: 100%; }
   .admin-outreach-controls label { flex: 1; }
   .admin-outreach-controls select { width: 100%; }
@@ -349,4 +364,6 @@
   .admin-outreach-actions::before { display: none; }
   .admin-outreach-form { grid-template-columns: 1fr; }
   .admin-field-wide { grid-column: auto; }
+  .admin-issued-invite { align-items: stretch; flex-direction: column; }
+  .admin-issued-invite strong { overflow-wrap: anywhere; font-size: 20px; }
 }
