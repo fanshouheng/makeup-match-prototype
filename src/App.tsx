@@ -30,6 +30,7 @@ import type {
 import { extractFaceAnalysis, type FaceAnalysis } from "./domain/faceFeatures";
 import { FEATURE_LABELS } from "./domain/featureLabels";
 import {
+  MATCHING_ALGORITHM_VERSION,
   rankCreators,
   type CreatorMatch,
   type MatchProfile,
@@ -47,7 +48,9 @@ import {
   analysisFailureReasonFromIssues,
   campaignSourceFromSearch,
   photoSelectionEventNames,
+  recordMatchNegativeFeedback,
   recordProductEvent,
+  type MatchNegativeFeedbackDetails,
 } from "./services/productMetrics";
 import { shareMatchResult } from "./services/resultSharing";
 
@@ -112,6 +115,7 @@ function App() {
   const [matching, setMatching] = useState(false);
   const [matchError, setMatchError] = useState<string>();
   const [matchFeedback, setMatchFeedback] = useState<MatchFeedback | null>(null);
+  const [matchFeedbackSubmitted, setMatchFeedbackSubmitted] = useState(false);
   const [shareStatus, setShareStatus] = useState<MatchShareStatus>("idle");
   const trackedResultRef = useRef<
     { result: AnalysisResult; viewKey: string } | undefined
@@ -237,6 +241,7 @@ function App() {
     feedbackSubmittedRef.current = false;
     sharedResultRef.current = false;
     setMatchFeedback(null);
+    setMatchFeedbackSubmitted(false);
     setShareStatus("idle");
     track(
       "match_result_view",
@@ -297,6 +302,7 @@ function App() {
     setMatching(false);
     setMatchError(undefined);
     setMatchFeedback(null);
+    setMatchFeedbackSubmitted(false);
     setShareStatus("idle");
     trackedResultRef.current = undefined;
     feedbackSubmittedRef.current = false;
@@ -332,6 +338,7 @@ function App() {
     setCreatorsCount(0);
     setMatchError(undefined);
     setMatchFeedback(null);
+    setMatchFeedbackSubmitted(false);
     setShareStatus("idle");
     setReferenceAudience((current) => current === "women" ? "men" : "women");
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -342,6 +349,7 @@ function App() {
     setMatches(undefined);
     setCreatorsCount(0);
     setMatchFeedback(null);
+    setMatchFeedbackSubmitted(false);
     setShareStatus("idle");
     setMaleContentFilter(filter);
   };
@@ -349,13 +357,35 @@ function App() {
   const submitMatchFeedback = (feedback: MatchFeedback) => {
     if (feedbackSubmittedRef.current || !matches?.length) return;
 
+    if (feedback === "no") {
+      setMatchFeedback("no");
+      return;
+    }
+
     feedbackSubmittedRef.current = true;
     setMatchFeedback(feedback);
+    setMatchFeedbackSubmitted(true);
     track("match_feedback", {
       ...matchMetricProperties(referenceAudience, maleContentFilter, creatorsCount),
-      accurate: feedback === "yes",
+      accurate: true,
     });
-    void recordProductEvent(feedback === "yes" ? "feedback_yes" : "feedback_no");
+    void recordProductEvent("feedback_yes");
+  };
+
+  const submitNegativeMatchFeedback = (details: MatchNegativeFeedbackDetails) => {
+    if (feedbackSubmittedRef.current || matchFeedback !== "no" || !matches?.length) return;
+
+    feedbackSubmittedRef.current = true;
+    setMatchFeedbackSubmitted(true);
+    track("match_feedback", {
+      ...matchMetricProperties(referenceAudience, maleContentFilter, creatorsCount),
+      accurate: false,
+    });
+    void recordMatchNegativeFeedback({
+      ...details,
+      algorithmVersion: MATCHING_ALGORITHM_VERSION,
+      creatorIds: matches.map((match) => match.creator.id),
+    });
   };
 
   const trackCreatorLinkClick = (destination: "profile" | "content") => {
@@ -641,7 +671,7 @@ function App() {
               </div>
 
               <section
-                className={`analysis-scene ${showMatchScene ? "is-scrollable" : ""}`}
+                className={`analysis-scene ${showMatchScene ? "is-scrollable" : ""} ${matchFeedback === "no" ? "has-expanded-feedback" : ""}`}
                 ref={sceneRef}
               >
                 <div className="analysis-sticky">
@@ -652,6 +682,7 @@ function App() {
                         creatorsCount={creatorsCount}
                         faceFeatures={result.analysis.features}
                         feedback={matchFeedback}
+                        feedbackSubmitted={matchFeedbackSubmitted}
                         matches={matches}
                         mode="primary"
                         referenceAudience={referenceAudience}
@@ -659,6 +690,7 @@ function App() {
                         onContentFilterChange={changeMaleContentFilter}
                         onCreatorLinkClick={trackCreatorLinkClick}
                         onFeedback={submitMatchFeedback}
+                        onNegativeFeedbackSubmit={submitNegativeMatchFeedback}
                         onShare={shareCurrentResult}
                         onViewCreators={() => navigate("creators")}
                         shareStatus={shareStatus}
@@ -683,12 +715,14 @@ function App() {
                   creatorsCount={creatorsCount}
                   faceFeatures={result.analysis.features}
                   feedback={matchFeedback}
+                  feedbackSubmitted={matchFeedbackSubmitted}
                   matches={matches}
                   mode="more"
                   referenceAudience={referenceAudience}
                   contentFilter={maleContentFilter}
                   onCreatorLinkClick={trackCreatorLinkClick}
                   onFeedback={submitMatchFeedback}
+                  onNegativeFeedbackSubmit={submitNegativeMatchFeedback}
                   onShare={shareCurrentResult}
                   onViewCreators={() => navigate("creators")}
                   shareStatus={shareStatus}
@@ -711,12 +745,14 @@ function App() {
                     creatorsCount={creatorsCount}
                     faceFeatures={result.analysis.features}
                     feedback={matchFeedback}
+                    feedbackSubmitted={matchFeedbackSubmitted}
                     matches={matches}
                     referenceAudience={referenceAudience}
                     contentFilter={maleContentFilter}
                     onContentFilterChange={changeMaleContentFilter}
                     onCreatorLinkClick={trackCreatorLinkClick}
                     onFeedback={submitMatchFeedback}
+                    onNegativeFeedbackSubmit={submitNegativeMatchFeedback}
                     onShare={shareCurrentResult}
                     onViewCreators={() => navigate("creators")}
                     shareStatus={shareStatus}

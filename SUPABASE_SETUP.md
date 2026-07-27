@@ -20,6 +20,7 @@
 12. `supabase/migrations/20260723174626_add_creator_platform_support.sql`
 13. `supabase/migrations/20260723124712_ai_creator_discovery_rate_limit.sql`
 14. `supabase/migrations/20260723232454_ai_creator_discovery_logs.sql`
+15. `supabase/migrations/20260727125231_match_negative_feedback.sql`
 
 第二、三个迁移只增加私有限流能力并显式拒绝客户端访问，不会关闭现有提交入口。第四个迁移为现有申请和公开创作者补充参考页面与内容方向，已有记录默认保持为“女生 + 妆容”。第五个迁移创建匿名会话事件表。第六个迁移约束女生参考只使用妆容内容，第七个迁移补充访问和创作者链接点击事件，第八、九个迁移分别补充男生和女生模式选图事件；产品事件表不向匿名或已登录客户端开放读写权限。第十个迁移创建私有博主跟进台账，只允许 `service_role` 访问，不能向 `anon` 或 `authenticated` 授权。第十一个迁移为分析失败增加固定原因代码；旧事件保持未分类，不做历史猜测。第十二个迁移增加抖音/小红书平台与通用主页字段，并保留旧抖音字段用于滚动部署兼容。第十三个迁移为可选 AI 推荐创建私有限流表和原子计数函数。第十四个迁移创建私有 AI 调用日志，只保存时间、状态、耗时、固定错误分类和参考模式。两张 AI 表都只允许 `service_role` 使用。
 
@@ -134,7 +135,7 @@ Edge Function 验证通过后，执行：
 
 ## 9. 产品事件与管理台指标
 
-部署 `supabase/functions/record-product-event/index.ts`，并保持 `verify_jwt = false`。该函数只接受允许来源提交的随机会话 UUID、固定事件名，以及分析失败时可选的固定原因代码；`product_events` 不向 `anon` 或 `authenticated` 开放读取或直写权限。
+部署 `supabase/functions/record-product-event/index.ts`，并保持 `verify_jwt = false`。该函数只接受允许来源提交的随机会话 UUID、固定事件名，以及分析失败时可选的固定原因代码。结构化“不符合”反馈还必须携带 1 至 3 个博主 UUID 的无顺序集合、`weighted-rms-v1` 算法版本、至少一个固定原因，以及可选的最多 160 字“其他”原因。`product_events` 与 `match_negative_feedback` 都不向 `anon` 或 `authenticated` 开放读取或直写权限。
 
 重新部署 `supabase/functions/admin-review/index.ts`，让受保护的 `/admin` 管理台按所选北京时间日期范围读取访问、选图、女生与男生模式选图、分析、结果、反馈、创作者链接点击和分享聚合指标；未传日期的旧版管理台请求仍读取最近 7×24 小时。验证：
 
@@ -145,6 +146,8 @@ Edge Function 验证通过后，执行：
 5. 点击事件中不包含创作者名称、ID、链接或结果名次。
 6. 分析失败只接受 `no_face`、`multiple_faces`、`too_dark`、`pose_issue` 或 `component_error`；其他事件携带原因字段时被拒绝。
 7. 失败事件不带原因时仍可写入，兼容已缓存的旧页面，并在管理台显示为旧版本未分类。
+8. 结构化负反馈只接受 `analysis_incorrect`、`creator_mismatch`、`style_mismatch`、`problem_not_solved`、`other`，并拒绝重复博主 ID、未知算法版本、空原因和超长文本。
+9. 结构化负反馈表中没有照片、面部比例、匹配分数、博主名称、链接或推荐顺序；管理台只汇总原因数量，满 50 条前显示继续收集。
 
 管理台的“AI 调用”页签显示最近 7 天的调用数、成功率、最近记录平均耗时和最多 50 条调用记录。只有真正发送到第三方 AI 服务的请求会计入；安全验证失败、限流和无效图片不会计入。
 

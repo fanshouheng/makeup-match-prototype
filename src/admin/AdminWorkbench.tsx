@@ -36,7 +36,7 @@ const DIRECTIONS = [
     priority: "P0",
     title: "证明用户价值",
     outcome: "用户能从结果里找到真正值得参考的人或内容。",
-    actions: ["观察并访谈 15 位目标用户", "拆清“不符合”的具体原因", "3 个独立样本指向同一问题后再改产品"],
+    actions: ["先收集 50 条有效负反馈", "按四类固定原因拆清问题", "样本达标后只处理最高频原因"],
   },
   {
     index: "02",
@@ -48,9 +48,9 @@ const DIRECTIONS = [
   {
     index: "03",
     priority: "P1",
-    title: "验证创作者供给",
-    outcome: "创作者愿意回复、提交授权资料并正式上线。",
-    actions: ["完成 20 位有效邀约", "目标至少 8 位回复、5 位上线", "入库授权与营销合作授权分开确认"],
+    title: "维持合规供给",
+    outcome: "处理已有申请和授权，不在原因未明时盲目扩库。",
+    actions: ["继续处理主动入驻申请", "不把低符合率直接归因于库太小", "只有“博主不像”最高时才检查覆盖"],
   },
   {
     index: "04",
@@ -70,9 +70,6 @@ export function AdminWorkbench({
   onNavigate,
 }: AdminWorkbenchProps) {
   const feedbackTotal = metrics.feedback_yes + metrics.feedback_no;
-  const minimumPlusExposure = Math.min(
-    ...Object.values(metrics.plus_by_variant).map((variant) => variant.plus_offer_viewed),
-  );
 
   return (
     <section className="admin-workbench" aria-labelledby="admin-workbench-title">
@@ -80,18 +77,18 @@ export function AdminWorkbench({
         <div>
           <p className="admin-kicker">NOW / CORE VALUE</p>
           <h2 id="admin-workbench-title">先弄清用户为什么说“不符合”</h2>
-          <p>在调算法、加功能或继续放大流量前，先把问题分清：轮廓、五官比例、照片姿态、结果解释，还是用户根本不需要这种参考方式。</p>
+          <p>在调算法、加收费 AI 或扩充博主库前，先分清是分析不对、博主不像、风格不适合，还是没有解决真实化妆问题。</p>
           <button className="admin-secondary-button" type="button" onClick={() => onNavigate("metrics")}>
             <BarChart3 size={16} />查看当前数据<ArrowRight size={15} />
           </button>
         </div>
         <div className="admin-workbench-exit">
           <span>本轮退出条件</span>
-          <strong>8 月 21 日前拿到可复核证据</strong>
+          <strong>收集 50 条有效负反馈</strong>
           <ul>
-            <li><CheckCircle2 size={15} />15 位目标用户完成观察与访谈</li>
-            <li><CheckCircle2 size={15} />同一问题至少有 3 个独立样本</li>
-            <li><CheckCircle2 size={15} />据此决定继续、转向或停止</li>
+            <li><CheckCircle2 size={15} />每条至少选择一个固定原因</li>
+            <li><CheckCircle2 size={15} />只比较四类原因的选择次数</li>
+            <li><CheckCircle2 size={15} />只处理达到样本线后的最高频问题</li>
           </ul>
         </div>
       </div>
@@ -101,10 +98,10 @@ export function AdminWorkbench({
         <span>按顺序推进，不并行开新实验</span>
       </div>
       <ol className="admin-workbench-actions">
-        <li><span>01</span><div><strong>约并观察 1 至 3 位目标用户</strong><p>先看她实际选图、看结果和点内容，再问哪里犹豫，不先解释产品。</p></div><em>手工执行</em></li>
-        <li><span>02</span><div><strong>把“不符合”追问成固定原因</strong><p>记录为轮廓、五官比例、姿态影响、结果不清楚或需求本身不成立。</p></div><em>核心证据</em></li>
-        <li><span>03</span><div><strong>联系今天的 4 至 5 位合规创作者</strong><p>只说明免费现状、照片用途、授权范围和撤回方式；三天后最多跟进一次。</p></div><button className="admin-secondary-button" type="button" onClick={() => onNavigate("outreach")}><MessageCircle size={15} />去跟进</button></li>
-        <li><span>04</span><div><strong>起草 1 条目标用户宣传内容</strong><p>只讲一个问题、一个使用结果和一个动作，不把开发过程当作女性用户获客内容。</p></div><em>xhs_01</em></li>
+        <li><span>01</span><div><strong>检查结构化负反馈是否正常入库</strong><p>确认原因完整、没有照片和面部数据，并观察距离 50 条还差多少。</p></div><button className="admin-secondary-button" type="button" onClick={() => onNavigate("metrics")}><BarChart3 size={15} />看原因分布</button></li>
+        <li><span>02</span><div><strong>让目标用户完成一次结果反馈</strong><p>只要求真实使用后选择符合或不符合；不符合时至少选择一个原因。</p></div><em>核心证据</em></li>
+        <li><span>03</span><div><strong>只维护已有授权与主动申请</strong><p>先暂停主动扩库，不把尚未定位的问题解释成创作者数量不足。</p></div><button className="admin-secondary-button" type="button" onClick={() => onNavigate("pending")}><MessageCircle size={15} />看待审申请</button></li>
+        <li><span>04</span><div><strong>暂停收费 AI 功能开发</strong><p>只修主流程故障，直到 50 条有效负反馈给出明确的最高频问题。</p></div><em>不并行开发</em></li>
       </ol>
 
       <div className="admin-workbench-section-heading">
@@ -133,7 +130,7 @@ export function AdminWorkbench({
           <blockquote>“不知道自己该照着谁学妆？先按脸部结构筛一轮参考。”</blockquote>
           <dl>
             <div><dt>渠道</dt><dd>小红书 · xhs_01</dd></div>
-            <div><dt>唯一动作</dt><dd>完成匹配后选择“符合”或“不太符合”</dd></div>
+            <div><dt>唯一动作</dt><dd>完成匹配后选择“符合”或“不符合”</dd></div>
             <div><dt>可用素材</dt><dd>自有、生成或已明确授权的演示素材</dd></div>
             <div><dt>复盘触发</dt><dd>200 次目标渠道访问或 7 天，以先到为准</dd></div>
           </dl>
@@ -156,7 +153,7 @@ export function AdminWorkbench({
         <div><MessageCircle size={18} /><span>博主有效触达</span><strong>{outreach.length} / 20</strong><p>当前私有跟进台账</p></div>
         <div><ShieldCheck size={18} /><span>在线创作者</span><strong>{activeCreatorCount}</strong><p>{pendingCount} 条申请等待处理</p></div>
         <div><BarChart3 size={18} /><span>分析完成率</span><strong>{formatRate(metrics.analysis_succeeded, metrics.photo_selected)}</strong><p>低于 70% 时优先处理主流程</p></div>
-        <div><CircleDot size={18} /><span>Plus 最低档曝光</span><strong>{minimumPlusExposure} / 300</strong><p>三档都满 300 前不开发真实 Plus</p></div>
+        <div><CircleDot size={18} /><span>有效负反馈</span><strong>{metrics.negative_feedback.valid_responses} / 50</strong><p>满 50 条前不根据原因分布改产品</p></div>
       </div>
 
       <div className="admin-workbench-section-heading">
@@ -164,10 +161,10 @@ export function AdminWorkbench({
         <span>出现新证据后再重排</span>
       </div>
       <div className="admin-workbench-paused">
-        <p><Ban size={16} /><span><strong>暂停继续堆新功能</strong>男生报告和 AI 入口先保持稳定，只修故障与回归。</span></p>
+        <p><Ban size={16} /><span><strong>暂停收费 AI 功能开发</strong>现有入口只保持稳定，不继续扩展能力。</span></p>
         <p><Ban size={16} /><span><strong>暂停凭低符合率直接调权重</strong>当前反馈仍混合了匹配、内容价值和理解偏差。</span></p>
         <p><Ban size={16} /><span><strong>暂停真实收费与付费排名</strong>Plus 未达到每档 300 次曝光的进入条件。</span></p>
-        <p><Ban size={16} /><span><strong>不做未授权扩库</strong>不抓取、不下载、不分析未获许可的创作者照片。</span></p>
+        <p><Ban size={16} /><span><strong>暂停盲目扩充博主库</strong>继续处理主动授权申请；只有“博主不像”最多时才检查覆盖和排序。</span></p>
       </div>
     </section>
   );

@@ -1,4 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2.110.7";
+import {
+  isUuid,
+  parseMatchNegativeFeedback,
+} from "../_shared/matchNegativeFeedback.ts";
 
 const EVENT_NAMES = new Set([
   "landing_view",
@@ -35,7 +39,14 @@ const FAILURE_REASONS = new Set([
   "pose_issue",
   "component_error",
 ]);
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const NEGATIVE_FEEDBACK_FIELDS = new Set([
+  "sessionId",
+  "eventName",
+  "creatorIds",
+  "algorithmVersion",
+  "reasonCodes",
+  "otherReason",
+]);
 
 function plusVariantFromSessionId(sessionId: string): typeof PLUS_VARIANTS[number] {
   const value = Number.parseInt(sessionId.replaceAll("-", "").slice(-8), 16);
@@ -105,7 +116,7 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") return reply(origin, 405, "method_not_allowed");
 
   const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (contentLength > 512) return reply(origin, 413, "request_too_large");
+  if (contentLength > 1024) return reply(origin, 413, "request_too_large");
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = secretKey();
@@ -117,7 +128,16 @@ Deno.serve(async (request) => {
     const hasFailureReason = Object.prototype.hasOwnProperty.call(body, "failureReason");
     const eventNameIsValid = typeof body.eventName === "string" && EVENT_NAMES.has(body.eventName);
     const isPlusEvent = typeof body.eventName === "string" && PLUS_EVENT_NAMES.has(body.eventName);
-    const sessionIdIsValid = typeof body.sessionId === "string" && UUID_PATTERN.test(body.sessionId);
+    const isNegativeFeedback = body.eventName === "feedback_no";
+    const parsedNegativeFeedback = isNegativeFeedback
+      ? parseMatchNegativeFeedback(body)
+      : undefined;
+    const hasStructuredNegativeFields = keys.some((key) => NEGATIVE_FEEDBACK_FIELDS.has(key) && ![
+      "sessionId",
+      "eventName",
+    ].includes(key));
+    const isLegacyNegativeFeedback = isNegativeFeedback && !hasStructuredNegativeFields;
+    const sessionIdIsValid = isUuid(body.sessionId);
     const failureReasonIsValid = body.eventName === "analysis_failed"
       ? !hasFailureReason || (
         typeof body.failureReason === "string" && FAILURE_REASONS.has(body.failureReason)
@@ -125,8 +145,14 @@ Deno.serve(async (request) => {
       : !hasFailureReason;
     const fieldsAreValid = isPlusEvent
       ? keys.length === 3 && keys.every((key) => ["sessionId", "eventName", "experimentVariant"].includes(key))
-      : (keys.length === 2 || keys.length === 3) &&
-        keys.every((key) => ["sessionId", "eventName", "failureReason"].includes(key));
+      : isNegativeFeedback
+        ? isLegacyNegativeFeedback
+          ? keys.length === 2 && keys.every((key) => ["sessionId", "eventName"].includes(key))
+          : parsedNegativeFeedback !== undefined &&
+            keys.length >= 5 && keys.length <= 6 &&
+            keys.every((key) => NEGATIVE_FEEDBACK_FIELDS.has(key))
+        : (keys.length === 2 || keys.length === 3) &&
+          keys.every((key) => ["sessionId", "eventName", "failureReason"].includes(key));
     const experimentVariantIsValid = isPlusEvent
       ? sessionIdIsValid &&
         typeof body.experimentVariant === "string" &&
@@ -145,6 +171,19 @@ Deno.serve(async (request) => {
     const admin = createClient(supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+    if (parsedNegativeFeedback) {
+      const { error } = await admin.from("match_negative_feedback").upsert(
+        {
+          session_id: body.sessionId,
+          creator_ids: parsedNegativeFeedback.creatorIds,
+          algorithm_version: parsedNegativeFeedback.algorithmVersion,
+          reason_codes: parsedNegativeFeedback.reasonCodes,
+          other_reason: parsedNegativeFeedback.otherReason ?? null,
+        },
+        { onConflict: "session_id", ignoreDuplicates: true },
+      );
+      if (error) throw error;
+    }
     const { error } = await admin.from("product_events").upsert(
       {
         session_id: body.sessionId,

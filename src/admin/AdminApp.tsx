@@ -412,6 +412,43 @@ function MetricsPanel({
   ] as const;
   const classifiedFailures = failureReasons.reduce((total, [, count]) => total + count, 0);
   const unclassifiedFailures = Math.max(metrics.analysis_failed - classifiedFailures, 0);
+  const negativeFeedbackReasons = [
+    {
+      label: "脸型或五官分析不对",
+      count: metrics.negative_feedback.reasons.analysis_incorrect,
+      decision: "先修面部分析",
+    },
+    {
+      label: "推荐的博主不像",
+      count: metrics.negative_feedback.reasons.creator_mismatch,
+      decision: "检查博主覆盖和排序",
+    },
+    {
+      label: "妆容风格不适合",
+      count: metrics.negative_feedback.reasons.style_mismatch,
+      decision: "匹配前增加风格偏好",
+    },
+    {
+      label: "没解决化妆问题",
+      count: metrics.negative_feedback.reasons.problem_not_solved,
+      decision: "从相似脸转向具体化妆方案",
+    },
+    {
+      label: "其他",
+      count: metrics.negative_feedback.reasons.other,
+      decision: "先复核其他原因文本",
+    },
+  ];
+  const negativeFeedbackTarget = 50;
+  const negativeFeedbackMaximum = Math.max(...negativeFeedbackReasons.map((reason) => reason.count));
+  const leadingNegativeReasons = negativeFeedbackReasons.filter(
+    (reason) => reason.count === negativeFeedbackMaximum,
+  );
+  const negativeFeedbackDecision = metrics.negative_feedback.valid_responses < negativeFeedbackTarget
+    ? `继续收集，还差 ${negativeFeedbackTarget - metrics.negative_feedback.valid_responses} 条`
+    : leadingNegativeReasons.length === 1
+      ? leadingNegativeReasons[0].decision
+      : "最高原因并列，继续收集后再判断";
   const plusVariants: Array<[AdminPlusVariant, string]> = [
     ["price_9_9", "¥9.9"],
     ["price_19_9", "¥19.9"],
@@ -521,6 +558,30 @@ function MetricsPanel({
           <p>{metrics.share_succeeded} 次分享 · {metrics.match_result_view} 次结果展示</p>
         </article>
       </div>
+      <section className="admin-negative-feedback" aria-labelledby="admin-negative-feedback-title">
+        <div className="admin-failure-heading">
+          <div>
+            <span>NEGATIVE FEEDBACK</span>
+            <h3 id="admin-negative-feedback-title">不符合原因</h3>
+          </div>
+          <p>{metrics.negative_feedback.valid_responses} / {negativeFeedbackTarget} 条有效负反馈</p>
+        </div>
+        <div className="admin-failure-grid">
+          {negativeFeedbackReasons.map((reason) => (
+            <div key={reason.label}>
+              <span>{reason.label}</span>
+              <strong>{reason.count}</strong>
+              <small>{formatRate(reason.count, metrics.negative_feedback.valid_responses)}</small>
+            </div>
+          ))}
+        </div>
+        <p className="admin-negative-feedback-decision">
+          <strong>当前判断：</strong>{negativeFeedbackDecision}
+        </p>
+        <p className="admin-metrics-note">
+          多选原因分别计数；满 50 条有效负反馈前不调整算法、不增加风格偏好，也不据此扩充博主库。
+        </p>
+      </section>
       <section className="admin-plus-breakdown" aria-labelledby="admin-plus-title">
         <div className="admin-ai-heading">
           <div>

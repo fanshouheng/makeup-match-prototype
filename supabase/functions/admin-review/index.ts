@@ -8,6 +8,7 @@ import {
   resolveAdminMetricsRange,
   type AdminMetricsRange,
 } from "./adminMetricsRange.ts";
+import { summarizeMatchNegativeFeedback } from "../_shared/matchNegativeFeedback.ts";
 
 const PHOTO_BUCKET = "creator-photos";
 const SIGNED_URL_TTL_SECONDS = 300;
@@ -260,7 +261,7 @@ async function productMetrics(
   admin: SupabaseClient,
   range: AdminMetricsRange,
 ): Promise<Record<string, unknown>> {
-  const [counts, failuresResult, plusResult] = await Promise.all([
+  const [counts, failuresResult, plusResult, negativeFeedbackResult] = await Promise.all([
     Promise.all(PRODUCT_EVENT_NAMES.map(async (eventName) => {
       const result = await admin.from("product_events")
         .select("session_id", { count: "exact", head: true })
@@ -280,9 +281,14 @@ async function productMetrics(
       .in("event_name", [...PLUS_EVENT_NAMES])
       .gte("created_at", range.startAt)
       .lt("created_at", range.endBefore),
+    admin.from("match_negative_feedback")
+      .select("reason_codes")
+      .gte("created_at", range.startAt)
+      .lt("created_at", range.endBefore),
   ]);
   if (failuresResult.error) throw failuresResult.error;
   if (plusResult.error) throw plusResult.error;
+  if (negativeFeedbackResult.error) throw negativeFeedbackResult.error;
 
   const failureCounts = Object.fromEntries(
     PRODUCT_FAILURE_REASONS.map((reason) => [reason, 0]),
@@ -318,6 +324,7 @@ async function productMetrics(
     period_start: range.startAt,
     ...Object.fromEntries(counts),
     analysis_failures: failureCounts,
+    negative_feedback: summarizeMatchNegativeFeedback(negativeFeedbackResult.data ?? []),
     plus_by_variant: plusByVariant,
   };
 }

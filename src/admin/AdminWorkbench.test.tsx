@@ -28,6 +28,16 @@ const metrics: AdminProductMetrics = {
     price_29_9: { plus_offer_viewed: 100, plus_offer_opened: 10, plus_offer_configured: 6, plus_intent_yes: 2, plus_intent_price_high: 3, plus_intent_not_needed: 2 },
   },
   analysis_failures: { no_face: 50, multiple_faces: 5, too_dark: 4, pose_issue: 100, component_error: 41 },
+  negative_feedback: {
+    valid_responses: 42,
+    reasons: {
+      analysis_incorrect: 10,
+      creator_mismatch: 18,
+      style_mismatch: 9,
+      problem_not_solved: 12,
+      other: 3,
+    },
+  },
 };
 
 describe("AdminWorkbench", () => {
@@ -49,10 +59,11 @@ describe("AdminWorkbench", () => {
     expect(html).toContain("证明用户价值");
     expect(html).toContain("宣传与增长");
     expect(html).toContain("小红书 · xhs_01");
-    expect(html).toContain("完成匹配后选择“符合”或“不太符合”");
+    expect(html).toContain("完成匹配后选择“符合”或“不符合”");
     expect(html).toContain("开发复盘、Vibe Coding、开源进展单独记录");
     expect(html).toContain("0 / 20");
-    expect(html).toContain("100 / 300");
+    expect(html).toContain("42 / 50");
+    expect(html).toContain("暂停收费 AI 功能开发");
     expect(html).toContain("10.0%");
     expect(html).toContain("暂缓事项");
   });

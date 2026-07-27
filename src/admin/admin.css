@@ -146,6 +146,9 @@
 .admin-metric strong { display: block; margin-top: 8px; font: 400 28px/1 "Space Mono", "Cascadia Mono", Consolas, monospace; letter-spacing: 0; }
 .admin-metric p { min-height: 36px; margin: 12px 0 0; color: var(--admin-muted); font-size: 11px; line-height: 1.6; }
 .admin-failure-breakdown { margin-top: 28px; }
+.admin-negative-feedback { margin-top: 28px; }
+.admin-negative-feedback-decision { margin: 14px 0 0; font-size: 12px; line-height: 1.6; }
+.admin-negative-feedback-decision strong { font-weight: 650; }
 .admin-failure-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 12px; }
 .admin-failure-heading span { color: var(--admin-muted); font-size: 10px; font-weight: 600; }
 .admin-failure-heading h3 { margin: 5px 0 0; font-size: 17px; font-weight: 600; }

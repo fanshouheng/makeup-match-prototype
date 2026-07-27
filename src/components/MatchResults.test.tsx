@@ -42,10 +42,12 @@ describe("MatchResults", () => {
         creatorsCount={1}
         faceFeatures={match.creator.featureVector}
         feedback={null}
+        feedbackSubmitted={false}
         matches={[match]}
         onContentFilterChange={() => undefined}
         onCreatorLinkClick={() => undefined}
         onFeedback={() => undefined}
+        onNegativeFeedbackSubmit={() => undefined}
         onShare={() => undefined}
         onViewCreators={() => undefined}
         referenceAudience="men"
@@ -73,6 +75,7 @@ describe("MatchResults", () => {
         creatorsCount={1}
         faceFeatures={match.creator.featureVector}
         feedback={null}
+        feedbackSubmitted={false}
         matches={[{
           ...match,
           creator: {
@@ -83,6 +86,7 @@ describe("MatchResults", () => {
         }]}
         onCreatorLinkClick={() => undefined}
         onFeedback={() => undefined}
+        onNegativeFeedbackSubmit={() => undefined}
         onShare={() => undefined}
         onViewCreators={() => undefined}
         shareStatus="idle"
@@ -99,6 +103,7 @@ describe("MatchResults", () => {
         creatorsCount={1}
         faceFeatures={match.creator.featureVector}
         feedback={null}
+        feedbackSubmitted={false}
         matches={[{
           ...match,
           creator: {
@@ -111,6 +116,7 @@ describe("MatchResults", () => {
         showPlusSpotlight
         onCreatorLinkClick={() => undefined}
         onFeedback={() => undefined}
+        onNegativeFeedbackSubmit={() => undefined}
         onShare={() => undefined}
         onViewCreators={() => undefined}
         shareStatus="idle"
@@ -128,15 +134,43 @@ describe("MatchResults", () => {
     expect(html.indexOf("plus-spotlight")).toBeLessThan(html.indexOf("make-up-plus-offer"));
   });
 
+  it("asks for structured reasons before recording a rejected match", () => {
+    const html = renderToStaticMarkup(
+      <MatchResults
+        creatorsCount={1}
+        faceFeatures={match.creator.featureVector}
+        feedback="no"
+        feedbackSubmitted={false}
+        matches={[match]}
+        onCreatorLinkClick={() => undefined}
+        onFeedback={() => undefined}
+        onNegativeFeedbackSubmit={() => undefined}
+        onShare={() => undefined}
+        onViewCreators={() => undefined}
+        shareStatus="idle"
+      />,
+    );
+
+    expect(html).toContain("哪里不符合你的预期？");
+    expect(html).toContain("脸型或五官分析不对");
+    expect(html).toContain("推荐的博主和我长得不像");
+    expect(html).toContain("她的妆容风格不适合我");
+    expect(html).toContain("没解决我真正想改善的化妆问题");
+    expect(html).toContain("可选补充，最多 160 字");
+    expect(html).not.toContain("谢谢你告诉我们");
+  });
+
   it("shows a recorded feedback and downloaded-share state", () => {
     const html = renderToStaticMarkup(
       <MatchResults
         creatorsCount={1}
         faceFeatures={match.creator.featureVector}
         feedback="yes"
+        feedbackSubmitted
         matches={[match]}
         onCreatorLinkClick={() => undefined}
         onFeedback={() => undefined}
+        onNegativeFeedbackSubmit={() => undefined}
         onShare={() => undefined}
         onViewCreators={() => undefined}
         shareStatus="downloaded"
@@ -158,9 +192,11 @@ describe("MatchResults", () => {
           jawToCheekRatio: 0.72,
         }}
         feedback="no"
+        feedbackSubmitted
         matches={[match]}
         onCreatorLinkClick={() => undefined}
         onFeedback={() => undefined}
+        onNegativeFeedbackSubmit={() => undefined}
         onShare={() => undefined}
         onViewCreators={() => undefined}
         shareStatus="idle"
@@ -185,8 +221,10 @@ describe("MatchResults", () => {
         }}
         feedback={null}
         matches={[]}
+        feedbackSubmitted={false}
         onCreatorLinkClick={() => undefined}
         onFeedback={() => undefined}
+        onNegativeFeedbackSubmit={() => undefined}
         onShare={() => undefined}
         onViewCreators={() => undefined}
         shareStatus="idle"
@@ -208,8 +246,10 @@ describe("MatchResults", () => {
         faceFeatures={match.creator.featureVector}
         feedback={null}
         matches={[match]}
+        feedbackSubmitted={false}
         onCreatorLinkClick={() => undefined}
         onFeedback={() => undefined}
+        onNegativeFeedbackSubmit={() => undefined}
         onShare={() => undefined}
         onViewCreators={() => undefined}
         shareStatus="idle"

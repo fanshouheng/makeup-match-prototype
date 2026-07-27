@@ -10,6 +10,7 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
   CREATOR_PLATFORM_LABELS,
   type CreatorContentFilter,
@@ -21,6 +22,10 @@ import {
   buildFaceSearchSuggestion,
   type CreatorMatch,
 } from "../domain/matching";
+import type {
+  MatchNegativeFeedbackDetails,
+  MatchNegativeFeedbackReason,
+} from "../services/productMetrics";
 import { AiCreatorDiscovery } from "./AiCreatorDiscovery";
 import { CreatorPhoto } from "./CreatorPhoto";
 import {
@@ -44,10 +49,21 @@ export type MatchFeedback = "yes" | "no";
 export type MatchShareStatus = "idle" | "sharing" | "shared" | "downloaded" | "error";
 export type CreatorLinkDestination = "profile" | "content";
 
+const NEGATIVE_FEEDBACK_OPTIONS: Array<{
+  label: string;
+  value: MatchNegativeFeedbackReason;
+}> = [
+  { value: "analysis_incorrect", label: "脸型或五官分析不对" },
+  { value: "creator_mismatch", label: "推荐的博主和我长得不像" },
+  { value: "style_mismatch", label: "她的妆容风格不适合我" },
+  { value: "problem_not_solved", label: "没解决我真正想改善的化妆问题" },
+];
+
 interface MatchResultsProps {
   creatorsCount: number;
   faceFeatures: FaceFeatureVector;
   feedback: MatchFeedback | null;
+  feedbackSubmitted: boolean;
   matches: CreatorMatch[];
   mode?: "all" | "primary" | "more";
   referenceAudience?: ReferenceAudience;
@@ -56,6 +72,7 @@ interface MatchResultsProps {
   onContentFilterChange?: (filter: CreatorContentFilter) => void;
   onCreatorLinkClick: (destination: CreatorLinkDestination) => void;
   onFeedback: (feedback: MatchFeedback) => void;
+  onNegativeFeedbackSubmit: (details: MatchNegativeFeedbackDetails) => void;
   onShare: () => void;
   onViewCreators: () => void;
   showPlusOffer?: boolean;
@@ -67,6 +84,7 @@ export function MatchResults({
   creatorsCount,
   faceFeatures,
   feedback,
+  feedbackSubmitted,
   matches,
   mode = "all",
   referenceAudience = "women",
@@ -75,18 +93,21 @@ export function MatchResults({
   onContentFilterChange,
   onCreatorLinkClick,
   onFeedback,
+  onNegativeFeedbackSubmit,
   onShare,
   onViewCreators,
   showPlusOffer = false,
   showPlusSpotlight = false,
   userPhoto,
 }: MatchResultsProps) {
+  const [negativeReasons, setNegativeReasons] = useState<MatchNegativeFeedbackReason[]>([]);
+  const [otherReason, setOtherReason] = useState("");
+  const negativeFeedbackRef = useRef<HTMLFormElement>(null);
   const [primaryMatch, ...otherMatches] = matches;
   const isMen = referenceAudience === "men";
   const showPrimary = mode !== "more";
   const showMore = mode !== "primary";
   const noSuitableMatch = creatorsCount > 0 && matches.length === 0;
-  const feedbackSubmitted = feedback !== null;
   const creatorLibraryLabel = isMen ? "已授权男生创作者库" : "已授权博主库";
   const faceSuggestion = buildFaceSearchSuggestion(
     faceFeatures,
@@ -114,6 +135,45 @@ export function MatchResults({
     : contentFilter === "makeup"
       ? "这些面部结构特征与你更接近，可以优先参考他的妆容内容。"
       : "这些面部结构特征与你更接近，可以从他的公开内容中寻找形象参考。";
+
+  useEffect(() => {
+    if (feedback !== null) return;
+    setNegativeReasons([]);
+    setOtherReason("");
+  }, [feedback]);
+
+  useEffect(() => {
+    if (
+      feedback !== "no" ||
+      feedbackSubmitted ||
+      !window.matchMedia("(max-width: 640px)").matches
+    ) return;
+
+    const form = negativeFeedbackRef.current;
+    if (!form) return;
+
+    window.scrollTo({
+      top: window.scrollY + form.getBoundingClientRect().top - 76,
+      behavior: "auto",
+    });
+  }, [feedback, feedbackSubmitted]);
+
+  function toggleNegativeReason(reason: MatchNegativeFeedbackReason) {
+    setNegativeReasons((current) => current.includes(reason)
+      ? current.filter((item) => item !== reason)
+      : [...current, reason]);
+  }
+
+  function submitNegativeFeedback(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (feedbackSubmitted || negativeReasons.length === 0) return;
+    onNegativeFeedbackSubmit({
+      reasonCodes: negativeReasons,
+      ...(negativeReasons.includes("other") && otherReason.trim()
+        ? { otherReason: otherReason.trim() }
+        : {}),
+    });
+  }
 
   return (
     <section className={`matches-section matches-${mode}`} aria-labelledby={`matches-title-${mode}`}>
@@ -287,7 +347,7 @@ export function MatchResults({
                     type="button"
                   >
                     <ThumbsDown size={16} />
-                    不太符合
+                    不符合
                   </button>
                 </div>
                 <button
@@ -304,12 +364,70 @@ export function MatchResults({
                   {shareButtonLabel}
                 </button>
                 <span className="match-engagement-status" role="status">
-                  {[feedbackSubmitted ? "反馈已记录" : "", shareStatusMessage]
+                  {[
+                    feedbackSubmitted
+                      ? "反馈已记录"
+                      : feedback === "no"
+                        ? "请选择原因后提交"
+                        : "",
+                    shareStatusMessage,
+                  ]
                     .filter(Boolean)
                     .join(" · ")}
                 </span>
               </div>
               {feedback === "no" && (
+                <form
+                  className="match-negative-feedback"
+                  onSubmit={submitNegativeFeedback}
+                  ref={negativeFeedbackRef}
+                >
+                  <fieldset disabled={feedbackSubmitted}>
+                    <legend>哪里不符合你的预期？</legend>
+                    <div className="match-negative-options">
+                      {NEGATIVE_FEEDBACK_OPTIONS.map((option) => (
+                        <label key={option.value}>
+                          <input
+                            checked={negativeReasons.includes(option.value)}
+                            onChange={() => toggleNegativeReason(option.value)}
+                            type="checkbox"
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      ))}
+                      <label>
+                        <input
+                          checked={negativeReasons.includes("other")}
+                          onChange={() => toggleNegativeReason("other")}
+                          type="checkbox"
+                        />
+                        <span>其他</span>
+                      </label>
+                      <input
+                        aria-label="其他原因，可选填写"
+                        className="match-negative-other"
+                        disabled={feedbackSubmitted || !negativeReasons.includes("other")}
+                        maxLength={160}
+                        onChange={(event) => setOtherReason(event.target.value)}
+                        placeholder="可选补充，最多 160 字"
+                        type="text"
+                        value={otherReason}
+                      />
+                    </div>
+                    <div className="match-negative-submit">
+                      <button
+                        className="button button-primary"
+                        disabled={feedbackSubmitted || negativeReasons.length === 0}
+                        type="submit"
+                      >
+                        {feedbackSubmitted ? "已提交" : "提交原因"}
+                      </button>
+                      <small>请勿填写姓名或联系方式。</small>
+                    </div>
+                  </fieldset>
+                </form>
+              )}
+              {feedback === "no" && feedbackSubmitted && (
                 <div className="match-feedback-recovery" role="status">
                   <Search aria-hidden="true" size={22} />
                   <div>

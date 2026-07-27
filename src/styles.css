@@ -2182,6 +2182,106 @@ h3 {
   text-align: right;
 }
 
+.match-negative-feedback {
+  grid-column: 1 / -1;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.match-negative-feedback fieldset {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.match-negative-feedback legend {
+  margin-bottom: 13px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.match-negative-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+  border-top: 1px solid var(--line);
+}
+
+.match-negative-options label {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  color: #4d4d49;
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.match-negative-options input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  accent-color: var(--ink);
+}
+
+.match-negative-other {
+  min-width: 0;
+  min-height: 42px;
+  align-self: center;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+}
+
+.match-negative-other:disabled {
+  color: var(--muted);
+  background: var(--surface-muted);
+}
+
+.match-negative-submit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.match-negative-submit small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.analysis-scene.is-scrollable.has-expanded-feedback {
+  height: auto;
+}
+
+.analysis-scene.is-scrollable.has-expanded-feedback .analysis-sticky {
+  position: relative;
+  top: auto;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.analysis-scene.is-scrollable.has-expanded-feedback .match-reveal {
+  position: relative;
+  inset: auto;
+  overflow: visible;
+  opacity: 1;
+  transform: none;
+}
+
+.analysis-scene.is-scrollable.has-expanded-feedback .scroll-cue {
+  display: none;
+}
+
 .match-feedback-recovery {
   display: grid;
   grid-column: 1 / -1;
@@ -2937,6 +3037,19 @@ h3 {
 
   .match-engagement-status {
     text-align: left;
+  }
+
+  .match-negative-options {
+    grid-template-columns: 1fr;
+  }
+
+  .match-negative-submit {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .match-negative-submit .button {
+    width: 100%;
   }
 
   .ai-discovery-heading {

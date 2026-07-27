@@ -43,6 +43,23 @@ export type AnalysisFailureReason =
   | "pose_issue"
   | "component_error";
 
+export type MatchNegativeFeedbackReason =
+  | "analysis_incorrect"
+  | "creator_mismatch"
+  | "style_mismatch"
+  | "problem_not_solved"
+  | "other";
+
+export interface MatchNegativeFeedbackDetails {
+  otherReason?: string;
+  reasonCodes: MatchNegativeFeedbackReason[];
+}
+
+interface MatchNegativeFeedbackPayload extends MatchNegativeFeedbackDetails {
+  algorithmVersion: string;
+  creatorIds: string[];
+}
+
 const FAILURE_REASON_BY_ISSUE: Record<QualityIssueCode, AnalysisFailureReason> = {
   "no-face": "no_face",
   "multiple-faces": "multiple_faces",
@@ -119,7 +136,7 @@ export function getPlusOfferVariant(): PlusOfferVariant {
   return sessionId ? plusOfferVariantFromSessionId(sessionId) : "price_19_9";
 }
 
-async function invokeProductEvent(body: Record<string, string>): Promise<void> {
+async function invokeProductEvent(body: Record<string, unknown>): Promise<void> {
   try {
     const supabase = await getSupabaseClient();
     await supabase.functions.invoke("record-product-event", { body });
@@ -140,6 +157,25 @@ export async function recordProductEvent(
       ? { sessionId, eventName, failureReason }
       : { sessionId, eventName },
   );
+}
+
+export async function recordMatchNegativeFeedback({
+  algorithmVersion,
+  creatorIds,
+  otherReason,
+  reasonCodes,
+}: MatchNegativeFeedbackPayload): Promise<void> {
+  const sessionId = productMetricSessionId();
+  if (!sessionId || creatorIds.length === 0 || reasonCodes.length === 0) return;
+
+  await invokeProductEvent({
+    sessionId,
+    eventName: "feedback_no",
+    creatorIds: [...creatorIds].sort(),
+    algorithmVersion,
+    reasonCodes,
+    ...(otherReason?.trim() ? { otherReason: otherReason.trim() } : {}),
+  });
 }
 
 export async function recordPlusOfferEvent(

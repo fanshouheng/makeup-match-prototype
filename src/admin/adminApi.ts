@@ -122,6 +122,16 @@ export interface AdminProductMetrics {
     pose_issue: number;
     component_error: number;
   };
+  negative_feedback: {
+    valid_responses: number;
+    reasons: {
+      analysis_incorrect: number;
+      creator_mismatch: number;
+      style_mismatch: number;
+      problem_not_solved: number;
+      other: number;
+    };
+  };
 }
 
 export type AdminPlusVariant = "price_9_9" | "price_19_9" | "price_29_9";

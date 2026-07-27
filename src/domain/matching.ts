@@ -8,6 +8,8 @@ import type { FaceFeatureVector, FeatureKey } from "./faceFeatures";
 
 export type MatchProfile = "appearance" | "hair" | "makeup";
 
+export const MATCHING_ALGORITHM_VERSION = "weighted-rms-v1";
+
 export interface MatchReason {
   feature: FeatureKey;
   text: string;
