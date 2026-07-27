@@ -1,0 +1,297 @@
+import {
+  Turnstile,
+  type TurnstileInstance,
+} from "@marsidev/react-turnstile";
+import {
+  AlertCircle,
+  Check,
+  FileText,
+  LoaderCircle,
+  Palette,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import { useRef, useState } from "react";
+import { hasTurnstileConfig, turnstileSiteKey } from "../config";
+import type { FaceFeatureVector } from "../domain/faceFeatures";
+import { FEATURE_LABELS } from "../domain/featureLabels";
+import {
+  generatePlusMakeupReport,
+  type PlusMakeupDirection,
+  type PlusMakeupReport,
+  type PlusMakeupScene,
+} from "../services/plusMakeupReport";
+import {
+  PLUS_MAKEUP_DIRECTIONS,
+  PLUS_MAKEUP_SCENES,
+} from "../../supabase/functions/_shared/plusMakeupReport";
+
+interface PlusMakeupReportGeneratorProps {
+  faceFeatures: FaceFeatureVector;
+  remainingCredits: number;
+  onGenerated: (value: {
+    customScene: string;
+    direction: PlusMakeupDirection;
+    remainingCredits: number;
+    report: PlusMakeupReport;
+    scenes: PlusMakeupScene[];
+  }) => Promise<void> | void;
+}
+
+export function PlusMakeupReportGenerator({
+  faceFeatures,
+  onGenerated,
+  remainingCredits,
+}: PlusMakeupReportGeneratorProps) {
+  const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
+  const [scenes, setScenes] = useState<PlusMakeupScene[]>([]);
+  const [customScene, setCustomScene] = useState("");
+  const [direction, setDirection] = useState<PlusMakeupDirection>("auto");
+  const [consent, setConsent] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<PlusMakeupReport>();
+  const customSceneText = customScene.trim();
+  const selectedSceneCount = scenes.length + (customSceneText ? 1 : 0);
+
+  function toggleScene(scene: PlusMakeupScene) {
+    setResult(undefined);
+    setScenes((current) => current.includes(scene)
+      ? current.filter((value) => value !== scene)
+      : selectedSceneCount < 3
+        ? [...current, scene]
+        : current);
+  }
+
+  async function handleGenerate() {
+    setError("");
+    setLoading(true);
+    try {
+      const response = await generatePlusMakeupReport({
+        consent,
+        customScene,
+        direction,
+        features: faceFeatures,
+        scenes,
+        turnstileToken,
+      });
+      setResult(response.report);
+      await onGenerated({
+        customScene: customSceneText,
+        direction,
+        remainingCredits: response.remainingCredits,
+        report: response.report,
+        scenes,
+      });
+    } catch (reportError) {
+      setError(reportError instanceof Error
+        ? reportError.message
+        : "AI 妆造报告暂时不可用，本次不会扣减额度。");
+    } finally {
+      setLoading(false);
+      setTurnstileToken("");
+      turnstileRef.current?.reset();
+    }
+  }
+
+  return (
+    <section className="plus-makeup-generator" id="plus-makeup-generator" aria-labelledby="plus-makeup-generator-title">
+      <div className="plus-member-section-heading plus-makeup-generator-heading">
+        <div>
+          <p className="eyebrow">PLUS AI / 专属妆造</p>
+          <h2 id="plus-makeup-generator-title">生成面容报告和 3 套妆造方案</h2>
+          <p>先选场景与方向。生成成功后会保存到这台设备的「我的报告」。</p>
+        </div>
+        <span className="plus-ai-label"><Sparkles size={16} />AI 生成</span>
+      </div>
+
+      <div className="plus-makeup-value-strip" aria-label="本次生成内容">
+        <span><FileText size={17} />详细结构报告</span>
+        <span><Palette size={17} />3 套可执行方案</span>
+        <span><Search size={17} />公开博主名字</span>
+      </div>
+
+      <div className="plus-makeup-config">
+        <fieldset>
+          <legend>1. 选择使用场景 <small>已选 {selectedSceneCount} / 3</small></legend>
+          <p>可以多选，也可以直接写下具体安排。</p>
+          <div className="plus-makeup-options plus-makeup-options--scenes">
+            {PLUS_MAKEUP_SCENES.map((scene) => (
+              <label key={scene.value}>
+                <input
+                  checked={scenes.includes(scene.value)}
+                  disabled={!scenes.includes(scene.value) && selectedSceneCount >= 3}
+                  onChange={() => toggleScene(scene.value)}
+                  type="checkbox"
+                />
+                <span><Check size={14} />{scene.label}</span>
+              </label>
+            ))}
+          </div>
+          <label className="plus-makeup-custom-scene">
+            <span>直接描述场景</span>
+            <textarea
+              disabled={!customSceneText && scenes.length >= 3}
+              maxLength={80}
+              onChange={(event) => {
+                setCustomScene(event.target.value);
+                setResult(undefined);
+              }}
+              placeholder="例如：我要参加毕业典礼，希望白天仪式和晚间聚餐都能用"
+              rows={3}
+              value={customScene}
+            />
+            <small>{customScene.length} / 80</small>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>2. 选择妆造方向</legend>
+          <p>不确定时选择“让 AI 建议”。</p>
+          <div className="plus-makeup-options plus-makeup-options--directions">
+            {PLUS_MAKEUP_DIRECTIONS.map((option) => (
+              <label key={option.value}>
+                <input
+                  checked={direction === option.value}
+                  name="plus-makeup-direction"
+                  onChange={() => {
+                    setDirection(option.value);
+                    setResult(undefined);
+                  }}
+                  type="radio"
+                />
+                <span>{option.label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      </div>
+
+      <div className="plus-makeup-consent">
+        <div className="plus-makeup-data-note">
+          <ShieldCheck size={20} />
+          <div>
+            <h3>发送前由你决定</h3>
+            <p>同意后，九项精确比例、场景和妆造方向会发送给 DeepSeek 生成报告；豆包只接收结构文字摘要和方案重点，用于联网查找公开博主名字。不会发送照片、姓名、设备标识或本地匹配结果；第三方仍可能按其规则处理必要的安全与运行日志。</p>
+          </div>
+        </div>
+        <details>
+          <summary>查看将发送给 DeepSeek 的九项精确数据</summary>
+          <dl>
+            {Object.entries(faceFeatures).map(([key, value]) => (
+              <div key={key}>
+                <dt>{FEATURE_LABELS[key as keyof typeof FEATURE_LABELS]}</dt>
+                <dd>{value.toFixed(6)}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+        <label className="plus-makeup-consent-field">
+          <input
+            checked={consent}
+            onChange={(event) => setConsent(event.target.checked)}
+            type="checkbox"
+          />
+          <span>我已了解并同意发送上述数据，用于生成本次 AI 妆造报告和公开博主名字。</span>
+        </label>
+        <p className="plus-makeup-credit-note">
+          仅在完整报告成功返回后扣减 1 次额度。当前剩余 <strong>{remainingCredits}</strong> 次。
+        </p>
+
+        {hasTurnstileConfig ? (
+          <Turnstile
+            ref={turnstileRef}
+            className="turnstile-widget"
+            siteKey={turnstileSiteKey}
+            onSuccess={setTurnstileToken}
+            onExpire={() => setTurnstileToken("")}
+            onError={() => {
+              setTurnstileToken("");
+              setError("安全验证加载失败，请刷新后重试。");
+            }}
+            options={{
+              action: "plus_makeup_report",
+              language: "zh-cn",
+              size: "compact",
+              theme: "light",
+            }}
+          />
+        ) : (
+          <div className="notice notice-warning compact">
+            <AlertCircle size={16} /><p>AI 妆造报告正在进行安全配置。</p>
+          </div>
+        )}
+
+        {remainingCredits <= 0 && (
+          <div className="notice notice-warning compact">
+            <AlertCircle size={16} /><p>体验额度已经用完，请在微信中联系运营者。</p>
+          </div>
+        )}
+        {error && (
+          <div className="notice notice-error compact" role="alert">
+            <AlertCircle size={16} /><p>{error}</p>
+          </div>
+        )}
+        <button
+          className="button button-primary plus-makeup-submit"
+          disabled={
+            loading ||
+            remainingCredits <= 0 ||
+            selectedSceneCount === 0 ||
+            !consent ||
+            !hasTurnstileConfig ||
+            !turnstileToken
+          }
+          onClick={() => void handleGenerate()}
+          type="button"
+        >
+          {loading ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+          {loading ? "正在生成完整报告" : "生成我的 Plus 报告"}
+        </button>
+      </div>
+
+      {result && (
+        <div className="plus-makeup-result" aria-live="polite">
+          <div className="plus-makeup-result-heading">
+            <div><p className="eyebrow">GENERATED / AI 生成内容</p><h3>{result.title}</h3></div>
+            <button className="button button-ghost" onClick={() => setResult(undefined)} type="button">
+              <RefreshCw size={16} />调整配置
+            </button>
+          </div>
+
+          <section className="plus-makeup-face-profile">
+            <h4>面容结构报告</h4>
+            <p>{result.faceProfile.summary}</p>
+            <div>
+              <div><strong>妆容重点</strong><ul>{result.faceProfile.focusAreas.map((item) => <li key={item}>{item}</li>)}</ul></div>
+              <div><strong>需要现场确认</strong><ul>{result.faceProfile.limitations.map((item) => <li key={item}>{item}</li>)}</ul></div>
+            </div>
+          </section>
+
+          <div className="plus-makeup-plans">
+            {result.plans.map((plan, index) => (
+              <article key={plan.name}>
+                <header><span>方案 {index + 1}</span><h4>{plan.name}</h4><p>{plan.sceneFit}</p></header>
+                <p className="plus-makeup-plan-effect">{plan.effect}</p>
+                <ol>{plan.steps.map((step) => <li key={`${step.area}-${step.instruction}`}><strong>{step.area}</strong><span>{step.instruction}</span></li>)}</ol>
+                <div className="plus-makeup-plan-notes">
+                  <p><strong>建议准备</strong>{plan.products.join("、")}</p>
+                  <p><strong>尽量避免</strong>{plan.avoid.join("、")}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <section className="plus-makeup-creators">
+            <div><Search size={20} /><div><h4>按方案发现的公开美妆博主</h4><p>由豆包联网查找，仅作为待核验线索，不代表主页归属、合作或照片授权已确认。</p></div></div>
+            <ol>{result.creatorNames.map((name) => <li key={name}>{name}</li>)}</ol>
+          </section>
+          <p className="plus-makeup-disclaimer">{result.disclaimer}</p>
+        </div>
+      )}
+    </section>
+  );
+}

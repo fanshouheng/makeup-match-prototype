@@ -527,6 +527,13 @@
   font: 500 11px/1.4 "Space Mono", "Cascadia Mono", Consolas, monospace;
 }
 
+.plus-member-analysis-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .plus-member-analysis-layout {
   display: grid;
   grid-template-columns: minmax(260px, .72fr) minmax(0, 1.28fr);
@@ -655,6 +662,524 @@
   margin-left: auto;
 }
 
+.plus-makeup-generator {
+  scroll-margin-top: 94px;
+  margin: 0 -24px;
+  padding: 48px 24px 56px;
+  border-top: 3px solid #245b48;
+  border-bottom: 1px solid var(--line);
+  background: #f3f7f4;
+}
+
+.plus-makeup-generator-heading {
+  align-items: flex-start;
+}
+
+.plus-makeup-generator-heading > div > p:last-child {
+  max-width: 650px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.plus-ai-label {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid #245b48;
+  border-radius: 4px;
+  color: #174333;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.plus-makeup-value-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid #245b48;
+  border-bottom: 1px solid #245b48;
+}
+
+.plus-makeup-value-strip span {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.plus-makeup-value-strip span + span {
+  border-left: 1px solid #a7beb4;
+}
+
+.plus-makeup-config {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr);
+  gap: 32px;
+  padding: 34px 0;
+}
+
+.plus-makeup-config fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.plus-makeup-config legend {
+  margin-bottom: 7px;
+  padding: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.plus-makeup-config legend small {
+  margin-left: 7px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.plus-makeup-config fieldset > p {
+  margin: 0 0 15px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.plus-makeup-options {
+  display: grid;
+  gap: 8px;
+}
+
+.plus-makeup-options--scenes {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.plus-makeup-options--directions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.plus-makeup-options label {
+  min-width: 0;
+  cursor: pointer;
+}
+
+.plus-makeup-options input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.plus-makeup-options span {
+  display: flex;
+  min-height: 42px;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: #fff;
+  font-size: 11px;
+  text-align: center;
+}
+
+.plus-makeup-options svg {
+  display: none;
+}
+
+.plus-makeup-options input:checked + span {
+  border-color: #245b48;
+  color: #174333;
+  background: #e4eee8;
+  font-weight: 700;
+}
+
+.plus-makeup-options input:checked + span svg {
+  display: block;
+}
+
+.plus-makeup-options input:focus-visible + span {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.plus-makeup-options input:disabled + span {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.plus-makeup-custom-scene {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.plus-makeup-custom-scene textarea {
+  width: 100%;
+  min-height: 84px;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.plus-makeup-custom-scene textarea::placeholder {
+  color: #777b76;
+}
+
+.plus-makeup-custom-scene textarea:focus {
+  border-color: var(--ink);
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.plus-makeup-custom-scene small {
+  justify-self: end;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.plus-makeup-consent {
+  padding-top: 28px;
+  border-top: 1px solid #a7beb4;
+}
+
+.plus-makeup-data-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.plus-makeup-data-note > svg {
+  flex: 0 0 auto;
+  color: #245b48;
+}
+
+.plus-makeup-data-note h3,
+.plus-makeup-data-note p {
+  margin: 0;
+}
+
+.plus-makeup-data-note h3 {
+  font-size: 14px;
+}
+
+.plus-makeup-data-note p {
+  max-width: 820px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.plus-makeup-consent details {
+  margin: 18px 0 0 32px;
+}
+
+.plus-makeup-consent summary {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.plus-makeup-consent dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 14px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.plus-makeup-consent dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.plus-makeup-consent dt,
+.plus-makeup-consent dd {
+  margin: 0;
+  font-size: 10px;
+}
+
+.plus-makeup-consent dt {
+  color: var(--muted);
+}
+
+.plus-makeup-consent dd {
+  font-family: "Space Mono", "Cascadia Mono", Consolas, monospace;
+}
+
+.plus-makeup-consent-field {
+  display: flex;
+  max-width: 860px;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 20px;
+  font-size: 11px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.plus-makeup-consent-field input {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  margin: 1px 0 0;
+  accent-color: #245b48;
+}
+
+.plus-makeup-credit-note {
+  margin: 10px 0 18px 27px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.plus-makeup-submit {
+  min-width: 250px;
+  min-height: 48px;
+  margin-top: 18px;
+}
+
+.plus-makeup-result {
+  margin-top: 42px;
+  padding-top: 38px;
+  border-top: 3px solid var(--ink);
+}
+
+.plus-makeup-result-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.plus-makeup-result-heading h3 {
+  margin: 7px 0 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.plus-makeup-face-profile {
+  padding: 30px 0;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.plus-makeup-face-profile h4,
+.plus-makeup-creators h4 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.plus-makeup-face-profile > p {
+  max-width: 880px;
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.plus-makeup-face-profile > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+  margin-top: 22px;
+}
+
+.plus-makeup-face-profile strong {
+  font-size: 11px;
+}
+
+.plus-makeup-face-profile ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.plus-makeup-plans {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.plus-makeup-plans > article {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.plus-makeup-plans header > span {
+  color: #245b48;
+  font: 600 9px/1.4 "Space Mono", "Cascadia Mono", Consolas, monospace;
+}
+
+.plus-makeup-plans h4 {
+  margin: 8px 0 0;
+  font-size: 17px;
+  letter-spacing: 0;
+}
+
+.plus-makeup-plans header p,
+.plus-makeup-plan-effect {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.plus-makeup-plan-effect {
+  min-height: 54px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.plus-makeup-plans ol {
+  display: grid;
+  gap: 11px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plus-makeup-plans ol li {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 9px;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.plus-makeup-plans ol strong {
+  color: #245b48;
+}
+
+.plus-makeup-plan-notes {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.plus-makeup-plan-notes p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.plus-makeup-plan-notes strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--ink);
+}
+
+.plus-makeup-creators {
+  margin-top: 28px;
+  padding: 24px 0;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.plus-makeup-creators > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.plus-makeup-creators > div > svg {
+  flex: 0 0 auto;
+  color: #245b48;
+}
+
+.plus-makeup-creators p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.plus-makeup-creators ol {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 0;
+  counter-reset: creator;
+  list-style: none;
+}
+
+.plus-makeup-creators li {
+  min-width: 0;
+  padding: 10px;
+  border-left: 2px solid #245b48;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.plus-makeup-disclaimer {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.plus-makeup-unavailable {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 18px;
+}
+
+.plus-makeup-unavailable > svg {
+  color: #245b48;
+}
+
+.plus-makeup-unavailable h2,
+.plus-makeup-unavailable p {
+  margin: 0;
+}
+
+.plus-makeup-unavailable h2 {
+  margin-top: 6px;
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
+.plus-makeup-unavailable div > p:last-child {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
 .plus-member-reports {
   display: grid;
   gap: 12px;
@@ -743,6 +1268,59 @@
   font-weight: 650;
 }
 
+.plus-saved-makeup-report > section {
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+
+.plus-saved-makeup-report > section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.plus-saved-makeup-report h4 {
+  margin: 0 0 7px;
+  font-size: 14px;
+}
+
+.plus-saved-makeup-report section p,
+.plus-saved-makeup-report section li {
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.plus-saved-makeup-report section p {
+  margin: 0;
+}
+
+.plus-saved-makeup-report section ul {
+  margin: 9px 0 0;
+  padding-left: 18px;
+}
+
+.plus-saved-makeup-report article {
+  display: block;
+}
+
+.plus-saved-makeup-report article h4 {
+  margin-top: 4px;
+}
+
+.plus-saved-makeup-report article ol {
+  display: grid;
+  gap: 6px;
+  padding-left: 18px;
+}
+
+.plus-saved-makeup-report article li {
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.plus-saved-makeup-report article li strong {
+  margin-right: 7px;
+}
+
 .plus-member-account {
   display: flex;
   align-items: center;
@@ -775,6 +1353,23 @@
   .plus-member-summary,
   .plus-member-analysis-layout {
     grid-template-columns: 1fr;
+  }
+
+  .plus-makeup-config,
+  .plus-makeup-face-profile > div {
+    grid-template-columns: 1fr;
+  }
+
+  .plus-makeup-plans {
+    grid-template-columns: 1fr;
+  }
+
+  .plus-makeup-plan-effect {
+    min-height: 0;
+  }
+
+  .plus-makeup-creators ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .plus-account-heading,
@@ -875,6 +1470,56 @@
   .plus-member-empty .button {
     width: 100%;
     margin-left: 0;
+  }
+
+  .plus-member-analysis-actions,
+  .plus-member-analysis-actions .button,
+  .plus-makeup-submit {
+    width: 100%;
+  }
+
+  .plus-makeup-generator {
+    margin-right: -16px;
+    margin-left: -16px;
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .plus-makeup-value-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .plus-makeup-value-strip span + span {
+    border-top: 1px solid #a7beb4;
+    border-left: 0;
+  }
+
+  .plus-makeup-options--scenes,
+  .plus-makeup-options--directions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .plus-makeup-consent details {
+    margin-left: 0;
+  }
+
+  .plus-makeup-consent dl {
+    grid-template-columns: 1fr;
+  }
+
+  .plus-makeup-result-heading,
+  .plus-makeup-unavailable {
+    align-items: flex-start;
+    grid-template-columns: 1fr;
+  }
+
+  .plus-makeup-result-heading {
+    flex-direction: column;
+  }
+
+  .plus-makeup-result-heading .button,
+  .plus-makeup-unavailable .button {
+    width: 100%;
   }
 
   .plus-member-features dl {

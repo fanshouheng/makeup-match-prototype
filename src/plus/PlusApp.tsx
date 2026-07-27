@@ -11,6 +11,7 @@ import {
   LogIn,
   LogOut,
   MessageCircle,
+  Palette,
   ScanFace,
   ShieldCheck,
   Sparkles,
@@ -24,8 +25,19 @@ import {
   claimPendingMemberData,
   deleteLocalMemberProfile,
   loadLocalMemberProfile,
+  saveLocalPlusMakeupReport,
+  type LocalPlusMakeupReport,
   type LocalMemberProfile,
 } from "../services/localMemberProfile";
+import type {
+  PlusMakeupDirection,
+  PlusMakeupReport,
+  PlusMakeupScene,
+} from "../services/plusMakeupReport";
+import {
+  PLUS_MAKEUP_DIRECTIONS,
+  PLUS_MAKEUP_SCENES,
+} from "../../supabase/functions/_shared/plusMakeupReport";
 import {
   getPlusMembership,
   getPlusSession,
@@ -35,6 +47,7 @@ import {
   type PlusMembership,
 } from "./plusAccess";
 import { plusClient } from "./plusClient";
+import { PlusMakeupReportGenerator } from "./PlusMakeupReportGenerator";
 import "./plus.css";
 
 function formatDate(value: string): string {
@@ -50,6 +63,17 @@ function formatDateTime(value: string): string {
 
 function reportStyleLabel(value: string): string {
   return MALE_REPORT_STYLES.find((style) => style.value === value)?.label ?? "AI 评价人";
+}
+
+function plusMakeupConfiguration(report: LocalPlusMakeupReport): string {
+  const scenes: string[] = report.scenes.map((value) =>
+    PLUS_MAKEUP_SCENES.find((scene) => scene.value === value)?.label ?? value
+  );
+  if (report.customScene) scenes.push(report.customScene);
+  const direction = PLUS_MAKEUP_DIRECTIONS.find(
+    (option) => option.value === report.direction,
+  )?.label ?? report.direction;
+  return `${scenes.join("、")} · ${direction}`;
 }
 
 function errorMessage(error: unknown): string {
@@ -234,6 +258,32 @@ export default function PlusApp() {
     }
   }
 
+  async function handlePlusMakeupGenerated(value: {
+    customScene: string;
+    direction: PlusMakeupDirection;
+    remainingCredits: number;
+    report: PlusMakeupReport;
+    scenes: PlusMakeupScene[];
+  }) {
+    if (!session) return;
+    const savedReport = await saveLocalPlusMakeupReport({
+      customScene: value.customScene,
+      direction: value.direction,
+      report: value.report,
+      scenes: value.scenes,
+    }, session.user.id);
+    setLocalProfile((current) => ({
+      analysis: current?.analysis,
+      reports: [
+        savedReport,
+        ...(current?.reports ?? []).filter((report) => report.id !== savedReport.id),
+      ],
+    }));
+    setMembership((current) => current
+      ? { ...current, trialCredits: value.remainingCredits }
+      : current);
+  }
+
   const showMemberSurface = Boolean(
     session && (!membershipChecked || loadingMembership || activeMembership),
   );
@@ -293,9 +343,16 @@ export default function PlusApp() {
                     <p className="eyebrow">ANALYSIS / 我的识别信息</p>
                     <h2 id="member-analysis-title">最近一次面部分析</h2>
                   </div>
-                  <a className="button button-secondary" href="/#start">
-                    <ScanFace size={17} />继续分析
-                  </a>
+                  <div className="plus-member-analysis-actions">
+                    {localProfile?.analysis?.referenceAudience === "women" && (
+                      <a className="button button-primary" href="#plus-makeup-generator">
+                        <Sparkles size={17} />生成 Plus 报告
+                      </a>
+                    )}
+                    <a className="button button-secondary" href="/#start">
+                      <ScanFace size={17} />重新分析
+                    </a>
+                  </div>
                 </div>
 
                 {localProfileLoading ? (
@@ -333,6 +390,24 @@ export default function PlusApp() {
                 )}
               </section>
 
+              {localProfile?.analysis?.referenceAudience === "women" ? (
+                <PlusMakeupReportGenerator
+                  faceFeatures={localProfile.analysis.analysis.features}
+                  onGenerated={handlePlusMakeupGenerated}
+                  remainingCredits={membership.trialCredits}
+                />
+              ) : (
+                <section className="plus-member-section plus-makeup-unavailable" aria-labelledby="plus-makeup-unavailable-title">
+                  <Sparkles size={24} />
+                  <div>
+                    <p className="eyebrow">PLUS AI / 专属妆造</p>
+                    <h2 id="plus-makeup-unavailable-title">先完成一次女生妆容分析</h2>
+                    <p>完成后回到会员页，就可以选择场景并生成面容报告、3 套妆造方案和公开博主名字。</p>
+                  </div>
+                  <a className="button button-primary" href="/#start">去分析<ArrowRight size={17} /></a>
+                </section>
+              )}
+
               <section className="plus-member-section" aria-labelledby="member-report-title">
                 <div className="plus-member-section-heading">
                   <div>
@@ -346,7 +421,37 @@ export default function PlusApp() {
                   <div className="plus-member-empty"><LoaderCircle className="spin" size={24} /><p>正在读取报告…</p></div>
                 ) : localProfile?.reports.length ? (
                   <div className="plus-member-reports">
-                    {localProfile.reports.map((savedReport) => (
+                    {localProfile.reports.map((savedReport) => savedReport.kind === "plus_makeup" ? (
+                      <details key={savedReport.id}>
+                        <summary>
+                          <Palette size={19} />
+                          <span><strong>{savedReport.report.title}</strong><small>{formatDateTime(savedReport.createdAt)} · Plus 妆造 · {plusMakeupConfiguration(savedReport)}</small></span>
+                        </summary>
+                        <div className="plus-member-report-body plus-saved-makeup-report">
+                          <section>
+                            <h4>面容结构报告</h4>
+                            <p>{savedReport.report.faceProfile.summary}</p>
+                            <ul>{savedReport.report.faceProfile.focusAreas.map((item) => <li key={item}>{item}</li>)}</ul>
+                          </section>
+                          {savedReport.report.plans.map((plan, index) => (
+                            <article key={plan.name}>
+                              <small>方案 {index + 1}</small>
+                              <h4>{plan.name}</h4>
+                              <p>{plan.sceneFit} {plan.effect}</p>
+                              <ol>{plan.steps.map((step) => <li key={`${step.area}-${step.instruction}`}><strong>{step.area}</strong>{step.instruction}</li>)}</ol>
+                              <p><strong>建议准备：</strong>{plan.products.join("、")}</p>
+                              <p><strong>尽量避免：</strong>{plan.avoid.join("、")}</p>
+                            </article>
+                          ))}
+                          <section>
+                            <h4>公开博主名字</h4>
+                            <p>{savedReport.report.creatorNames.join("、")}</p>
+                            <small>AI 联网发现，主页归属、合作和照片授权尚未核验。</small>
+                          </section>
+                          <p className="plus-member-report-closing">{savedReport.report.disclaimer}</p>
+                        </div>
+                      </details>
+                    ) : (
                       <details key={savedReport.id}>
                         <summary>
                           <FileText size={19} />

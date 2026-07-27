@@ -4,11 +4,14 @@
 
 MAKE UP is a free, privacy-first makeup-reference prototype. A user selects a
 front-facing photo and the browser measures face-structure proportions locally.
-The women flow returns authorized creators and tutorial links. The men flow can,
-after separate consent, send the nine disclosed exact ratios to DeepSeek for an
+The women flow returns authorized creators and tutorial links. Activated Plus
+users can separately consent to send nine disclosed exact ratios and scene/style
+choices to DeepSeek for a structured makeup report; Doubao then receives only
+the generated text summary and plan highlights for names-only public creator
+discovery. The men flow can separately send the nine ratios to DeepSeek for an
 entertainment report. Another separately consented AI flow sends a sanitized
 photo copy for names-only public creator discovery. It is not identity
-recognition, appearance scoring, medical advice, or a full style generator.
+recognition, appearance scoring, medical advice, or a professional result guarantee.
 
 - Production: https://makeup.soul.xn--fiqs8s/
 - Source: https://github.com/fanshouheng/makeup-match-prototype
@@ -45,6 +48,14 @@ npm run build
 - Optional AI discovery may send only a canvas-reencoded JPEG after separate
   consent and Turnstile verification. Do not persist the photo, AI result, or
   returned creator names; request provider-side conversation storage to be off.
+- Optional Plus makeup generation requires an active authenticated membership,
+  separate consent, Turnstile, and remaining credit. DeepSeek may receive only
+  the nine disclosed ratios, up to three scenes, and one fixed makeup direction.
+  Doubao may receive only the generated structural summary, plan highlights,
+  scenes, and direction; it must not receive the photo or exact ratios. Do not
+  persist inputs, prompts, reports, or creator names server-side. Consume one
+  credit atomically only after both validated outputs succeed, and label all
+  generated content and creator names as AI-generated and unverified.
 - AI-discovered names are unverified public leads. Do not download or analyze
   candidate photos, present them as authorized, or import them into the creator
   library without the creator permissions required by this file.

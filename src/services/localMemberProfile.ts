@@ -5,6 +5,11 @@ import type {
   MaleReportStyle,
 } from "../domain/maleReportStyles";
 import type { MaleFaceReport } from "./maleFaceReport";
+import type {
+  PlusMakeupDirection,
+  PlusMakeupReport,
+  PlusMakeupScene,
+} from "./plusMakeupReport";
 
 const DATABASE_NAME = "make-up-local-member-profile";
 const DATABASE_VERSION = 1;
@@ -22,14 +27,28 @@ export interface LocalMemberAnalysis {
   luminance: number;
 }
 
-export interface LocalMemberReport {
+export interface LocalMaleMemberReport {
   id: string;
   ownerKey: string;
   createdAt: string;
+  kind?: "male_face";
   mode: MaleReportMode;
   style: MaleReportStyle;
   report: MaleFaceReport;
 }
+
+export interface LocalPlusMakeupReport {
+  id: string;
+  ownerKey: string;
+  createdAt: string;
+  kind: "plus_makeup";
+  scenes: PlusMakeupScene[];
+  customScene: string;
+  direction: PlusMakeupDirection;
+  report: PlusMakeupReport;
+}
+
+export type LocalMemberReport = LocalMaleMemberReport | LocalPlusMakeupReport;
 
 export interface LocalMemberProfile {
   analysis?: LocalMemberAnalysis;
@@ -51,6 +70,15 @@ interface SaveReportInput {
   mode: MaleReportMode;
   style: MaleReportStyle;
   report: MaleFaceReport;
+}
+
+interface SavePlusMakeupReportInput {
+  id?: string;
+  createdAt?: string;
+  scenes: PlusMakeupScene[];
+  customScene: string;
+  direction: PlusMakeupDirection;
+  report: PlusMakeupReport;
 }
 
 let databasePromise: Promise<IDBDatabase> | undefined;
@@ -77,13 +105,29 @@ export function buildLocalAnalysisRecord(
 export function buildLocalReportRecord(
   input: SaveReportInput,
   userId?: string,
-): LocalMemberReport {
+): LocalMaleMemberReport {
   return {
     id: input.id ?? crypto.randomUUID(),
     ownerKey: localMemberOwnerKey(userId),
     createdAt: input.createdAt ?? new Date().toISOString(),
     mode: input.mode,
     style: input.style,
+    report: input.report,
+  };
+}
+
+export function buildLocalPlusMakeupReportRecord(
+  input: SavePlusMakeupReportInput,
+  userId?: string,
+): LocalPlusMakeupReport {
+  return {
+    id: input.id ?? crypto.randomUUID(),
+    ownerKey: localMemberOwnerKey(userId),
+    createdAt: input.createdAt ?? new Date().toISOString(),
+    kind: "plus_makeup",
+    scenes: [...input.scenes],
+    customScene: input.customScene,
+    direction: input.direction,
     report: input.report,
   };
 }
@@ -182,6 +226,15 @@ export async function saveLocalGeneratedReport(
   userId?: string,
 ): Promise<void> {
   await putReport(buildLocalReportRecord(input, userId));
+}
+
+export async function saveLocalPlusMakeupReport(
+  input: SavePlusMakeupReportInput,
+  userId: string,
+): Promise<LocalPlusMakeupReport> {
+  const record = buildLocalPlusMakeupReportRecord(input, userId);
+  await putReport(record);
+  return record;
 }
 
 export async function claimPendingMemberData(userId: string): Promise<void> {

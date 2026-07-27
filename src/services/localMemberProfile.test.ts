@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { FaceAnalysis } from "../domain/faceFeatures";
 import {
   buildLocalAnalysisRecord,
+  buildLocalPlusMakeupReportRecord,
   buildLocalReportRecord,
   localMemberOwnerKey,
 } from "./localMemberProfile";
@@ -60,5 +61,30 @@ describe("local member profile records", () => {
 
     expect(record.ownerKey).toBe("user:user-123");
     expect(record.id).toBe("report-1");
+  });
+
+  it("stores a Plus makeup report with its generation settings", () => {
+    const record = buildLocalPlusMakeupReportRecord({
+      id: "makeup-report-1",
+      createdAt: "2026-07-27T13:00:00.000Z",
+      scenes: ["graduation"],
+      customScene: "晚间聚餐",
+      direction: "clean",
+      report: {
+        title: "毕业典礼妆造",
+        faceProfile: {
+          summary: "结构摘要",
+          focusAreas: ["重点一", "重点二"],
+          limitations: ["需要现场试色"],
+        },
+        plans: [],
+        creatorNames: ["博主甲"],
+        disclaimer: "AI 生成，仅供参考。",
+      },
+    }, "user-123");
+
+    expect(record.kind).toBe("plus_makeup");
+    expect(record.ownerKey).toBe("user:user-123");
+    expect(record.scenes).toEqual(["graduation"]);
   });
 });
