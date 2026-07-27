@@ -1,19 +1,31 @@
 import type { AuthError, Session } from "@supabase/supabase-js";
 import {
-  Check,
+  ArrowRight,
+  CalendarDays,
   CheckCircle2,
   Eye,
   EyeOff,
+  FileText,
   KeyRound,
   LoaderCircle,
   LogIn,
   LogOut,
   MessageCircle,
+  ScanFace,
   ShieldCheck,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { contactWechatQrUrl } from "../config";
+import { FEATURE_LABELS } from "../domain/featureLabels";
+import { MALE_REPORT_STYLES } from "../domain/maleReportStyles";
+import {
+  claimPendingMemberData,
+  deleteLocalMemberProfile,
+  loadLocalMemberProfile,
+  type LocalMemberProfile,
+} from "../services/localMemberProfile";
 import {
   getPlusMembership,
   getPlusSession,
@@ -27,6 +39,17 @@ import "./plus.css";
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("zh-CN", { dateStyle: "long" }).format(new Date(value));
+}
+
+function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat("zh-CN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function reportStyleLabel(value: string): string {
+  return MALE_REPORT_STYLES.find((style) => style.value === value)?.label ?? "AI 评价人";
 }
 
 function errorMessage(error: unknown): string {
@@ -52,6 +75,11 @@ export default function PlusApp() {
   const [membership, setMembership] = useState<PlusMembership | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [loadingMembership, setLoadingMembership] = useState(false);
+  const [membershipChecked, setMembershipChecked] = useState(false);
+  const [localProfile, setLocalProfile] = useState<LocalMemberProfile>();
+  const [localProfileLoading, setLocalProfileLoading] = useState(false);
+  const [localProfileError, setLocalProfileError] = useState("");
+  const [localPhotoUrl, setLocalPhotoUrl] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -59,6 +87,8 @@ export default function PlusApp() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const authenticatingRef = useRef(false);
+  const activeMembership = membership?.status === "active" &&
+    new Date(membership.benefitExpiresAt).getTime() > Date.now();
 
   const loadMembership = useCallback(async () => {
     setLoadingMembership(true);
@@ -69,6 +99,7 @@ export default function PlusApp() {
       setError(errorMessage(nextError));
     } finally {
       setLoadingMembership(false);
+      setMembershipChecked(true);
     }
   }, []);
 
@@ -95,9 +126,50 @@ export default function PlusApp() {
   }, []);
 
   useEffect(() => {
-    if (session && !authenticatingRef.current) void loadMembership();
-    else setMembership(null);
+    if (!session) {
+      setMembership(null);
+      setMembershipChecked(false);
+    } else if (!authenticatingRef.current) {
+      void loadMembership();
+    }
   }, [loadMembership, session]);
+
+  useEffect(() => {
+    if (!session || !activeMembership) {
+      setLocalProfile(undefined);
+      setLocalProfileError("");
+      return;
+    }
+
+    let mounted = true;
+    setLocalProfileLoading(true);
+    setLocalProfileError("");
+    claimPendingMemberData(session.user.id)
+      .then(() => loadLocalMemberProfile(session.user.id))
+      .then((profile) => {
+        if (mounted) setLocalProfile(profile);
+      })
+      .catch((profileError) => {
+        console.error(profileError);
+        if (mounted) setLocalProfileError("本机档案暂时无法读取，请刷新后重试。");
+      })
+      .finally(() => {
+        if (mounted) setLocalProfileLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [activeMembership, session]);
+
+  useEffect(() => {
+    if (!localProfile?.analysis) {
+      setLocalPhotoUrl("");
+      return;
+    }
+    const nextPhotoUrl = URL.createObjectURL(localProfile.analysis.photo);
+    setLocalPhotoUrl(nextPhotoUrl);
+    return () => URL.revokeObjectURL(nextPhotoUrl);
+  }, [localProfile?.analysis]);
 
   async function handleAuthSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -113,11 +185,13 @@ export default function PlusApp() {
         await signInPlusAccount(email.trim(), password);
         setMembership(await getPlusMembership());
       }
+      setMembershipChecked(true);
       setPassword("");
     } catch (nextError) {
       setError(errorMessage(nextError));
     } finally {
       authenticatingRef.current = false;
+      setMembershipChecked(true);
       setBusy(false);
     }
   }
@@ -143,20 +217,183 @@ export default function PlusApp() {
     setError("");
   }
 
-  const activeMembership = membership?.status === "active" &&
-    new Date(membership.benefitExpiresAt).getTime() > Date.now();
+  async function clearLocalProfile() {
+    if (!session || !window.confirm("确定清除这台设备保存的照片、面部数据和报告吗？此操作无法撤销。")) {
+      return;
+    }
+    setLocalProfileLoading(true);
+    setLocalProfileError("");
+    try {
+      await deleteLocalMemberProfile(session.user.id);
+      setLocalProfile({ reports: [] });
+    } catch (profileError) {
+      console.error(profileError);
+      setLocalProfileError("本机档案清除失败，请稍后重试。");
+    } finally {
+      setLocalProfileLoading(false);
+    }
+  }
+
+  const showMemberSurface = Boolean(
+    session && (!membershipChecked || loadingMembership || activeMembership),
+  );
 
   return (
     <div className="plus-account-shell">
       <header className="plus-account-topbar">
-        <a className="plus-account-brand" href="/" aria-label="返回 MAKE UP 首页">
+        <a
+          aria-label={activeMembership ? "返回 Plus 会员页" : "返回 MAKE UP 首页"}
+          className="plus-account-brand"
+          href={activeMembership ? "/plus" : "/"}
+        >
           <strong>MAKE UP</strong>
           <span>PLUS EARLY ACCESS</span>
         </a>
-        <a className="plus-account-free-link" href="/">免费匹配</a>
+        <a className="plus-account-free-link" href="/#start">
+          {activeMembership ? "继续分析" : "免费匹配"}
+        </a>
       </header>
 
-      <main className="plus-account-main">
+      <main className={`plus-account-main ${showMemberSurface ? "plus-member-main" : ""}`}>
+        {showMemberSurface && session ? (
+          !membershipChecked || loadingMembership || !membership ? (
+            <section className="plus-member-loading" aria-live="polite">
+              <LoaderCircle className="spin" size={28} />
+              <p>正在载入会员中心…</p>
+            </section>
+          ) : (
+            <>
+              <section className="plus-member-heading" aria-labelledby="plus-member-title">
+                <div>
+                  <p className="eyebrow">MEMBER / 会员中心</p>
+                  <h1 id="plus-member-title">你的 Plus 会员页</h1>
+                  <p>{session.user.email}</p>
+                </div>
+                <div className="plus-member-status" aria-label={`剩余体验额度 ${membership.trialCredits} 次`}>
+                  <span>剩余体验额度</span>
+                  <strong>{membership.trialCredits}</strong>
+                  <small>次</small>
+                </div>
+              </section>
+
+              <section className="plus-member-summary" aria-label="会员权益与本地档案说明">
+                <div>
+                  <ShieldCheck size={20} />
+                  <p><strong>只保存在这台设备</strong>照片、面部比例和报告不会上传到会员数据库，也不会跨设备同步。</p>
+                </div>
+                <dl>
+                  <div><dt>会员状态</dt><dd>已激活</dd></div>
+                  <div><dt>权益有效期</dt><dd>{formatDate(membership.benefitExpiresAt)}</dd></div>
+                </dl>
+              </section>
+
+              <section className="plus-member-section" aria-labelledby="member-analysis-title">
+                <div className="plus-member-section-heading">
+                  <div>
+                    <p className="eyebrow">ANALYSIS / 我的识别信息</p>
+                    <h2 id="member-analysis-title">最近一次面部分析</h2>
+                  </div>
+                  <a className="button button-secondary" href="/#start">
+                    <ScanFace size={17} />继续分析
+                  </a>
+                </div>
+
+                {localProfileLoading ? (
+                  <div className="plus-member-empty"><LoaderCircle className="spin" size={24} /><p>正在读取本机档案…</p></div>
+                ) : localProfile?.analysis ? (
+                  <div className="plus-member-analysis-layout">
+                    <figure className="plus-member-photo">
+                      {localPhotoUrl && <img alt="最近一次分析的照片" src={localPhotoUrl} />}
+                      <figcaption>
+                        <span>{localProfile.analysis.fileName}</span>
+                        <small><CalendarDays size={14} />{formatDateTime(localProfile.analysis.savedAt)}</small>
+                      </figcaption>
+                    </figure>
+                    <div className="plus-member-features">
+                      <div className="plus-member-analysis-meta">
+                        <span>{localProfile.analysis.referenceAudience === "women" ? "女生妆容参考" : "男生面部报告"}</span>
+                        <small>环境亮度 {Math.round(localProfile.analysis.luminance)} / 255</small>
+                      </div>
+                      <dl>
+                        {Object.entries(localProfile.analysis.analysis.features).map(([key, value]) => (
+                          <div key={key}>
+                            <dt>{FEATURE_LABELS[key as keyof typeof FEATURE_LABELS]}</dt>
+                            <dd>{value.toFixed(3)}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="plus-member-empty">
+                    <ScanFace size={26} />
+                    <div><h3>还没有本机分析档案</h3><p>上传并完成一次有效分析后，这里会显示照片和九项面部结构数据。</p></div>
+                    <a className="button button-primary" href="/#start">开始分析<ArrowRight size={17} /></a>
+                  </div>
+                )}
+              </section>
+
+              <section className="plus-member-section" aria-labelledby="member-report-title">
+                <div className="plus-member-section-heading">
+                  <div>
+                    <p className="eyebrow">REPORTS / 已生成内容</p>
+                    <h2 id="member-report-title">我的报告</h2>
+                  </div>
+                  <span className="plus-member-count">{localProfile?.reports.length ?? 0} 份</span>
+                </div>
+
+                {localProfileLoading ? (
+                  <div className="plus-member-empty"><LoaderCircle className="spin" size={24} /><p>正在读取报告…</p></div>
+                ) : localProfile?.reports.length ? (
+                  <div className="plus-member-reports">
+                    {localProfile.reports.map((savedReport) => (
+                      <details key={savedReport.id}>
+                        <summary>
+                          <FileText size={19} />
+                          <span><strong>{savedReport.report.title}</strong><small>{formatDateTime(savedReport.createdAt)} · {savedReport.mode === "roast" ? "锐评" : "夸夸"} · {reportStyleLabel(savedReport.style)}</small></span>
+                        </summary>
+                        <div className="plus-member-report-body">
+                          <p>{savedReport.report.summary}</p>
+                          {savedReport.report.observations.map((observation) => (
+                            <article key={observation.feature}>
+                              <small>{observation.label}</small>
+                              <p>{observation.fact}</p>
+                              <blockquote>{observation.comment}</blockquote>
+                            </article>
+                          ))}
+                          <p className="plus-member-report-closing">{savedReport.report.closing}</p>
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="plus-member-empty">
+                    <FileText size={26} />
+                    <div><h3>暂时没有已生成报告</h3><p>真实生成成功的 AI 报告会保存在这台设备，并显示在这里。</p></div>
+                  </div>
+                )}
+              </section>
+
+              {localProfileError && <p className="plus-access-error" role="alert">{localProfileError}</p>}
+
+              <section className="plus-member-account" aria-labelledby="member-account-title">
+                <div>
+                  <p className="eyebrow">ACCOUNT / 账号</p>
+                  <h2 id="member-account-title">会员与本机数据</h2>
+                </div>
+                <div className="plus-member-account-actions">
+                  <button className="button button-secondary" disabled={localProfileLoading} onClick={() => void clearLocalProfile()} type="button">
+                    <Trash2 size={17} />清除本机档案
+                  </button>
+                  <button className="button button-secondary" onClick={() => void plusClient.auth.signOut()} type="button">
+                    <LogOut size={17} />退出登录
+                  </button>
+                </div>
+              </section>
+            </>
+          )
+        ) : (
+          <>
         <section className="plus-account-heading" aria-labelledby="plus-account-title">
           <div>
             <p className="eyebrow">PLUS / 邀请制内测</p>
@@ -290,18 +527,6 @@ export default function PlusApp() {
               </>
             ) : loadingMembership ? (
               <div className="plus-access-loading"><LoaderCircle className="spin" size={22} />正在读取 Plus 权益…</div>
-            ) : activeMembership && membership ? (
-              <div className="plus-membership-active">
-                <div className="plus-membership-title"><Check size={22} /><div><small>PLUS EARLY ACCESS</small><h3>账号已激活</h3></div></div>
-                <dl>
-                  <div><dt>登录邮箱</dt><dd>{session.user.email}</dd></div>
-                  <div><dt>体验额度</dt><dd>{membership.trialCredits} 次</dd></div>
-                  <div><dt>权益有效期</dt><dd>至 {formatDate(membership.benefitExpiresAt)}</dd></div>
-                </dl>
-                <button className="button button-secondary" onClick={() => void plusClient.auth.signOut()} type="button">
-                  <LogOut size={17} />退出登录
-                </button>
-              </div>
             ) : (
               <form className="plus-access-form" onSubmit={handleRedeem}>
                 <div className="plus-signed-in">
@@ -328,6 +553,8 @@ export default function PlusApp() {
             {error && <p className="plus-access-error" role="alert">{error}</p>}
           </div>
         </section>
+          </>
+        )}
       </main>
     </div>
   );

@@ -53,9 +53,16 @@ import {
   type MatchNegativeFeedbackDetails,
 } from "./services/productMetrics";
 import { shareMatchResult } from "./services/resultSharing";
+import {
+  clearLatestLocalAnalysis,
+  loadLatestLocalAnalysis,
+  saveLatestLocalAnalysis,
+  saveLocalGeneratedReport,
+} from "./services/localMemberProfile";
 
 interface LoadedPhoto {
   fileName: string;
+  blob: Blob;
   image: HTMLImageElement;
   objectUrl: string;
 }
@@ -79,9 +86,15 @@ function viewFromLocation(): SiteView {
 function loadImage(file: File): Promise<LoadedPhoto> {
   return loadImageBlob(file).then(({ image, objectUrl }) => ({
     fileName: file.name,
+    blob: file,
     image,
     objectUrl,
   }));
+}
+
+async function currentPlusUserId(): Promise<string | undefined> {
+  const { getPlusSession } = await import("./plus/plusAccess");
+  return (await getPlusSession())?.user.id;
 }
 
 function matchMetricProperties(
@@ -100,6 +113,7 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const sceneRef = useRef<HTMLElement>(null);
+  const photoChangedRef = useRef(false);
   const [photo, setPhoto] = useState<LoadedPhoto>();
   const [status, setStatus] = useState<AnalysisStatus>("idle");
   const [result, setResult] = useState<AnalysisResult>();
@@ -144,6 +158,41 @@ function App() {
     },
     [photo],
   );
+
+  useEffect(() => {
+    if (view !== "analysis") return;
+    let active = true;
+    void (async () => {
+      try {
+        const userId = await currentPlusUserId();
+        const stored = await loadLatestLocalAnalysis(userId);
+        if (!stored || !active || photoChangedRef.current) return;
+        const loaded = await loadImageBlob(stored.photo);
+        if (!active || photoChangedRef.current) {
+          URL.revokeObjectURL(loaded.objectUrl);
+          return;
+        }
+        setPhoto({
+          blob: stored.photo,
+          fileName: stored.fileName,
+          image: loaded.image,
+          objectUrl: loaded.objectUrl,
+        });
+        setReferenceAudience(stored.referenceAudience);
+        setResult({
+          analysis: stored.analysis,
+          issues: [],
+          luminance: stored.luminance,
+        });
+        setStatus("complete");
+      } catch (restoreError) {
+        console.warn("无法恢复本机会员档案", restoreError);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [view]);
 
   useEffect(() => {
     void recordProductEvent("landing_view");
@@ -313,6 +362,7 @@ function App() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    photoChangedRef.current = true;
 
     for (const eventName of photoSelectionEventNames(referenceAudience)) {
       void recordProductEvent(eventName);
@@ -328,8 +378,12 @@ function App() {
   };
 
   const clearPhoto = () => {
+    photoChangedRef.current = true;
     setPhoto(undefined);
     resetAnalysis();
+    void currentPlusUserId()
+      .then((userId) => clearLatestLocalAnalysis(userId))
+      .catch((clearError) => console.warn("无法清除本机会员档案", clearError));
   };
 
   const toggleReferenceAudience = () => {
@@ -473,12 +527,27 @@ function App() {
         );
       }
 
-      setResult({
+      const nextResult = {
         analysis,
         issues,
         landmarks: analysis ? landmarks : undefined,
         luminance,
-      });
+      };
+      if (analysis && issues.length === 0) {
+        try {
+          const userId = await currentPlusUserId();
+          await saveLatestLocalAnalysis({
+            analysis,
+            fileName: photo.fileName,
+            luminance,
+            photo: photo.blob,
+            referenceAudience,
+          }, userId);
+        } catch (saveError) {
+          console.warn("无法保存本机会员档案", saveError);
+        }
+      }
+      setResult(nextResult);
       setStatus("complete");
     } catch (analysisError) {
       console.error(analysisError);
@@ -578,7 +647,9 @@ function App() {
                   ))}
                 </dl>
                 <p className="measurement-note">
-                  环境亮度 {Math.round(result.luminance)} / 255 · 数据仅用于本次相似度计算
+                  环境亮度 {Math.round(result.luminance)} / 255 · {result.issues.length === 0
+                    ? "已保存在当前浏览器，可在 Plus 会员页查看"
+                    : "数据仅用于当前页面"}
                 </p>
               </>
             )}
@@ -641,7 +712,7 @@ function App() {
                 <div className="photo-guidance" aria-label="照片要求">
                   <span>正面拍摄</span><span>无遮挡</span><span>光线均匀</span>
                 </div>
-                <p className="local-note"><ShieldCheck size={15} />照片仅在当前设备处理</p>
+                <p className="local-note"><ShieldCheck size={15} />照片仅在当前设备处理，有效分析保存在本机</p>
                 {inAppBrowser && (
                   <div className="notice notice-warning browser-compatibility-notice" role="status">
                     <AlertCircle size={18} />
@@ -707,7 +778,20 @@ function App() {
               </section>
 
               {showMaleReport && result?.analysis && (
-                <MaleFaceReport faceFeatures={result.analysis.features} />
+                <MaleFaceReport
+                  faceFeatures={result.analysis.features}
+                  onGenerated={async ({ mode, report, style }) => {
+                    try {
+                      const userId = await currentPlusUserId();
+                      await saveLocalGeneratedReport(
+                        { mode, report, style },
+                        userId,
+                      );
+                    } catch (saveError) {
+                      console.warn("无法保存本机报告", saveError);
+                    }
+                  }}
+                />
               )}
 
               {showMatchScene && matches && matches.length > 1 && result?.analysis && (

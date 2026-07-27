@@ -28,9 +28,14 @@ import { hasSupabaseConfig } from "../services/supabaseClient";
 
 interface MaleFaceReportProps {
   faceFeatures: FaceFeatureVector;
+  onGenerated?: (result: {
+    mode: MaleReportMode;
+    style: MaleReportStyle;
+    report: MaleFaceReportResult;
+  }) => Promise<void> | void;
 }
 
-export function MaleFaceReport({ faceFeatures }: MaleFaceReportProps) {
+export function MaleFaceReport({ faceFeatures, onGenerated }: MaleFaceReportProps) {
   const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
   const [mode, setMode] = useState<MaleReportMode>("roast");
   const [style, setStyle] = useState<MaleReportStyle>("internet_bestie");
@@ -54,13 +59,15 @@ export function MaleFaceReport({ faceFeatures }: MaleFaceReportProps) {
     setError(undefined);
     setLoading(true);
     try {
-      setReport(await generateMaleFaceReport({
+      const generatedReport = await generateMaleFaceReport({
         consent,
         features: faceFeatures,
         mode,
         style,
         turnstileToken,
-      }));
+      });
+      setReport(generatedReport);
+      await onGenerated?.({ mode, report: generatedReport, style });
     } catch (reportError) {
       setError(
         reportError instanceof Error
