@@ -154,6 +154,8 @@ describe("MatchResults", () => {
     );
 
     expect(html).toContain("哪里不符合你的预期？");
+    expect(html).toContain("觉得哪里不对，欢迎来吐槽");
+    expect(html).toContain("加入用户反馈群");
     expect(html).toContain("脸型或五官分析不对");
     expect(html).toContain("推荐的博主和我长得不像");
     expect(html).toContain("她的妆容风格不适合我");

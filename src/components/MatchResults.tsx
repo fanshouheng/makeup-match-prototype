@@ -5,10 +5,12 @@ import {
   ImageDown,
   Library,
   LoaderCircle,
+  MessageCircle,
   Search,
   Share2,
   ThumbsDown,
   ThumbsUp,
+  X,
 } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
@@ -102,6 +104,7 @@ export function MatchResults({
 }: MatchResultsProps) {
   const [negativeReasons, setNegativeReasons] = useState<MatchNegativeFeedbackReason[]>([]);
   const [otherReason, setOtherReason] = useState("");
+  const [feedbackGroupOpen, setFeedbackGroupOpen] = useState(false);
   const negativeFeedbackRef = useRef<HTMLFormElement>(null);
   const [primaryMatch, ...otherMatches] = matches;
   const isMen = referenceAudience === "men";
@@ -141,6 +144,17 @@ export function MatchResults({
     setNegativeReasons([]);
     setOtherReason("");
   }, [feedback]);
+
+  useEffect(() => {
+    if (!feedbackGroupOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFeedbackGroupOpen(false);
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [feedbackGroupOpen]);
 
   useEffect(() => {
     if (
@@ -326,6 +340,13 @@ export function MatchResults({
               <div className="match-engagement-copy">
                 <p className="eyebrow">FEEDBACK / 结果反馈</p>
                 <h3 id={`match-feedback-title-${mode}`}>这个结果是否符合你的感觉？</h3>
+                <p className="match-feedback-invite">
+                  觉得哪里不对，欢迎来吐槽。
+                  <button onClick={() => setFeedbackGroupOpen(true)} type="button">
+                    <MessageCircle size={14} />
+                    加入用户反馈群
+                  </button>
+                </p>
               </div>
               <div className="match-engagement-actions">
                 <div className="match-feedback-actions" role="group" aria-label="匹配结果反馈">
@@ -443,6 +464,32 @@ export function MatchResults({
                     </p>
                     <p className="match-feedback-wish">希望你天天开心，也能找到真正喜欢的参考。</p>
                   </div>
+                </div>
+              )}
+              {feedbackGroupOpen && (
+                <div className="contact-modal-backdrop" onClick={() => setFeedbackGroupOpen(false)}>
+                  <section
+                    aria-label="用户反馈群和过程分享群"
+                    aria-modal="true"
+                    className="contact-modal"
+                    onClick={(event) => event.stopPropagation()}
+                    role="dialog"
+                  >
+                    <button
+                      aria-label="关闭用户反馈群二维码"
+                      className="contact-modal-close"
+                      onClick={() => setFeedbackGroupOpen(false)}
+                      title="关闭"
+                      type="button"
+                    >
+                      <X size={20} />
+                    </button>
+                    <img
+                      alt="用户反馈群和过程分享群二维码"
+                      src="/user-feedback-group.jpg"
+                    />
+                    <p>微信扫码加入用户反馈群 + 过程分享群</p>
+                  </section>
                 </div>
               )}
             </section>
