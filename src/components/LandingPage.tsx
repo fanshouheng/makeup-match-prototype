@@ -1,6 +1,8 @@
 import { ArrowRight, MessageCircle, Music2, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { contactDouyinUrl, contactWechatQrUrl } from "../config";
+import { contactDouyinUrl } from "../config";
+
+const feedbackGroupQrUrl = "/user-feedback-group.jpg";
 
 export function LandingPage({ onStart }: { onStart: () => void }) {
   const [wechatOpen, setWechatOpen] = useState(false);
@@ -44,11 +46,11 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
         <div className="footer-inner">
           <div className="social-links" aria-label="联系方式">
             <button
-              aria-label="微信联系方式"
+              aria-label="用户反馈群和过程分享群"
               aria-expanded={wechatOpen}
               aria-haspopup="dialog"
               onClick={() => setWechatOpen(true)}
-              title="微信"
+              title="用户反馈群"
               type="button"
             >
               <MessageCircle size={18} />
@@ -65,7 +67,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
       {wechatOpen && (
         <div className="contact-modal-backdrop" onClick={() => setWechatOpen(false)}>
           <section
-            aria-label="微信联系方式"
+            aria-label="用户反馈群和过程分享群"
             aria-modal="true"
             className="contact-modal"
             onClick={(event) => event.stopPropagation()}
@@ -80,8 +82,8 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
             >
               <X size={20} />
             </button>
-            <img alt="微信联系人二维码" src={contactWechatQrUrl} />
-            <p>微信扫码添加好友</p>
+            <img alt="用户反馈群和过程分享群二维码" src={feedbackGroupQrUrl} />
+            <p>微信扫码加入用户反馈群 + 过程分享群</p>
           </section>
         </div>
       )}

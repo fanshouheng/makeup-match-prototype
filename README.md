@@ -144,6 +144,10 @@ Plus 账号密码由 Supabase Auth 负责认证并进行哈希存储，MAKE UP �
 
 这个项目需要三类参与者：真实使用并提供反馈的用户、愿意授权加入匹配的博主，以及帮助改进产品的开发者。
 
+欢迎扫码加入用户反馈群 + 过程分享群，反馈真实使用感受，也可以围观 MAKE UP 的开发和验证过程。
+
+<img src="public/user-feedback-group.jpg" width="320" alt="MAKE UP 用户反馈群和过程分享群二维码" />
+
 - 遇到可复现的问题：提交 [Bug 报告](https://github.com/fanshouheng/makeup-match-prototype/issues/new?template=bug_report.yml)。
 - 想讨论功能和使用场景：前往 [Discussions](https://github.com/fanshouheng/makeup-match-prototype/discussions)。
 - 准备贡献代码或文档：先阅读 [参与贡献](CONTRIBUTING.md) 和 [路线图](ROADMAP.md)。
