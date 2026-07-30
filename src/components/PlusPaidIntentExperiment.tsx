@@ -28,7 +28,7 @@ const STYLES = [
   { value: "sweet_cool", label: "甜酷利落" },
   { value: "retro", label: "复古港风" },
   { value: "camera_ready", label: "明艳上镜" },
-  { value: "auto", label: "让 AI 建议" },
+  { value: "auto", label: "帮我选择" },
 ] as const;
 
 const PLUS_OFFER_ID = "make-up-plus-offer";
@@ -169,7 +169,7 @@ export function PlusPaidIntentExperiment() {
 
           <fieldset disabled={configured}>
             <legend>选择妆造方向</legend>
-            <p className="plus-field-help">不确定也没关系，可以让 AI 根据场景和结构报告给出方向。</p>
+            <p className="plus-field-help">不确定就选“帮我选择”。</p>
             <div className="plus-option-grid plus-option-grid--styles">
               {STYLES.map((option) => (
                 <label key={option.value}>

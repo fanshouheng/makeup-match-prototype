@@ -62,7 +62,7 @@ function formatDateTime(value: string): string {
 }
 
 function reportStyleLabel(value: string): string {
-  return MALE_REPORT_STYLES.find((style) => style.value === value)?.label ?? "AI 评价人";
+  return MALE_REPORT_STYLES.find((style) => style.value === value)?.label ?? "默认文风";
 }
 
 function plusMakeupConfiguration(report: LocalPlusMakeupReport): string {
@@ -70,9 +70,11 @@ function plusMakeupConfiguration(report: LocalPlusMakeupReport): string {
     PLUS_MAKEUP_SCENES.find((scene) => scene.value === value)?.label ?? value
   );
   if (report.customScene) scenes.push(report.customScene);
-  const direction = PLUS_MAKEUP_DIRECTIONS.find(
-    (option) => option.value === report.direction,
-  )?.label ?? report.direction;
+  const direction = report.direction === "auto"
+    ? "帮我选择"
+    : PLUS_MAKEUP_DIRECTIONS.find(
+      (option) => option.value === report.direction,
+    )?.label ?? report.direction;
   return `${scenes.join("、")} · ${direction}`;
 }
 
@@ -400,7 +402,7 @@ export default function PlusApp() {
                 <section className="plus-member-section plus-makeup-unavailable" aria-labelledby="plus-makeup-unavailable-title">
                   <Sparkles size={24} />
                   <div>
-                    <p className="eyebrow">PLUS AI / 专属妆造</p>
+                    <p className="eyebrow">PLUS / 专属妆造</p>
                     <h2 id="plus-makeup-unavailable-title">先完成一次女生妆容分析</h2>
                     <p>完成后回到会员页，就可以选择场景并生成面容报告、3 套妆造方案和公开博主名字。</p>
                   </div>
@@ -446,7 +448,7 @@ export default function PlusApp() {
                           <section>
                             <h4>公开博主名字</h4>
                             <p>{savedReport.report.creatorNames.join("、")}</p>
-                            <small>AI 联网发现，主页归属、合作和照片授权尚未核验。</small>
+                            <small>联网发现，主页归属、合作和照片授权尚未核验。</small>
                           </section>
                           <p className="plus-member-report-closing">{savedReport.report.disclaimer}</p>
                         </div>
@@ -474,7 +476,7 @@ export default function PlusApp() {
                 ) : (
                   <div className="plus-member-empty">
                     <FileText size={26} />
-                    <div><h3>暂时没有已生成报告</h3><p>真实生成成功的 AI 报告会保存在这台设备，并显示在这里。</p></div>
+                    <div><h3>暂时没有已生成报告</h3><p>生成成功的报告会保存在这台设备，并显示在这里。</p></div>
                   </div>
                 )}
               </section>

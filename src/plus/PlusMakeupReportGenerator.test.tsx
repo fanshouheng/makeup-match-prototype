@@ -36,9 +36,10 @@ describe("PlusMakeupReportGenerator", () => {
 
     expect(html).toContain("生成面容报告和 3 套妆造方案");
     expect(html).toContain("毕业典礼");
-    expect(html).toContain("让 AI 建议");
+    expect(html).toContain("帮我选择");
     expect(html).toContain("我要参加毕业典礼");
-    expect(html).toContain("发送给 DeepSeek 的九项精确数据");
+    expect(html).toContain("查看将发送的九项面部比例");
     expect(html).toContain("当前剩余 <strong>3</strong> 次");
+    expect(html).not.toMatch(/AI|DeepSeek|豆包/);
   });
 });

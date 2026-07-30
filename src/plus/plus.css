@@ -15,7 +15,7 @@
   justify-content: space-between;
   margin: 0 auto;
   border-bottom: 1px solid var(--line);
-  background: rgb(250 250 247 / 94%);
+  background: rgb(255 255 255 / 94%);
   backdrop-filter: blur(14px);
 }
 
@@ -461,7 +461,7 @@
 
 .plus-member-summary > div svg {
   flex: 0 0 auto;
-  color: #245b48;
+  color: var(--ink);
 }
 
 .plus-member-summary p {
@@ -666,9 +666,9 @@
   scroll-margin-top: 94px;
   margin: 0 -24px;
   padding: 48px 24px 56px;
-  border-top: 3px solid #245b48;
+  border-top: 3px solid var(--ink);
   border-bottom: 1px solid var(--line);
-  background: #f3f7f4;
+  background: var(--bg);
 }
 
 .plus-makeup-generator-heading {
@@ -683,25 +683,11 @@
   line-height: 1.65;
 }
 
-.plus-ai-label {
-  display: inline-flex;
-  min-height: 34px;
-  align-items: center;
-  gap: 7px;
-  padding: 0 12px;
-  border: 1px solid #245b48;
-  border-radius: 4px;
-  color: #174333;
-  background: #fff;
-  font-size: 11px;
-  font-weight: 700;
-}
-
 .plus-makeup-value-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-top: 1px solid #245b48;
-  border-bottom: 1px solid #245b48;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
 }
 
 .plus-makeup-value-strip span {
@@ -715,7 +701,7 @@
 }
 
 .plus-makeup-value-strip span + span {
-  border-left: 1px solid #a7beb4;
+  border-left: 1px solid var(--line);
 }
 
 .plus-makeup-config {
@@ -796,9 +782,9 @@
 }
 
 .plus-makeup-options input:checked + span {
-  border-color: #245b48;
-  color: #174333;
-  background: #e4eee8;
+  border-color: var(--ink);
+  color: var(--ink);
+  background: #f5f5f2;
   font-weight: 700;
 }
 
@@ -858,7 +844,7 @@
 
 .plus-makeup-consent {
   padding-top: 28px;
-  border-top: 1px solid #a7beb4;
+  border-top: 1px solid var(--line);
 }
 
 .plus-makeup-data-note {
@@ -869,7 +855,7 @@
 
 .plus-makeup-data-note > svg {
   flex: 0 0 auto;
-  color: #245b48;
+  color: var(--ink);
 }
 
 .plus-makeup-data-note h3,
@@ -945,7 +931,7 @@
   height: 17px;
   flex: 0 0 auto;
   margin: 1px 0 0;
-  accent-color: #245b48;
+  accent-color: var(--ink);
 }
 
 .plus-makeup-credit-note {
@@ -1033,7 +1019,7 @@
 }
 
 .plus-makeup-plans header > span {
-  color: #245b48;
+  color: var(--ink);
   font: 600 9px/1.4 "Space Mono", "Cascadia Mono", Consolas, monospace;
 }
 
@@ -1075,7 +1061,7 @@
 }
 
 .plus-makeup-plans ol strong {
-  color: #245b48;
+  color: var(--ink);
 }
 
 .plus-makeup-plan-notes {
@@ -1114,7 +1100,7 @@
 
 .plus-makeup-creators > div > svg {
   flex: 0 0 auto;
-  color: #245b48;
+  color: var(--ink);
 }
 
 .plus-makeup-creators p {
@@ -1137,7 +1123,7 @@
 .plus-makeup-creators li {
   min-width: 0;
   padding: 10px;
-  border-left: 2px solid #245b48;
+  border-left: 2px solid var(--ink);
   background: #fff;
   font-size: 11px;
   font-weight: 650;
@@ -1159,7 +1145,7 @@
 }
 
 .plus-makeup-unavailable > svg {
-  color: #245b48;
+  color: var(--ink);
 }
 
 .plus-makeup-unavailable h2,
@@ -1490,7 +1476,7 @@
   }
 
   .plus-makeup-value-strip span + span {
-    border-top: 1px solid #a7beb4;
+    border-top: 1px solid var(--line);
     border-left: 0;
   }
 

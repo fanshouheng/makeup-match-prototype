@@ -89,7 +89,7 @@ export function PlusMakeupReportGenerator({
     } catch (reportError) {
       setError(reportError instanceof Error
         ? reportError.message
-        : "AI 妆造报告暂时不可用，本次不会扣减额度。");
+        : "报告暂时不可用，本次不会扣减额度。");
     } finally {
       setLoading(false);
       setTurnstileToken("");
@@ -101,11 +101,10 @@ export function PlusMakeupReportGenerator({
     <section className="plus-makeup-generator" id="plus-makeup-generator" aria-labelledby="plus-makeup-generator-title">
       <div className="plus-member-section-heading plus-makeup-generator-heading">
         <div>
-          <p className="eyebrow">PLUS AI / 专属妆造</p>
+          <p className="eyebrow">PLUS / 专属妆造</p>
           <h2 id="plus-makeup-generator-title">生成面容报告和 3 套妆造方案</h2>
-          <p>先选场景与方向。生成成功后会保存到这台设备的「我的报告」。</p>
+          <p>选择场景和方向，报告将保存在这台设备。</p>
         </div>
-        <span className="plus-ai-label"><Sparkles size={16} />AI 生成</span>
       </div>
 
       <div className="plus-makeup-value-strip" aria-label="本次生成内容">
@@ -150,7 +149,7 @@ export function PlusMakeupReportGenerator({
 
         <fieldset>
           <legend>2. 选择妆造方向</legend>
-          <p>不确定时选择“让 AI 建议”。</p>
+          <p>不确定就选“帮我选择”。</p>
           <div className="plus-makeup-options plus-makeup-options--directions">
             {PLUS_MAKEUP_DIRECTIONS.map((option) => (
               <label key={option.value}>
@@ -163,7 +162,7 @@ export function PlusMakeupReportGenerator({
                   }}
                   type="radio"
                 />
-                <span>{option.label}</span>
+                <span>{option.value === "auto" ? "帮我选择" : option.label}</span>
               </label>
             ))}
           </div>
@@ -175,11 +174,11 @@ export function PlusMakeupReportGenerator({
           <ShieldCheck size={20} />
           <div>
             <h3>发送前由你决定</h3>
-            <p>同意后，九项精确比例、场景和妆造方向会发送给 DeepSeek 生成报告；豆包只接收结构文字摘要和方案重点，用于联网查找公开博主名字。不会发送照片、姓名、设备标识或本地匹配结果；第三方仍可能按其规则处理必要的安全与运行日志。</p>
+            <p>生成报告时会发送九项面部比例、场景和妆造方向；查找博主时只发送报告摘要和方案重点。不会发送照片、姓名或本地匹配结果。</p>
           </div>
         </div>
         <details>
-          <summary>查看将发送给 DeepSeek 的九项精确数据</summary>
+          <summary>查看将发送的九项面部比例</summary>
           <dl>
             {Object.entries(faceFeatures).map(([key, value]) => (
               <div key={key}>
@@ -195,7 +194,7 @@ export function PlusMakeupReportGenerator({
             onChange={(event) => setConsent(event.target.checked)}
             type="checkbox"
           />
-          <span>我已了解并同意发送上述数据，用于生成本次 AI 妆造报告和公开博主名字。</span>
+          <span>我同意发送上述信息，用于生成本次报告和查找公开博主。</span>
         </label>
         <p className="plus-makeup-credit-note">
           仅在完整报告成功返回后扣减 1 次额度。当前剩余 <strong>{remainingCredits}</strong> 次。
@@ -221,7 +220,7 @@ export function PlusMakeupReportGenerator({
           />
         ) : (
           <div className="notice notice-warning compact">
-            <AlertCircle size={16} /><p>AI 妆造报告正在进行安全配置。</p>
+            <AlertCircle size={16} /><p>报告功能正在进行安全配置。</p>
           </div>
         )}
 
@@ -256,7 +255,7 @@ export function PlusMakeupReportGenerator({
       {result && (
         <div className="plus-makeup-result" aria-live="polite">
           <div className="plus-makeup-result-heading">
-            <div><p className="eyebrow">GENERATED / AI 生成内容</p><h3>{result.title}</h3></div>
+            <div><p className="eyebrow">REPORT / 妆造报告</p><h3>{result.title}</h3></div>
             <button className="button button-ghost" onClick={() => setResult(undefined)} type="button">
               <RefreshCw size={16} />调整配置
             </button>
@@ -286,7 +285,7 @@ export function PlusMakeupReportGenerator({
           </div>
 
           <section className="plus-makeup-creators">
-            <div><Search size={20} /><div><h4>按方案发现的公开美妆博主</h4><p>由豆包联网查找，仅作为待核验线索，不代表主页归属、合作或照片授权已确认。</p></div></div>
+            <div><Search size={20} /><div><h4>按方案发现的公开美妆博主</h4><p>联网查找，仅作为待核验线索，不代表主页归属、合作或照片授权已确认。</p></div></div>
             <ol>{result.creatorNames.map((name) => <li key={name}>{name}</li>)}</ol>
           </section>
           <p className="plus-makeup-disclaimer">{result.disclaimer}</p>

@@ -53,7 +53,7 @@ export async function generatePlusMakeupReport(
   if (!error) {
     const value = data as { report?: unknown; remainingCredits?: unknown };
     if (!Number.isInteger(value.remainingCredits) || Number(value.remainingCredits) < 0) {
-      throw new Error("AI 妆造报告返回了无法识别的额度状态。" );
+      throw new Error("报告返回了无法识别的额度状态。" );
     }
     return {
       report: parsePlusMakeupReport(value.report),
@@ -72,12 +72,12 @@ export async function generatePlusMakeupReport(
   if (code === "membership_inactive") throw new Error("Plus 权益当前不可用，请联系运营者。" );
   if (code === "no_credits") throw new Error("体验额度已经用完，请联系运营者。" );
   if (code === "captcha_failed") throw new Error("安全验证已失效，请重新验证后重试。" );
-  if (code === "web_search_not_configured") throw new Error("AI 联网搜索尚未完成配置。" );
-  if (code === "service_not_configured") throw new Error("AI 妆造报告尚未完成服务配置。" );
+  if (code === "web_search_not_configured") throw new Error("博主查找尚未完成配置。" );
+  if (code === "service_not_configured") throw new Error("报告功能尚未完成服务配置。" );
   if (code === "invalid_request") throw new Error("本次配置无法生成报告，请检查后重试。" );
-  if (code === "invalid_provider_response") throw new Error("AI 返回内容不完整，请重新生成。" );
-  if (code === "timeout") throw new Error("AI 生成超时，本次不会扣减额度，请重试。" );
-  throw new Error("AI 妆造报告暂时不可用，本次不会扣减额度。" );
+  if (code === "invalid_provider_response") throw new Error("返回内容不完整，请重新生成。" );
+  if (code === "timeout") throw new Error("生成超时，本次不会扣减额度，请重试。" );
+  throw new Error("报告暂时不可用，本次不会扣减额度。" );
 }
 
 export type {

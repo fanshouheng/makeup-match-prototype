@@ -120,7 +120,7 @@ describe("Plus makeup report request", () => {
     });
 
     await expect(generatePlusMakeupReport(input)).rejects.toThrow(
-      "AI 生成超时，本次不会扣减额度，请重试。",
+      "生成超时，本次不会扣减额度，请重试。",
     );
     expect(invoke).toHaveBeenCalledTimes(1);
   });
