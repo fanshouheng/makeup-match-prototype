@@ -48,4 +48,10 @@ describe("Plus makeup report parsing", () => {
       choices: [{ message: { content: JSON.stringify(coreReport) } }],
     }).title).toBe(coreReport.title);
   });
+
+  it("parses a JSON response wrapped in a code fence", () => {
+    expect(parseDeepSeekPlusMakeupReport({
+      choices: [{ message: { content: `\`\`\`json\n${JSON.stringify(coreReport)}\n\`\`\`` } }],
+    }).title).toBe(coreReport.title);
+  });
 });

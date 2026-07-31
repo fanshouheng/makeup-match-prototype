@@ -256,7 +256,7 @@ function parseRequest(value: unknown): PlusMakeupRequest {
   };
 }
 
-function deepSeekMessages(input: PlusMakeupRequest) {
+function deepSeekMessages(input: PlusMakeupRequest, retry: boolean) {
   const featureData = Object.fromEntries(MALE_FACE_REPORT_FEATURE_KEYS.map((key) => [
     key,
     { label: FEATURE_LABELS[key], value: input.features[key] },
@@ -278,6 +278,10 @@ function deepSeekMessages(input: PlusMakeupRequest) {
         "必须给出 3 套有明显差异且适合所选场景的方案。每套步骤覆盖底妆、眉毛、眼妆、腮红或修容、唇妆，写清位置、方向、范围、质地或强度；产品只写品类和质地，不写品牌。",
         "方向为“让 AI 建议”时，根据场景和结构关系确定三套不同方向；否则三套都围绕用户所选方向做强度和重点变化。",
         "输出必须是 JSON 对象，不要 Markdown，不要附加解释。严格格式：{\"title\":\"不超过60字\",\"faceProfile\":{\"summary\":\"不超过420字\",\"focusAreas\":[\"2至4条，每条不超过140字\"],\"limitations\":[\"1至3条，每条不超过140字\"]},\"plans\":[{\"name\":\"不超过40字\",\"sceneFit\":\"不超过100字\",\"effect\":\"不超过180字\",\"steps\":[{\"area\":\"不超过16字\",\"instruction\":\"不超过180字\"}],\"products\":[\"3至7项，每项不超过60字\"],\"avoid\":[\"1至3项，每项不超过100字\"]}],\"disclaimer\":\"不超过160字，说明AI生成、仅供妆容参考且需结合本人肤色肤质试妆\"}。plans 必须正好 3 项，每项 steps 为 5 至 7 项。",
+        "为避免输出被截断，整体控制在 2600 个中文字符内：faceProfile.summary 不超过 180 字；focusAreas 为 2 至 3 条、每条不超过 60 字；limitations 为 1 至 2 条、每条不超过 60 字；每套 steps 正好 5 项、instruction 不超过 90 字；products 为 3 至 5 项、每项不超过 30 字；avoid 为 1 至 2 项、每项不超过 50 字；disclaimer 不超过 80 字。",
+        retry
+          ? "这是格式纠正重试。只输出一个完整、可解析的 JSON 对象，不得增加字段，不得使用代码围栏。"
+          : "务必在一次响应内完整结束 JSON，不要为了接近字数上限而扩写。",
       ].join("\n"),
     },
     {
@@ -302,14 +306,14 @@ async function generateCoreReport(
         },
         body: JSON.stringify({
           model: DEEPSEEK_MODEL,
-          messages: deepSeekMessages(input),
+          messages: deepSeekMessages(input, attempt > 1),
           response_format: { type: "json_object" },
           thinking: { type: "disabled" },
           max_tokens: 4200,
-          temperature: 0.55,
+          temperature: 0.3,
           stream: false,
         }),
-        signal: AbortSignal.timeout(35_000),
+        signal: AbortSignal.timeout(55_000),
       });
     } catch (error) {
       const timeout = error instanceof DOMException &&
@@ -320,10 +324,33 @@ async function generateCoreReport(
       console.error("plus_makeup_deepseek_status", response.status);
       throw new Error("provider_request_failed");
     }
+    let payload: unknown;
     try {
-      return parseDeepSeekPlusMakeupReport(await response.json());
+      payload = await response.json();
+    } catch (error) {
+      const timeout = error instanceof DOMException &&
+        (error.name === "TimeoutError" || error.name === "AbortError");
+      if (timeout) throw new Error("timeout");
+      payload = undefined;
+    }
+    try {
+      return parseDeepSeekPlusMakeupReport(payload);
     } catch {
-      console.warn("plus_makeup_invalid_deepseek_response", attempt);
+      const provider = payload as {
+        choices?: Array<{
+          finish_reason?: unknown;
+          message?: { content?: unknown };
+        }>;
+      } | undefined;
+      const choice = Array.isArray(provider?.choices) ? provider.choices[0] : undefined;
+      const content = choice?.message?.content;
+      console.warn("plus_makeup_invalid_deepseek_response", {
+        attempt,
+        contentLength: typeof content === "string" ? content.length : 0,
+        finishReason: typeof choice?.finish_reason === "string"
+          ? choice.finish_reason
+          : "unknown",
+      });
     }
   }
   throw new Error("invalid_provider_response");

@@ -166,7 +166,11 @@ export function parseDeepSeekPlusMakeupReport(response: unknown): PlusMakeupCore
     throw new Error("invalid_provider_response");
   }
   try {
-    return parsePlusMakeupCoreReport(JSON.parse(content));
+    const trimmed = content.trim();
+    const json = trimmed.startsWith("```")
+      ? trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")
+      : trimmed;
+    return parsePlusMakeupCoreReport(JSON.parse(json));
   } catch {
     throw new Error("invalid_provider_response");
   }
