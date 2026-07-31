@@ -49,13 +49,17 @@ npm run build
   consent and Turnstile verification. Do not persist the photo, AI result, or
   returned creator names; request provider-side conversation storage to be off.
 - Optional Plus makeup generation requires an active authenticated membership,
-  separate consent, Turnstile, and remaining credit. DeepSeek may receive only
-  the nine disclosed ratios, up to three scenes, and one fixed makeup direction.
-  Doubao may receive only the generated structural summary, plan highlights,
-  scenes, and direction; it must not receive the photo or exact ratios. Do not
-  persist inputs, prompts, reports, or creator names server-side. Consume one
-  credit atomically only after both validated outputs succeed, and label all
-  generated content and creator names as AI-generated and unverified.
+  separate consent, and remaining credit; it does not use Turnstile. DeepSeek
+  may receive only the nine disclosed ratios, up to three scenes, and one fixed
+  makeup direction. Doubao may receive only the generated structural summary,
+  plan highlights, scenes, and direction; it must not receive the photo or exact
+  ratios. A server-side job may temporarily associate the ratios, configuration,
+  generated report, and creator names with the Plus user for less than 24 hours
+  so generation can continue after the page closes. Clear exact ratios as soon
+  as generation finishes; delete the job after the report is saved to local
+  IndexedDB or expires. Reserve one credit atomically when the job is created,
+  refund it on failure or expiry, and label generated content and creator names
+  as AI-generated and unverified.
 - AI-discovered names are unverified public leads. Do not download or analyze
   candidate photos, present them as authorized, or import them into the creator
   library without the creator permissions required by this file.

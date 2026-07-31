@@ -1,4 +1,4 @@
-export const PLUS_MAKEUP_REPORT_CONSENT_VERSION = "2026-07-27";
+export const PLUS_MAKEUP_REPORT_CONSENT_VERSION = "2026-07-31";
 
 export const PLUS_MAKEUP_SCENES = [
   { value: "commute", label: "日常通勤" },

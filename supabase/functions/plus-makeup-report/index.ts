@@ -16,6 +16,7 @@ import {
 } from "../_shared/plusMakeupReport.ts";
 
 const MAX_REQUEST_BYTES = 24 * 1024;
+const STALE_JOB_MS = 3 * 60 * 1000;
 const DEEPSEEK_CHAT_URL = "https://api.deepseek.com/chat/completions";
 const DEEPSEEK_MODEL = "deepseek-v4-pro";
 const ARK_RESPONSES_URL = "https://ark.cn-beijing.volces.com/api/v3/responses";
@@ -55,19 +56,12 @@ const ALLOWED_DIRECTIONS = new Set<string>(
   PLUS_MAKEUP_DIRECTIONS.map((direction) => direction.value),
 );
 
-interface TurnstileOutcome {
-  action?: string;
-  hostname?: string;
-  success: boolean;
-}
-
 interface PlusMakeupRequest {
   consentVersion: string;
   customScene: string;
   direction: PlusMakeupDirection;
   features: Record<MaleFaceReportFeatureKey, number>;
   scenes: PlusMakeupScene[];
-  turnstileToken: string;
 }
 
 interface MembershipRow {
@@ -76,25 +70,40 @@ interface MembershipRow {
   trial_credits: number;
 }
 
+interface PlusMakeupJobRow {
+  id: string;
+  user_id: string;
+  status: "processing" | "succeeded" | "failed";
+  consent_version: string;
+  features: Record<MaleFaceReportFeatureKey, number> | null;
+  scenes: PlusMakeupScene[];
+  custom_scene: string;
+  direction: PlusMakeupDirection;
+  report: PlusMakeupReport | null;
+  error_code: string | null;
+  attempt_count: number;
+  processing_started_at: string;
+  created_at: string;
+  expires_at: string;
+}
+
+interface CreatedJobRow {
+  job_id: string;
+  job_status: "processing";
+  remaining_credits: number;
+  job_expires_at: string;
+  reused: boolean;
+}
+
+declare const EdgeRuntime: {
+  waitUntil(promise: Promise<unknown>): void;
+};
+
 function configuredOrigins(): string[] {
   return (Deno.env.get("ALLOWED_ORIGINS") ?? "")
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
-}
-
-function allowedHostnames(): string[] {
-  const hostnames = configuredOrigins().flatMap((origin) => {
-    try {
-      return [new URL(origin).hostname];
-    } catch {
-      return [];
-    }
-  });
-  if (Deno.env.get("ALLOW_LOCAL_ORIGINS") === "true") {
-    hostnames.push("localhost", "127.0.0.1");
-  }
-  return hostnames;
 }
 
 function resolveOrigin(request: Request): string | undefined {
@@ -183,28 +192,6 @@ async function authenticate(
   };
 }
 
-async function verifyTurnstile(
-  token: string,
-  secret: string,
-  clientIp: string,
-): Promise<boolean> {
-  const body = new FormData();
-  body.set("secret", secret);
-  body.set("response", token);
-  body.set("remoteip", clientIp);
-  const response = await fetch(
-    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-    { method: "POST", body },
-  );
-  const outcome = await response.json() as TurnstileOutcome;
-  return Boolean(
-    outcome.success &&
-    outcome.action === "plus_makeup_report" &&
-    outcome.hostname &&
-    allowedHostnames().includes(outcome.hostname),
-  );
-}
-
 function parseRequest(value: unknown): PlusMakeupRequest {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("invalid_request");
@@ -216,7 +203,6 @@ function parseRequest(value: unknown): PlusMakeupRequest {
     "direction",
     "features",
     "scenes",
-    "turnstileToken",
   ];
   if (Object.keys(input).sort().join("|") !== expectedKeys.sort().join("|")) {
     throw new Error("invalid_request");
@@ -233,9 +219,6 @@ function parseRequest(value: unknown): PlusMakeupRequest {
     new Set(input.scenes).size !== input.scenes.length ||
     input.scenes.length + (input.customScene.trim() ? 1 : 0) < 1 ||
     input.scenes.length + (input.customScene.trim() ? 1 : 0) > 3 ||
-    typeof input.turnstileToken !== "string" ||
-    !input.turnstileToken.trim() ||
-    input.turnstileToken.length > 4096 ||
     typeof input.features !== "object" ||
     input.features === null ||
     Array.isArray(input.features)
@@ -270,7 +253,6 @@ function parseRequest(value: unknown): PlusMakeupRequest {
     direction: input.direction as PlusMakeupDirection,
     features,
     scenes: input.scenes as PlusMakeupScene[],
-    turnstileToken: input.turnstileToken.trim(),
   };
 }
 
@@ -327,7 +309,7 @@ async function generateCoreReport(
           temperature: 0.55,
           stream: false,
         }),
-        signal: AbortSignal.timeout(45_000),
+        signal: AbortSignal.timeout(35_000),
       });
     } catch (error) {
       const timeout = error instanceof DOMException &&
@@ -403,7 +385,7 @@ async function discoverCreatorNames(
           },
         },
       }),
-      signal: AbortSignal.timeout(70_000),
+      signal: AbortSignal.timeout(55_000),
     });
   } catch (error) {
     const timeout = error instanceof DOMException &&
@@ -438,28 +420,188 @@ async function membershipFor(
   return result.data as MembershipRow | null;
 }
 
-async function consumeTrialCredit(
+const JOB_COLUMNS = [
+  "id",
+  "user_id",
+  "status",
+  "consent_version",
+  "features",
+  "scenes",
+  "custom_scene",
+  "direction",
+  "report",
+  "error_code",
+  "attempt_count",
+  "processing_started_at",
+  "created_at",
+  "expires_at",
+].join(",");
+
+function providerErrorCode(error: unknown): string {
+  if (!(error instanceof Error)) return "unexpected_error";
+  return [
+    "timeout",
+    "provider_request_failed",
+    "invalid_provider_response",
+    "web_search_not_configured",
+  ].includes(error.message)
+    ? error.message
+    : "unexpected_error";
+}
+
+function databaseErrorCode(error: { message?: string } | null): string | undefined {
+  if (!error?.message) return undefined;
+  return ["invalid_request", "membership_inactive", "no_credits"]
+    .find((code) => error.message?.includes(code));
+}
+
+function publicJob(job: PlusMakeupJobRow) {
+  return {
+    id: job.id,
+    status: job.status,
+    createdAt: job.created_at,
+    expiresAt: job.expires_at,
+    scenes: job.scenes,
+    customScene: job.custom_scene,
+    direction: job.direction,
+    report: job.status === "succeeded" ? job.report : undefined,
+    errorCode: job.status === "failed" ? job.error_code : undefined,
+  };
+}
+
+async function latestJob(
   admin: SupabaseClient,
   userId: string,
-  expectedCredits: number,
-): Promise<number | undefined> {
-  const now = new Date().toISOString();
+): Promise<PlusMakeupJobRow | null> {
   const result = await admin
-    .from("plus_memberships")
-    .update({
-      trial_credits: expectedCredits - 1,
-      updated_at: now,
-    })
+    .from("plus_makeup_jobs")
+    .select(JOB_COLUMNS)
     .eq("user_id", userId)
-    .eq("status", "active")
-    .eq("trial_credits", expectedCredits)
-    .gt("benefit_expires_at", now)
-    .select("trial_credits")
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (result.error) throw result.error;
-  return typeof result.data?.trial_credits === "number"
-    ? result.data.trial_credits
-    : undefined;
+  return result.data as PlusMakeupJobRow | null;
+}
+
+async function refundJob(
+  admin: SupabaseClient,
+  jobId: string,
+  userId: string,
+  errorCode: string,
+): Promise<void> {
+  const result = await admin.rpc("refund_plus_makeup_job", {
+    p_error_code: errorCode,
+    p_job_id: jobId,
+    p_user_id: userId,
+  });
+  if (result.error) throw result.error;
+}
+
+async function processJob(
+  admin: SupabaseClient,
+  job: PlusMakeupJobRow,
+): Promise<void> {
+  try {
+    const deepSeekApiKey = Deno.env.get("DEEPSEEK_API_KEY");
+    const arkApiKey = Deno.env.get("ARK_API_KEY");
+    const arkModel = Deno.env.get("ARK_MODEL");
+    if (!deepSeekApiKey || !arkApiKey || !arkModel) {
+      throw new Error("service_not_configured");
+    }
+    if (!job.features) throw new Error("invalid_request");
+
+    const input: PlusMakeupRequest = {
+      consentVersion: job.consent_version,
+      customScene: job.custom_scene,
+      direction: job.direction,
+      features: job.features,
+      scenes: job.scenes,
+    };
+    const coreReport = await generateCoreReport(deepSeekApiKey, input);
+    const creatorNames = await discoverCreatorNames(
+      arkApiKey,
+      arkModel,
+      input,
+      coreReport,
+    );
+    const report: PlusMakeupReport = { ...coreReport, creatorNames };
+    const update = await admin
+      .from("plus_makeup_jobs")
+      .update({
+        status: "succeeded",
+        features: null,
+        report,
+        error_code: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", job.id)
+      .eq("user_id", job.user_id)
+      .eq("status", "processing")
+      .select("id")
+      .maybeSingle();
+    if (update.error) throw update.error;
+  } catch (error) {
+    const code = error instanceof Error && error.message === "service_not_configured"
+      ? error.message
+      : providerErrorCode(error);
+    console.error("plus_makeup_background_failed", code);
+    await refundJob(admin, job.id, job.user_id, code).catch(() => {
+      console.error("plus_makeup_refund_failed");
+    });
+  }
+}
+
+function runInBackground(admin: SupabaseClient, job: PlusMakeupJobRow): void {
+  EdgeRuntime.waitUntil(processJob(admin, job));
+}
+
+async function resumeIfStale(
+  admin: SupabaseClient,
+  job: PlusMakeupJobRow,
+): Promise<PlusMakeupJobRow> {
+  if (
+    job.status !== "processing" ||
+    Date.now() - new Date(job.processing_started_at).getTime() < STALE_JOB_MS
+  ) {
+    return job;
+  }
+  if (job.attempt_count >= 2 || !job.features) {
+    await refundJob(admin, job.id, job.user_id, "timeout");
+    return (await latestJob(admin, job.user_id)) ?? job;
+  }
+
+  const now = new Date().toISOString();
+  const update = await admin
+    .from("plus_makeup_jobs")
+    .update({
+      attempt_count: job.attempt_count + 1,
+      processing_started_at: now,
+      updated_at: now,
+    })
+    .eq("id", job.id)
+    .eq("user_id", job.user_id)
+    .eq("status", "processing")
+    .eq("attempt_count", job.attempt_count)
+    .select(JOB_COLUMNS)
+    .maybeSingle();
+  if (update.error) throw update.error;
+  const resumed = update.data as PlusMakeupJobRow | null;
+  if (resumed) {
+    runInBackground(admin, resumed);
+    return resumed;
+  }
+  return (await latestJob(admin, job.user_id)) ?? job;
+}
+
+async function membershipCredits(
+  admin: SupabaseClient,
+  userId: string,
+): Promise<number> {
+  const membership = await membershipFor(admin, userId);
+  if (!membership) throw new Error("membership_inactive");
+  return membership.trial_credits;
 }
 
 Deno.serve(async (request) => {
@@ -473,55 +615,103 @@ Deno.serve(async (request) => {
     return reply(origin, 413, { code: "request_too_large" });
   }
 
-  const deepSeekApiKey = Deno.env.get("DEEPSEEK_API_KEY");
-  const arkApiKey = Deno.env.get("ARK_API_KEY");
-  const arkModel = Deno.env.get("ARK_MODEL");
-  const turnstileSecret = Deno.env.get("CLOUDFLARE_SECRET_KEY");
-  if (!deepSeekApiKey || !arkApiKey || !arkModel || !turnstileSecret) {
-    return reply(origin, 503, { code: "service_not_configured" });
-  }
-
   try {
     const identity = await authenticate(request, origin);
     if (identity instanceof Response) return identity;
-    const input = parseRequest(await request.json());
-    const membership = await membershipFor(identity.admin, identity.userId);
+    const body = await request.json();
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      throw new Error("invalid_request");
+    }
+    const action = (body as Record<string, unknown>).action;
+
+    if (action === "start") {
+      const raw = body as Record<string, unknown>;
+      const input = parseRequest(Object.fromEntries(
+        Object.entries(raw).filter(([key]) => key !== "action"),
+      ));
+      if (
+        !Deno.env.get("DEEPSEEK_API_KEY") ||
+        !Deno.env.get("ARK_API_KEY") ||
+        !Deno.env.get("ARK_MODEL")
+      ) {
+        return reply(origin, 503, { code: "service_not_configured" });
+      }
+
+      const created = await identity.admin.rpc("create_plus_makeup_job", {
+        p_consent_version: input.consentVersion,
+        p_custom_scene: input.customScene,
+        p_direction: input.direction,
+        p_features: input.features,
+        p_scenes: input.scenes,
+        p_user_id: identity.userId,
+      });
+      const createCode = databaseErrorCode(created.error);
+      if (createCode) throw new Error(createCode);
+      if (created.error) throw created.error;
+      const row = (created.data as CreatedJobRow[] | null)?.[0];
+      if (!row) throw new Error("unexpected_error");
+
+      if (row.reused) {
+        const existing = await latestJob(identity.admin, identity.userId);
+        if (!existing) throw new Error("unexpected_error");
+        const resumed = await resumeIfStale(identity.admin, existing);
+        return reply(origin, 202, {
+          job: publicJob(resumed),
+          remainingCredits: row.remaining_credits,
+        });
+      }
+
+      const job: PlusMakeupJobRow = {
+        id: row.job_id,
+        user_id: identity.userId,
+        status: "processing",
+        consent_version: input.consentVersion,
+        features: input.features,
+        scenes: input.scenes,
+        custom_scene: input.customScene,
+        direction: input.direction,
+        report: null,
+        error_code: null,
+        attempt_count: 1,
+        processing_started_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        expires_at: row.job_expires_at,
+      };
+      runInBackground(identity.admin, job);
+      return reply(origin, 202, {
+        job: publicJob(job),
+        remainingCredits: row.remaining_credits,
+      });
+    }
+
+    if (action === "status" && Object.keys(body).length === 1) {
+      const job = await latestJob(identity.admin, identity.userId);
+      const current = job ? await resumeIfStale(identity.admin, job) : null;
+      return reply(origin, 200, {
+        job: current ? publicJob(current) : null,
+        remainingCredits: await membershipCredits(identity.admin, identity.userId),
+      });
+    }
+
     if (
-      !membership ||
-      membership.status !== "active" ||
-      new Date(membership.benefit_expires_at).getTime() <= Date.now()
+      action === "ack" &&
+      Object.keys(body).sort().join("|") === "action|jobId" &&
+      typeof (body as Record<string, unknown>).jobId === "string"
     ) {
-      return reply(origin, 403, { code: "membership_inactive" });
-    }
-    if (membership.trial_credits <= 0) {
-      return reply(origin, 409, { code: "no_credits" });
+      const jobId = (body as { jobId: string }).jobId;
+      const deletion = await identity.admin
+        .from("plus_makeup_jobs")
+        .delete()
+        .eq("id", jobId)
+        .eq("user_id", identity.userId)
+        .in("status", ["succeeded", "failed"])
+        .select("id")
+        .maybeSingle();
+      if (deletion.error) throw deletion.error;
+      return reply(origin, 200, { acknowledged: Boolean(deletion.data) });
     }
 
-    const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-    const clientIp = request.headers.get("cf-connecting-ip") ?? forwardedFor;
-    if (!clientIp) return reply(origin, 400, { code: "client_address_missing" });
-    if (!await verifyTurnstile(input.turnstileToken, turnstileSecret, clientIp)) {
-      return reply(origin, 403, { code: "captcha_failed" });
-    }
-
-    const coreReport = await generateCoreReport(deepSeekApiKey, input);
-    const creatorNames = await discoverCreatorNames(
-      arkApiKey,
-      arkModel,
-      input,
-      coreReport,
-    );
-    const report: PlusMakeupReport = { ...coreReport, creatorNames };
-
-    const remainingCredits = await consumeTrialCredit(
-      identity.admin,
-      identity.userId,
-      membership.trial_credits,
-    );
-    if (!Number.isInteger(remainingCredits)) {
-      return reply(origin, 409, { code: "no_credits" });
-    }
-    return reply(origin, 200, { report, remainingCredits });
+    throw new Error("invalid_request");
   } catch (error) {
     if (
       error instanceof SyntaxError ||
@@ -529,21 +719,11 @@ Deno.serve(async (request) => {
     ) {
       return reply(origin, 400, { code: "invalid_request" });
     }
-    const knownCode = error instanceof Error
-      ? [
-        "timeout",
-        "provider_request_failed",
-        "invalid_provider_response",
-        "web_search_not_configured",
-      ].find((code) => code === error.message)
-      : undefined;
-    if (knownCode) {
-      const status = knownCode === "timeout"
-        ? 504
-        : knownCode === "web_search_not_configured"
-          ? 503
-          : 502;
-      return reply(origin, status, { code: knownCode });
+    if (error instanceof Error && error.message === "membership_inactive") {
+      return reply(origin, 403, { code: error.message });
+    }
+    if (error instanceof Error && error.message === "no_credits") {
+      return reply(origin, 409, { code: error.message });
     }
     console.error("plus_makeup_report_unexpected_error");
     return reply(origin, 500, { code: "unexpected_error" });

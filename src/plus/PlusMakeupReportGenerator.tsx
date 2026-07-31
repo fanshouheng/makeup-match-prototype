@@ -1,8 +1,4 @@
 import {
-  Turnstile,
-  type TurnstileInstance,
-} from "@marsidev/react-turnstile";
-import {
   AlertCircle,
   Check,
   FileText,
@@ -13,13 +9,17 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import { useRef, useState } from "react";
-import { hasTurnstileConfig, turnstileSiteKey } from "../config";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FaceFeatureVector } from "../domain/faceFeatures";
 import { FEATURE_LABELS } from "../domain/featureLabels";
 import {
-  generatePlusMakeupReport,
+  acknowledgePlusMakeupReportJob,
+  getPlusMakeupReportJob,
+  plusMakeupJobFailureMessage,
+  startPlusMakeupReport,
   type PlusMakeupDirection,
+  type PlusMakeupJobResponse,
+  type PlusMakeupJobStatus,
   type PlusMakeupReport,
   type PlusMakeupScene,
 } from "../services/plusMakeupReport";
@@ -32,30 +32,102 @@ interface PlusMakeupReportGeneratorProps {
   faceFeatures: FaceFeatureVector;
   remainingCredits: number;
   onGenerated: (value: {
+    createdAt: string;
     customScene: string;
     direction: PlusMakeupDirection;
+    id: string;
     remainingCredits: number;
     report: PlusMakeupReport;
     scenes: PlusMakeupScene[];
   }) => Promise<void> | void;
+  onCreditsChanged: (remainingCredits: number) => void;
 }
 
 export function PlusMakeupReportGenerator({
   faceFeatures,
   onGenerated,
+  onCreditsChanged,
   remainingCredits,
 }: PlusMakeupReportGeneratorProps) {
-  const turnstileRef = useRef<TurnstileInstance | undefined>(undefined);
   const [scenes, setScenes] = useState<PlusMakeupScene[]>([]);
   const [customScene, setCustomScene] = useState("");
   const [direction, setDirection] = useState<PlusMakeupDirection>("auto");
   const [consent, setConsent] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState("");
   const [loading, setLoading] = useState(false);
+  const [jobStatus, setJobStatus] = useState<PlusMakeupJobStatus | null>(null);
   const [error, setError] = useState("");
   const [result, setResult] = useState<PlusMakeupReport>();
+  const onGeneratedRef = useRef(onGenerated);
+  const onCreditsChangedRef = useRef(onCreditsChanged);
+  const deliveringJobRef = useRef<string | undefined>(undefined);
   const customSceneText = customScene.trim();
   const selectedSceneCount = scenes.length + (customSceneText ? 1 : 0);
+
+  useEffect(() => {
+    onGeneratedRef.current = onGenerated;
+    onCreditsChangedRef.current = onCreditsChanged;
+  });
+
+  const handleJobResponse = useCallback(async (response: PlusMakeupJobResponse) => {
+    onCreditsChangedRef.current(response.remainingCredits);
+    const job = response.job;
+    if (!job) {
+      setJobStatus(null);
+      return;
+    }
+    if (job.status === "processing") {
+      setJobStatus(job.status);
+      return;
+    }
+    if (job.status === "failed") {
+      setJobStatus(null);
+      setError(plusMakeupJobFailureMessage(job.errorCode));
+      await acknowledgePlusMakeupReportJob(job.id).catch(() => undefined);
+      return;
+    }
+    if (!job.report || deliveringJobRef.current === job.id) return;
+
+    deliveringJobRef.current = job.id;
+    setJobStatus(job.status);
+    try {
+      setResult(job.report);
+      await onGeneratedRef.current({
+        createdAt: job.createdAt,
+        customScene: job.customScene,
+        direction: job.direction,
+        id: job.id,
+        remainingCredits: response.remainingCredits,
+        report: job.report,
+        scenes: job.scenes,
+      });
+      await acknowledgePlusMakeupReportJob(job.id);
+      setJobStatus(null);
+    } catch (deliveryError) {
+      setError(deliveryError instanceof Error
+        ? deliveryError.message
+        : "报告已生成，但保存到本机失败，请刷新后重试。");
+    } finally {
+      deliveringJobRef.current = undefined;
+    }
+  }, []);
+
+  const refreshJob = useCallback(async () => {
+    try {
+      await handleJobResponse(await getPlusMakeupReportJob());
+    } catch (jobError) {
+      setError(jobError instanceof Error ? jobError.message : "报告任务状态读取失败。");
+    }
+  }, [handleJobResponse]);
+
+  useEffect(() => {
+    void refreshJob();
+  }, [refreshJob]);
+
+  useEffect(() => {
+    if (jobStatus !== "processing") return;
+    const interval = window.setInterval(() => void refreshJob(), 3_000);
+    return () => window.clearInterval(interval);
+  }, [jobStatus, refreshJob]);
 
   function toggleScene(scene: PlusMakeupScene) {
     setResult(undefined);
@@ -70,30 +142,20 @@ export function PlusMakeupReportGenerator({
     setError("");
     setLoading(true);
     try {
-      const response = await generatePlusMakeupReport({
+      const response = await startPlusMakeupReport({
         consent,
         customScene,
         direction,
         features: faceFeatures,
         scenes,
-        turnstileToken,
       });
-      setResult(response.report);
-      await onGenerated({
-        customScene: customSceneText,
-        direction,
-        remainingCredits: response.remainingCredits,
-        report: response.report,
-        scenes,
-      });
+      await handleJobResponse(response);
     } catch (reportError) {
       setError(reportError instanceof Error
         ? reportError.message
         : "报告暂时不可用，本次不会扣减额度。");
     } finally {
       setLoading(false);
-      setTurnstileToken("");
-      turnstileRef.current?.reset();
     }
   }
 
@@ -103,7 +165,7 @@ export function PlusMakeupReportGenerator({
         <div>
           <p className="eyebrow">PLUS / 专属妆造</p>
           <h2 id="plus-makeup-generator-title">生成面容报告和 3 套妆造方案</h2>
-          <p>选择场景和方向，报告将保存在这台设备。</p>
+          <p>选择场景和方向。生成可在后台继续，完成后报告保存在这台设备。</p>
         </div>
       </div>
 
@@ -174,7 +236,7 @@ export function PlusMakeupReportGenerator({
           <ShieldCheck size={20} />
           <div>
             <h3>发送前由你决定</h3>
-            <p>生成报告时会发送九项面部比例、场景和妆造方向；查找博主时只发送报告摘要和方案重点。不会发送照片、姓名或本地匹配结果。</p>
+            <p>生成报告时会发送九项面部比例、场景和妆造方向；查找博主时只发送报告摘要和方案重点。不会发送照片、姓名或本地匹配结果。任务数据最多临时保存 24 小时，报告保存到本机后立即删除服务端副本。</p>
           </div>
         </div>
         <details>
@@ -194,33 +256,16 @@ export function PlusMakeupReportGenerator({
             onChange={(event) => setConsent(event.target.checked)}
             type="checkbox"
           />
-          <span>我同意发送上述信息，用于生成本次报告和查找公开博主。</span>
+          <span>我同意发送并临时保存上述信息，用于在后台生成本次报告和查找公开博主。</span>
         </label>
         <p className="plus-makeup-credit-note">
-          仅在完整报告成功返回后扣减 1 次额度。当前剩余 <strong>{remainingCredits}</strong> 次。
+          点击生成后预占 1 次额度；失败会自动退回。当前剩余 <strong>{remainingCredits}</strong> 次。
         </p>
 
-        {hasTurnstileConfig ? (
-          <Turnstile
-            ref={turnstileRef}
-            className="turnstile-widget"
-            siteKey={turnstileSiteKey}
-            onSuccess={setTurnstileToken}
-            onExpire={() => setTurnstileToken("")}
-            onError={() => {
-              setTurnstileToken("");
-              setError("安全验证加载失败，请刷新后重试。");
-            }}
-            options={{
-              action: "plus_makeup_report",
-              language: "zh-cn",
-              size: "compact",
-              theme: "light",
-            }}
-          />
-        ) : (
-          <div className="notice notice-warning compact">
-            <AlertCircle size={16} /><p>报告功能正在进行安全配置。</p>
+        {jobStatus === "processing" && (
+          <div className="notice notice-info compact" role="status">
+            <LoaderCircle className="spin" size={17} />
+            <p>报告正在后台生成。现在可以离开页面，回来后会自动继续显示进度和结果。</p>
           </div>
         )}
 
@@ -238,17 +283,16 @@ export function PlusMakeupReportGenerator({
           className="button button-primary plus-makeup-submit"
           disabled={
             loading ||
+            jobStatus === "processing" ||
             remainingCredits <= 0 ||
             selectedSceneCount === 0 ||
-            !consent ||
-            !hasTurnstileConfig ||
-            !turnstileToken
+            !consent
           }
           onClick={() => void handleGenerate()}
           type="button"
         >
-          {loading ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
-          {loading ? "正在生成完整报告" : "生成我的 Plus 报告"}
+          {loading || jobStatus === "processing" ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+          {loading ? "正在创建任务" : jobStatus === "processing" ? "报告正在后台生成" : "生成我的 Plus 报告"}
         </button>
       </div>
 

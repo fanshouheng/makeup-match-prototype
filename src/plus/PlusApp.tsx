@@ -261,16 +261,20 @@ export default function PlusApp() {
   }
 
   async function handlePlusMakeupGenerated(value: {
+    createdAt: string;
     customScene: string;
     direction: PlusMakeupDirection;
+    id: string;
     remainingCredits: number;
     report: PlusMakeupReport;
     scenes: PlusMakeupScene[];
   }) {
     if (!session) return;
     const savedReport = await saveLocalPlusMakeupReport({
+      createdAt: value.createdAt,
       customScene: value.customScene,
       direction: value.direction,
+      id: value.id,
       report: value.report,
       scenes: value.scenes,
     }, session.user.id);
@@ -331,7 +335,7 @@ export default function PlusApp() {
               <section className="plus-member-summary" aria-label="会员权益与本地档案说明">
                 <div>
                   <ShieldCheck size={20} />
-                  <p><strong>只保存在这台设备</strong>照片、面部比例和报告不会上传到会员数据库，也不会跨设备同步。</p>
+                  <p><strong>照片始终只在本机</strong>Plus 任务会临时保存九项比例和报告，完成并保存到本机后立即删除，最长不超过 24 小时。</p>
                 </div>
                 <dl>
                   <div><dt>会员状态</dt><dd>已激活</dd></div>
@@ -395,6 +399,9 @@ export default function PlusApp() {
               {localProfile?.analysis?.referenceAudience === "women" ? (
                 <PlusMakeupReportGenerator
                   faceFeatures={localProfile.analysis.analysis.features}
+                  onCreditsChanged={(remainingCredits) => setMembership((current) => current
+                    ? { ...current, trialCredits: remainingCredits }
+                    : current)}
                   onGenerated={handlePlusMakeupGenerated}
                   remainingCredits={membership.trialCredits}
                 />

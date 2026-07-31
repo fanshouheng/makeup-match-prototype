@@ -752,6 +752,12 @@ h3 {
   background: var(--warning-bg);
 }
 
+.plus-makeup-consent .notice-info {
+  color: #245b48;
+  border-color: rgba(36, 91, 72, 0.18);
+  background: #eef4f1;
+}
+
 .notice-error {
   color: var(--error-ink);
   background: var(--error-bg);

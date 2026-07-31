@@ -3,13 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { FaceFeatureVector } from "../domain/faceFeatures";
 import { PlusMakeupReportGenerator } from "./PlusMakeupReportGenerator";
 
-vi.mock("../config", () => ({
-  hasTurnstileConfig: false,
-  turnstileSiteKey: "",
-}));
-
 vi.mock("../services/plusMakeupReport", () => ({
-  generatePlusMakeupReport: vi.fn(),
+  acknowledgePlusMakeupReportJob: vi.fn(),
+  getPlusMakeupReportJob: vi.fn(),
+  plusMakeupJobFailureMessage: vi.fn(),
+  startPlusMakeupReport: vi.fn(),
 }));
 
 const features: FaceFeatureVector = {
@@ -29,6 +27,7 @@ describe("PlusMakeupReportGenerator", () => {
     const html = renderToStaticMarkup(
       <PlusMakeupReportGenerator
         faceFeatures={features}
+        onCreditsChanged={vi.fn()}
         onGenerated={vi.fn()}
         remainingCredits={3}
       />,
@@ -39,6 +38,7 @@ describe("PlusMakeupReportGenerator", () => {
     expect(html).toContain("帮我选择");
     expect(html).toContain("我要参加毕业典礼");
     expect(html).toContain("查看将发送的九项面部比例");
+    expect(html).toContain("最多临时保存 24 小时");
     expect(html).toContain("当前剩余 <strong>3</strong> 次");
     expect(html).not.toMatch(/AI|DeepSeek|豆包/);
   });

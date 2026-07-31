@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FaceFeatureVector } from "../domain/faceFeatures";
 import {
+  acknowledgePlusMakeupReportJob,
   buildPlusMakeupReportRequest,
-  generatePlusMakeupReport,
+  getPlusMakeupReportJob,
+  plusMakeupJobFailureMessage,
+  startPlusMakeupReport,
 } from "./plusMakeupReport";
 
 const invoke = vi.hoisted(() => vi.fn());
@@ -51,7 +54,6 @@ const input = {
   direction: "clean" as const,
   features,
   scenes: ["graduation" as const],
-  turnstileToken: "test-turnstile-token",
 };
 
 describe("Plus makeup report request", () => {
@@ -66,8 +68,8 @@ describe("Plus makeup report request", () => {
       direction: "clean",
       features: { ...features, faceAspectRatio: 1.23456789 },
       scenes: ["graduation"],
-      turnstileToken: "token",
     })).toMatchObject({
+      action: "start",
       customScene: "我要参加毕业典礼",
       direction: "clean",
       features: { faceAspectRatio: 1.234568 },
@@ -82,46 +84,78 @@ describe("Plus makeup report request", () => {
       direction: "auto",
       features,
       scenes: [],
-      turnstileToken: "token",
     })).toThrow("请先同意");
   });
 
-  it("invokes the Edge Function and validates a complete response", async () => {
+  it("starts a background job without a Turnstile token", async () => {
     invoke.mockResolvedValueOnce({
-      data: { report, remainingCredits: 2 },
+      data: {
+        job: {
+          id: "job-1",
+          status: "processing",
+          createdAt: "2026-07-31T09:00:00.000Z",
+          expiresAt: "2026-08-01T09:00:00.000Z",
+          customScene: "我要参加毕业典礼",
+          direction: "clean",
+          scenes: ["graduation"],
+        },
+        remainingCredits: 2,
+      },
       error: null,
     });
 
-    await expect(generatePlusMakeupReport(input)).resolves.toEqual({
-      report,
+    await expect(startPlusMakeupReport(input)).resolves.toMatchObject({
+      job: { id: "job-1", status: "processing" },
       remainingCredits: 2,
     });
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke).toHaveBeenCalledWith("plus-makeup-report", {
       body: expect.objectContaining({
-        consentVersion: "2026-07-27",
+        action: "start",
+        consentVersion: "2026-07-31",
         customScene: "我要参加毕业典礼",
         direction: "clean",
         features,
         scenes: ["graduation"],
-        turnstileToken: "test-turnstile-token",
       }),
     });
   });
 
-  it("surfaces a timeout as a no-credit-consumed failure", async () => {
+  it("loads and validates a completed background report", async () => {
     invoke.mockResolvedValueOnce({
-      data: null,
-      error: {
-        context: new Response(JSON.stringify({ code: "timeout" }), {
-          status: 504,
-        }),
+      data: {
+        job: {
+          id: "job-1",
+          status: "succeeded",
+          createdAt: "2026-07-31T09:00:00.000Z",
+          expiresAt: "2026-08-01T09:00:00.000Z",
+          customScene: "我要参加毕业典礼",
+          direction: "clean",
+          scenes: ["graduation"],
+          report,
+        },
+        remainingCredits: 2,
       },
+      error: null,
     });
 
-    await expect(generatePlusMakeupReport(input)).rejects.toThrow(
-      "生成超时，本次不会扣减额度，请重试。",
-    );
+    await expect(getPlusMakeupReportJob()).resolves.toMatchObject({
+      job: { id: "job-1", status: "succeeded", report },
+      remainingCredits: 2,
+    });
     expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke).toHaveBeenCalledWith("plus-makeup-report", {
+      body: { action: "status" },
+    });
+  });
+
+  it("acknowledges a locally saved report and explains refunded failures", async () => {
+    invoke.mockResolvedValueOnce({ data: { acknowledged: true }, error: null });
+
+    await expect(acknowledgePlusMakeupReportJob("job-1")).resolves.toBeUndefined();
+    expect(invoke).toHaveBeenCalledWith("plus-makeup-report", {
+      body: { action: "ack", jobId: "job-1" },
+    });
+    expect(plusMakeupJobFailureMessage("timeout")).toContain("额度已退回");
   });
 });
