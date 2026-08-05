@@ -590,7 +590,7 @@ function MetricsPanel({
             <span>PLUS INTENT ARCHIVE</span>
             <h3 id="admin-plus-title">Plus 历史意向数据</h3>
           </div>
-          <p>三档随机价格实验已结束；当前结果页固定 ¥9.9/次，并统一导向邀请制内测。</p>
+          <p>三档随机价格实验已结束；当前结果页统一导向 ¥9.9 邀请制内测包。</p>
         </div>
         <div className="admin-ai-table-wrap">
           <table className="admin-ai-table admin-plus-table">

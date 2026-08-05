@@ -30,10 +30,7 @@ import type {
 } from "../services/productMetrics";
 import { AiCreatorDiscovery } from "./AiCreatorDiscovery";
 import { CreatorPhoto } from "./CreatorPhoto";
-import {
-  PlusPaidIntentExperiment,
-  PlusPaidIntentSpotlight,
-} from "./PlusPaidIntentExperiment";
+import { PlusOffer } from "./PlusOffer";
 
 const CONTENT_LABELS: Record<CreatorContentType, string> = {
   appearance: "形象参考",
@@ -77,8 +74,7 @@ interface MatchResultsProps {
   onNegativeFeedbackSubmit: (details: MatchNegativeFeedbackDetails) => void;
   onShare: () => void;
   onViewCreators: () => void;
-  showPlusOffer?: boolean;
-  showPlusSpotlight?: boolean;
+  showPlus?: boolean;
   userPhoto?: HTMLImageElement;
 }
 
@@ -98,8 +94,7 @@ export function MatchResults({
   onNegativeFeedbackSubmit,
   onShare,
   onViewCreators,
-  showPlusOffer = false,
-  showPlusSpotlight = false,
+  showPlus = false,
   userPhoto,
 }: MatchResultsProps) {
   const [negativeReasons, setNegativeReasons] = useState<MatchNegativeFeedbackReason[]>([]);
@@ -329,8 +324,8 @@ export function MatchResults({
               </div>
             </article>
           )}
-          {showPlusSpotlight && showPrimary && primaryMatch && !isMen && (
-            <PlusPaidIntentSpotlight />
+          {showPlus && showPrimary && primaryMatch && !isMen && (
+            <PlusOffer />
           )}
           {showPrimary && primaryMatch && (
             <section
@@ -557,7 +552,6 @@ export function MatchResults({
           </div>}
         </>
       )}
-      {showPlusOffer && primaryMatch && !isMen && <PlusPaidIntentExperiment />}
       {showPrimary && userPhoto && (
         <AiCreatorDiscovery
           key={`${referenceAudience}:${contentFilter}`}

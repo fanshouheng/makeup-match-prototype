@@ -765,8 +765,7 @@ function App() {
                         onShare={shareCurrentResult}
                         onViewCreators={() => navigate("creators")}
                         shareStatus={shareStatus}
-                        showPlusOffer={matches.length === 1}
-                        showPlusSpotlight
+                        showPlus
                         userPhoto={photo.image}
                       />
                     </div>
@@ -810,7 +809,6 @@ function App() {
                   onShare={shareCurrentResult}
                   onViewCreators={() => navigate("creators")}
                   shareStatus={shareStatus}
-                  showPlusOffer
                 />
               )}
 
@@ -840,8 +838,7 @@ function App() {
                     onShare={shareCurrentResult}
                     onViewCreators={() => navigate("creators")}
                     shareStatus={shareStatus}
-                    showPlusOffer
-                    showPlusSpotlight
+                    showPlus
                     userPhoto={photo.image}
                   />
                 ) : null

@@ -512,12 +512,12 @@ export default function PlusApp() {
           <div>
             <p className="eyebrow">PLUS / 邀请制内测</p>
             <h1 id="plus-account-title">准备购买后，先添加微信</h1>
-            <p>付款前会在微信确认本期名额、交付内容、时间和退款方式。确认后付款，运营者会发送一个一次性邀请码。</p>
+            <p>¥9.9 包含 1 份正式报告和 2 次内测重试。付款前会在微信确认本期名额、交付时间和退款方式。</p>
           </div>
-          <div className="plus-beta-price" aria-label="付费内测价格 9.9 元每次">
+          <div className="plus-beta-price" aria-label="付费内测价格 9.9 元，包含三次报告额度">
             <span>限量付费内测</span>
             <strong>¥9.9</strong>
-            <small>/ 次</small>
+            <small>/ 早期内测</small>
           </div>
         </section>
 
@@ -534,7 +534,7 @@ export default function PlusApp() {
               <span>02</span>
               <div>
                 <h2>确认后付款并领取邀请码</h2>
-                <p>运营者人工确认付款后发送邀请码。每个邀请码只能激活一个邮箱账号。</p>
+                <p>支付 ¥9.9 后获得 1 份正式报告和 2 次内测重试。运营者确认付款后发送邀请码。</p>
               </div>
             </div>
             <div className="plus-flow-step">
@@ -558,7 +558,7 @@ export default function PlusApp() {
             <p>首次注册需要邀请码，成功后立即登录。密码由 Supabase Auth 负责认证，业务表不会保存密码明文，也不会保存照片、面部比例、报告或博主结果。</p>
             <div className="plus-benefits">
               <p><Sparkles size={17} /><span><strong>早期用户资格</strong>后续 Plus 功能优先体验</span></p>
-              <p><CheckCircle2 size={17} /><span><strong>3 次体验额度</strong>自激活起 180 天内有效</span></p>
+              <p><CheckCircle2 size={17} /><span><strong>共 3 次报告额度</strong>1 份正式报告 + 2 次内测重试，180 天内有效</span></p>
               <p><ShieldCheck size={17} /><span><strong>免费功能不变</strong>不登录也能继续匹配</span></p>
             </div>
           </div>

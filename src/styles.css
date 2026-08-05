@@ -1167,10 +1167,19 @@ h3 {
 }
 
 .plus-spotlight-copy > p:last-child {
+  display: flex;
+  flex-wrap: wrap;
   margin-top: 6px;
+  gap: 6px 14px;
   color: #c9c9c2;
   font-size: 13px;
   line-height: 1.6;
+}
+
+.plus-spotlight-copy > p:last-child span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .plus-spotlight-action {
