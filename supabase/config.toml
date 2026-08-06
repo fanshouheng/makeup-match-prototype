@@ -8,7 +8,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.ai-creator-discovery]
-verify_jwt = false
+verify_jwt = true
 
 [functions.male-face-report]
 verify_jwt = false

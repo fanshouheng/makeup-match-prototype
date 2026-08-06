@@ -13,6 +13,7 @@ export interface AiCreatorDiscoveryResult {
 }
 
 interface AiCreatorDiscoveryInput {
+  accessToken: string;
   contentFilter: CreatorContentFilter;
   image: HTMLImageElement;
   referenceAudience: ReferenceAudience;
@@ -86,6 +87,7 @@ export function parseAiCreatorDiscoveryResult(
 }
 
 export async function discoverCreatorsWithAi({
+  accessToken,
   contentFilter,
   image,
   referenceAudience,
@@ -102,6 +104,7 @@ export async function discoverCreatorsWithAi({
   const supabase = await getSupabaseClient();
   const { data, error } = await supabase.functions.invoke("ai-creator-discovery", {
     body,
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!error) return parseAiCreatorDiscoveryResult(data);
 
@@ -116,6 +119,9 @@ export async function discoverCreatorsWithAi({
 
   if (code === "rate_limited") {
     throw new Error("AI 推荐次数较多，请一小时后再试。");
+  }
+  if (code === "auth_required") {
+    throw new Error("请先登录免费账号，再使用 AI 推荐。");
   }
   if (code === "captcha_failed") {
     throw new Error("安全验证已失效，请重新验证后重试。");

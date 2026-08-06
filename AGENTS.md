@@ -2,8 +2,9 @@
 
 ## Positioning
 
-MAKE UP is a privacy-first makeup-reference prototype with free base matching
-and a 9.9 yuan invitation-only Plus beta. A user selects a front-facing photo,
+MAKE UP is a privacy-first makeup-reference prototype with login-free base
+matching, free account-gated AI creator discovery, and a 9.9 yuan
+invitation-only Plus beta. A user selects a front-facing photo,
 and the browser measures face-structure proportions locally.
 The women flow returns authorized creators and tutorial links. Activated Plus
 users can separately consent to send nine disclosed exact ratios and scene/style
@@ -46,9 +47,10 @@ npm run build
   consent and Turnstile verification. Do not send the photo, landmarks, identity,
   device/session identifiers, creator data, or local rankings. Do not persist
   ratios, prompts, or generated reports, and label the result as AI-generated.
-- Optional AI discovery may send only a canvas-reencoded JPEG after separate
-  consent and Turnstile verification. Do not persist the photo, AI result, or
-  returned creator names; request provider-side conversation storage to be off.
+- Optional AI discovery requires an authenticated free account and may send only
+  a canvas-reencoded JPEG after separate consent and Turnstile verification. Do
+  not persist the photo, AI result, returned creator names, or user ID in AI
+  invocation logs; request provider-side conversation storage to be off.
 - Optional Plus makeup generation requires an active authenticated membership,
   separate consent, and remaining credit; it does not use Turnstile. DeepSeek
   may receive only the nine disclosed ratios, up to three scenes, and one fixed
@@ -96,6 +98,7 @@ The result page supports login-free yes/no feedback, local share-poster
 generation, a separately consented DeepSeek men report, separately consented AI
 names-only discovery, and the 9.9 yuan invitation-only Plus beta. Feedback,
 share, and AI telemetry must remain aggregate and must not include user photos,
-face proportions, match scores, creator names, AI results, or rankings.
+face proportions, match scores, creator names, AI results, rankings, or account
+identifiers.
 Read `README.md`, `SUPABASE_SETUP.md`, and `docs/ADMIN_REVIEW.md` before changing
 the public data flow or deployment contract.

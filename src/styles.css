@@ -1791,6 +1791,128 @@ h3 {
   border-top: 1px solid var(--line);
 }
 
+.ai-auth-loading,
+.ai-auth-session {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  font-size: 12px;
+}
+
+.ai-auth-panel {
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ai-auth-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ai-auth-tabs button {
+  min-height: 38px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.ai-auth-tabs button[aria-selected="true"] {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+}
+
+.ai-auth-form {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-auth-form label,
+.ai-auth-session small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.ai-auth-form input {
+  width: 100%;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.ai-auth-form input:focus {
+  border-color: var(--ink);
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.ai-auth-password {
+  position: relative;
+}
+
+.ai-auth-password input {
+  padding-right: 46px;
+}
+
+.ai-auth-password button,
+.ai-auth-session > button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ai-auth-password button {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+}
+
+.ai-auth-form .button {
+  margin-top: 6px;
+}
+
+.ai-auth-notice {
+  margin-top: 12px;
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.ai-auth-session {
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ai-auth-session small,
+.ai-auth-session strong {
+  display: block;
+}
+
+.ai-auth-session strong {
+  max-width: min(58vw, 360px);
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ai-consent-field {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);

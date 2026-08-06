@@ -225,6 +225,15 @@ Deno.serve(async (request) => {
   }
 
   try {
+    const authorization = request.headers.get("authorization");
+    const accessToken = authorization?.replace(/^Bearer\s+/i, "").trim();
+    if (!accessToken) return reply(origin, 401, "auth_required");
+    const admin = createClient(supabaseUrl, adminKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data: authData, error: authError } = await admin.auth.getUser(accessToken);
+    if (authError || !authData.user) return reply(origin, 401, "auth_required");
+
     const formData = await request.formData();
     const photo = formData.get("photo");
     const referenceAudience = requiredText(formData, "referenceAudience", 20);
@@ -253,9 +262,6 @@ Deno.serve(async (request) => {
       return reply(origin, 403, "captcha_failed");
     }
 
-    const admin = createClient(supabaseUrl, adminKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
     const rateKey = await hashRateKey(`ip:${clientIp}`, rateLimitSalt);
     const { data: allowed, error: rateError } = await admin.rpc(
       "consume_ai_creator_discovery_rate_limit",

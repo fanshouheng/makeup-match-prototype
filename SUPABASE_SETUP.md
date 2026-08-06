@@ -80,7 +80,7 @@ ADMIN_EMAILS=允许签发邀请码和访问管理台的邮箱，多个邮箱用�
 
 对应火山引擎账号必须先开通方舟联网搜索插件；未开通时接口会返回 `ToolNotOpen`，前端显示“AI 联网搜索尚未完成配置”。不要在插件未开通、未完成一次真实联网请求前发布 AI 入口。
 
-在 Supabase Dashboard -> Authentication -> URL Configuration 中，把正式站点设为 Site URL，并把管理员邮箱链接使用的 `https://你的域名/admin` 加入 Redirect URLs；需要本地联调管理台时再临时加入本地 `/admin` 地址。Plus 使用邮箱密码登录，不依赖邮件回跳；其前端使用独立的 `make-up-plus-auth` 本地存储键，不会覆盖 `/admin` 的管理员登录态。
+在 Supabase Dashboard -> Authentication -> URL Configuration 中，把正式站点设为 Site URL，并把免费账号确认邮件使用的 `https://你的域名/` 和管理员邮箱链接使用的 `https://你的域名/admin` 加入 Redirect URLs；需要本地联调时再临时加入对应本地地址。免费账号与 Plus 复用 `make-up-plus-auth` 本地存储键，已有免费账号可直接兑换 Plus 邀请码；`/admin` 使用独立登录态，不会被覆盖。
 
 ## 5. 部署并验证 Edge Function
 
@@ -110,18 +110,18 @@ Edge Function 验证通过后，执行：
 
 ## 7. 部署并验证 AI 推荐
 
-部署 `supabase/functions/ai-creator-discovery/index.ts`，并设置 `verify_jwt = false`。该公开函数只接受允许来源，并在函数内验证 Turnstile、同意版本、JPEG 文件头、请求大小和每 IP 每小时 3 次的限流。
+部署 `supabase/functions/ai-creator-discovery/index.ts`，并设置 `verify_jwt = true`。该函数由网关和函数内部共同校验登录态，同时验证允许来源、Turnstile、同意版本、JPEG 文件头、请求大小和每 IP 每小时 3 次的限流。
 
 上线前验证：
 
-1. 未展开、未勾选同意或未完成 Turnstile 时，前端不会发送照片。
+1. 未登录时不能调用；未展开、未勾选同意或未完成 Turnstile 时，前端不会发送照片。
 2. 浏览器只发送最长边不超过 1024 像素、大小不超过 1.5 MB 的 JPEG 副本。
 3. 非允许来源、无效图片、错误同意版本或第 4 次请求会被拒绝。
 4. AI 响应只接受 1 至 5 个名字，不接受链接、换行或额外字段。
 5. `store: false` 生效，MAKE UP 数据库和 Storage 中没有照片副本、AI 结果或名字。
 6. 候选博主照片不会被下载或分析，AI 名字不会自动进入公开创作者库。
 7. 缺少 `ARK_API_KEY` 或 `ARK_MODEL` 时返回 `service_not_configured`；联网搜索插件未开通时返回 `web_search_not_configured`。
-8. 真正发送到 AI 服务的请求会记录固定运行元数据；日志不包含照片、面部比例、提示词、返回名字、推荐结果或原始 IP。
+8. 真正发送到 AI 服务的请求会记录固定运行元数据；日志不包含照片、面部比例、提示词、返回名字、推荐结果、原始 IP 或用户 ID。
 
 ## 8. 部署并验证男生 DeepSeek 报告
 
@@ -160,15 +160,15 @@ Edge Function 验证通过后，执行：
 
 申请默认进入 `pending`，不会自动公开。身份核验、批准、拒绝、撤回和删除步骤见 `docs/ADMIN_REVIEW.md`。
 
-普通用户的默认匹配照片只在浏览器本地处理；最近一次有效分析可写入当前浏览器 IndexedDB，供同一设备的 Plus 会员页恢复，不进入 Supabase 数据库或 Storage，也不跨设备同步。可选 AI 推荐只转发用户单独同意的压缩副本，不写入 Supabase 数据库或 Storage；只有博主申请时主动提交的授权照片会进入服务端持久化存储。
+普通用户的默认匹配照片只在浏览器本地处理；最近一次有效分析可写入当前浏览器 IndexedDB，供同一设备的 Plus 会员页恢复，不进入 Supabase 数据库或 Storage，也不跨设备同步。可选 AI 推荐仅在登录后转发用户单独同意的压缩副本，不写入 Supabase 数据库或 Storage，也不在调用日志保存用户 ID；只有博主申请时主动提交的授权照片会进入服务端持久化存储。
 
 ## 11. 部署并验证 Plus 邀请账号
 
 执行第十五个迁移后，部署 `supabase/functions/plus-access/index.ts`，并保持 `verify_jwt = false`。`register` 在登录前调用，因此网关不预先校验 JWT；函数会先校验邮箱、密码和一次性邀请码，再通过服务端创建已确认邮箱的 Supabase Auth 用户并原子兑换邀请码，兑换失败时删除刚创建的用户。`status`、`redeem` 和 `issue` 仍在函数内部验证 JWT，`issue` 还会校验 `ADMIN_EMAILS`。浏览器端不得接触 `service_role` 或 secret key。上线前验证：
 
 1. 免费匹配在未登录时仍可完整使用。
-2. 新用户填写邮箱、至少 8 位密码和有效邀请码后直接登录，不发送确认邮件；以后只用邮箱和密码登录，不再要求邀请码。
-3. Plus 登录态使用独立存储键，不会覆盖 `/admin` 的管理员登录态。
+2. 已有免费账号登录后可以兑换有效邀请码；新用户填写邮箱、至少 8 位密码和有效邀请码后可直接注册激活，不发送确认邮件。
+3. 免费账号和 Plus 复用 `make-up-plus-auth` 存储键，不会覆盖 `/admin` 的管理员登录态。
 4. 非管理员调用 `issue` 返回 `not_admin`；管理员签发后只收到一次邀请码明文，数据库只有 64 位哈希。
 5. 无效、过期或已被其他账号兑换的邀请码分别被拒绝；创建账号后若原子兑换失败，函数会清理刚创建的账号，并应在上线验证中确认没有留下可登录但未激活的孤立账号。
 6. 两个账号同时使用同一邀请码注册或兑换时只有一个成功；成功账号能读取自己的权益，不能读取其他账号或邀请码表。

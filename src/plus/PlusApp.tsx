@@ -540,8 +540,8 @@ export default function PlusApp() {
             <div className="plus-flow-step">
               <span>03</span>
               <div>
-                <h2>输入邀请码，注册后直接登录</h2>
-                <p>首次填写邮箱、密码和邀请码；以后只用邮箱和密码登录。免费匹配仍然不需要登录。</p>
+                <h2>登录账号并激活 Plus</h2>
+                <p>已有免费账号可登录后兑换邀请码；新用户也可填写邮箱、密码和邀请码直接注册激活。免费匹配仍然不需要登录。</p>
               </div>
             </div>
           </div>
@@ -555,7 +555,7 @@ export default function PlusApp() {
           <div className="plus-access-intro">
             <p className="eyebrow">ACCOUNT / 账号激活</p>
             <h2 id="plus-access-title">邮箱密码注册与登录</h2>
-            <p>首次注册需要邀请码，成功后立即登录。密码由 Supabase Auth 负责认证，业务表不会保存密码明文，也不会保存照片、面部比例、报告或博主结果。</p>
+            <p>已有免费账号可直接登录并兑换邀请码；没有账号时可使用邀请码注册激活。密码由 Supabase Auth 负责认证，业务表不会保存密码明文，也不会保存照片、面部比例、报告或博主结果。</p>
             <div className="plus-benefits">
               <p><Sparkles size={17} /><span><strong>早期用户资格</strong>后续 Plus 功能优先体验</span></p>
               <p><CheckCircle2 size={17} /><span><strong>共 3 次报告额度</strong>1 份正式报告 + 2 次内测重试，180 天内有效</span></p>

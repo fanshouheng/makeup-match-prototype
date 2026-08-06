@@ -2,6 +2,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { accountClient } from "./services/accountClient";
 import "./styles.css";
 
 const isAdminRoute = window.location.pathname === "/admin" ||
@@ -14,6 +15,11 @@ const isSimilarityLabelerRoute =
 const AdminApp = lazy(() => import("./admin/AdminApp"));
 const PlusApp = lazy(() => import("./plus/PlusApp"));
 const SimilarityLabelerApp = lazy(() => import("./admin/SimilarityLabelerApp"));
+
+if (!isAdminRoute && !isSimilarityLabelerRoute) {
+  // Initialize the shared public session so email confirmations work on return.
+  void accountClient?.auth.getSession();
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
