@@ -267,6 +267,26 @@
 .admin-dialog-label { display: grid; gap: 7px; margin-bottom: 18px; }
 .admin-dialog textarea { padding: 10px; resize: vertical; font-size: 12px; line-height: 1.5; }
 .admin-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.admin-similarity-labeler { display: grid; gap: 24px; }
+.admin-similarity-heading, .admin-similarity-tools, .admin-similarity-actions { display: flex; align-items: center; }
+.admin-similarity-heading { justify-content: space-between; gap: 24px; }
+.admin-similarity-heading h2 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: 0; }
+.admin-similarity-tools { gap: 8px; }
+.admin-similarity-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--admin-line); border-bottom: 1px solid var(--admin-line); }
+.admin-similarity-stats div { display: grid; gap: 7px; padding: 15px 18px; border-left: 1px solid var(--admin-line); }
+.admin-similarity-stats div:first-child { border-left: 0; }
+.admin-similarity-stats span { color: var(--admin-muted); font-size: 10px; }
+.admin-similarity-stats strong { font-size: 20px; font-weight: 600; }
+.admin-similarity-pair { display: grid; grid-template-columns: minmax(0, 1fr) 54px minmax(0, 1fr); align-items: center; gap: 18px; width: min(100%, 860px); margin: 0 auto; }
+.admin-similarity-pair figure { width: 100%; margin: 0; overflow: hidden; aspect-ratio: 4 / 5; border: 1px solid var(--admin-line); border-radius: 8px; background: var(--admin-soft); }
+.admin-similarity-pair img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.admin-similarity-versus { display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid var(--admin-line-strong); border-radius: 50%; color: var(--admin-muted); font: 600 11px/1 "Space Mono", "Cascadia Mono", Consolas, monospace; }
+.admin-similarity-actions { justify-content: center; gap: 12px; }
+.admin-similarity-actions > button:not(.admin-icon-button) { display: flex; min-width: 150px; min-height: 50px; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; font-size: 14px; font-weight: 650; cursor: pointer; }
+.admin-similarity-no { color: var(--admin-danger); border: 1px solid rgb(132 58 52 / 38%); background: var(--admin-danger-soft); }
+.admin-similarity-no:hover { color: #fff; border-color: var(--admin-danger); background: var(--admin-danger); }
+.admin-similarity-yes { color: var(--admin-success); border: 1px solid rgb(36 91 72 / 38%); background: var(--admin-success-soft); }
+.admin-similarity-yes:hover { color: #fff; border-color: var(--admin-success); background: var(--admin-success); }
 
 @media (max-width: 760px) {
   .admin-topbar { width: calc(100% - 32px); min-height: 64px; }
@@ -301,6 +321,9 @@
   .admin-promotion-tracks article { padding-left: 0; }
   .admin-ai-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
   .admin-plus-invites-heading { align-items: flex-start; flex-direction: column; }
+  .admin-similarity-heading { align-items: flex-start; flex-direction: column; }
+  .admin-similarity-tools { width: 100%; }
+  .admin-similarity-tools .admin-secondary-button { flex: 1; }
   .admin-outreach-controls { width: 100%; }
   .admin-outreach-controls label { flex: 1; }
   .admin-outreach-controls select { width: 100%; }
@@ -343,6 +366,14 @@
   .admin-outreach-summary div { border-top: 1px solid var(--admin-line); }
   .admin-outreach-summary div:nth-child(-n + 2) { border-top: 0; }
   .admin-outreach-summary div:nth-child(odd) { border-left: 0; }
+  .admin-similarity-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-similarity-stats div:nth-child(3) { border-top: 1px solid var(--admin-line); border-left: 0; }
+  .admin-similarity-stats div:nth-child(4) { border-top: 1px solid var(--admin-line); }
+  .admin-similarity-pair { grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr); gap: 7px; }
+  .admin-similarity-pair figure { border-radius: 6px; }
+  .admin-similarity-versus { width: 28px; height: 28px; font-size: 8px; }
+  .admin-similarity-actions { gap: 8px; }
+  .admin-similarity-actions > button:not(.admin-icon-button) { min-width: 0; flex: 1; }
   .admin-outreach-table-wrap { overflow: visible; border-top: 0; }
   .admin-ai-table-wrap { overflow: visible; border-top: 0; }
   .admin-ai-table, .admin-ai-table tbody, .admin-ai-table tr, .admin-ai-table td { display: block; width: 100%; box-sizing: border-box; }

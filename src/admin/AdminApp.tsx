@@ -21,6 +21,7 @@ import {
   Plus,
   Power,
   RefreshCw,
+  ScanFace,
   Share2,
   ShieldCheck,
   Sparkles,
@@ -36,6 +37,7 @@ import { AdminCreateSubmissionDialog } from "./AdminCreateSubmissionDialog";
 import { AdminOutreachPanel } from "./AdminOutreachPanel";
 import { AdminPlusInvitesPanel } from "./AdminPlusInvitesPanel";
 import { AdminWorkbench } from "./AdminWorkbench";
+import { CreatorSimilarityLabeler } from "./CreatorSimilarityLabeler";
 import {
   createAdminSubmission,
   getAdminSession,
@@ -52,7 +54,7 @@ import {
 } from "./adminApi";
 import "./admin.css";
 
-type View = "workbench" | "pending" | "creators" | "outreach" | "metrics" | "ai" | "plus";
+type View = "workbench" | "pending" | "creators" | "similarity" | "outreach" | "metrics" | "ai" | "plus";
 interface MetricsDateRange {
   startDate: string;
   endDate: string;
@@ -843,8 +845,8 @@ export default function AdminApp() {
         <div className="admin-topbar-actions"><span className="admin-user-email">{session.user.email}</span><button className="admin-icon-button" type="button" onClick={() => void loadDashboard()} aria-label="刷新数据" title="刷新数据"><RefreshCw size={17} /></button><button className="admin-icon-button" type="button" onClick={() => void adminClient.auth.signOut()} aria-label="退出登录" title="退出登录"><LogOut size={17} /></button></div>
       </header>
       <section className="admin-content" aria-label="产品数据、创作者审核与库管理">
-        <div className="admin-page-intro"><div><p className="admin-kicker">{view === "workbench" ? "30-DAY VALIDATION" : "PRODUCTION DATA"}</p><h2>{view === "workbench" ? "把证据变成下一步" : "先核验，再公开"}</h2><p>{view === "workbench" ? "先证明核心价值，再决定继续开发、转向还是停止。" : "申请资料只在管理台可见；产品数据与 AI 调用记录不包含照片或推荐结果。"}</p></div>{view === "workbench" ? <div className="admin-data-badge"><Target size={18} /><span>核心价值验证<br /><small>本轮截止 8 月 21 日</small></span></div> : <div className="admin-intro-actions"><button className="admin-primary-button" type="button" onClick={() => setShowCreate(true)}><Plus size={16} />新建待审申请</button><div className="admin-data-badge"><Database size={18} /><span>{pending.length} 条待审核<br /><small>{creators.length} 条库内记录</small></span></div></div>}</div>
-        <nav className="admin-tabs" aria-label="管理台视图"><button className={view === "workbench" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("workbench")}><LayoutDashboard size={16} />工作台</button><button className={view === "pending" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("pending")}><Clock3 size={16} />待审核 <span>{pending.length}</span></button><button className={view === "creators" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("creators")}><Database size={16} />创作者库 <span>{creators.length}</span></button><button className={view === "outreach" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("outreach")}><MessageCircle size={16} />博主跟进 <span>{outreach.length}</span></button><button className={view === "metrics" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("metrics")}><BarChart3 size={16} />产品数据</button><button className={view === "ai" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("ai")}><Sparkles size={16} />AI 调用 <span>{data?.ai_discovery.total ?? 0}</span></button><button className={view === "plus" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("plus")}><KeyRound size={16} />Plus 邀请</button></nav>
+        <div className="admin-page-intro"><div><p className="admin-kicker">{view === "workbench" ? "30-DAY VALIDATION" : view === "similarity" ? "MATCH CALIBRATION" : "PRODUCTION DATA"}</p><h2>{view === "workbench" ? "把证据变成下一步" : view === "similarity" ? "校准相似度" : "先核验，再公开"}</h2><p>{view === "workbench" ? "先证明核心价值，再决定继续开发、转向还是停止。" : view === "similarity" ? "用成对判断训练下一版权重与拒绝阈值。" : "申请资料只在管理台可见；产品数据与 AI 调用记录不包含照片或推荐结果。"}</p></div>{view === "workbench" ? <div className="admin-data-badge"><Target size={18} /><span>核心价值验证<br /><small>本轮截止 8 月 21 日</small></span></div> : view === "similarity" ? <div className="admin-data-badge"><ScanFace size={18} /><span>本机标注<br /><small>不上传标签和特征</small></span></div> : <div className="admin-intro-actions"><button className="admin-primary-button" type="button" onClick={() => setShowCreate(true)}><Plus size={16} />新建待审申请</button><div className="admin-data-badge"><Database size={18} /><span>{pending.length} 条待审核<br /><small>{creators.length} 条库内记录</small></span></div></div>}</div>
+        <nav className="admin-tabs" aria-label="管理台视图"><button className={view === "workbench" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("workbench")}><LayoutDashboard size={16} />工作台</button><button className={view === "pending" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("pending")}><Clock3 size={16} />待审核 <span>{pending.length}</span></button><button className={view === "creators" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("creators")}><Database size={16} />创作者库 <span>{creators.length}</span></button><button className={view === "similarity" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("similarity")}><ScanFace size={16} />相似标注</button><button className={view === "outreach" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("outreach")}><MessageCircle size={16} />博主跟进 <span>{outreach.length}</span></button><button className={view === "metrics" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("metrics")}><BarChart3 size={16} />产品数据</button><button className={view === "ai" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("ai")}><Sparkles size={16} />AI 调用 <span>{data?.ai_discovery.total ?? 0}</span></button><button className={view === "plus" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("plus")}><KeyRound size={16} />Plus 邀请</button></nav>
         {error && <div className="admin-alert" role="alert"><X size={17} />{error}</div>}
         {loading ? <div className="admin-loading admin-loading-inline"><LoaderCircle className="admin-spin" size={22} />正在读取受保护数据…</div> : view === "workbench" && data?.product_metrics ? (
           <AdminWorkbench metrics={data.product_metrics} outreach={outreach} pendingCount={pending.length} activeCreatorCount={activeCreatorCount} dateRangeLabel={`${formatCalendarDate(metricsDateRange.startDate)}至 ${formatCalendarDate(metricsDateRange.endDate)}`} onNavigate={setView} />
@@ -852,6 +854,8 @@ export default function AdminApp() {
           <div className="admin-list">{pending.length === 0 ? <div className="admin-empty"><CheckCircle2 size={28} /><h3>当前没有待审核申请</h3><p>新的投稿会先停留在这里，不会自动公开。</p></div> : pending.map((submission) => <PendingRow key={submission.id} submission={submission} onAction={openAction} />)}</div>
         ) : view === "creators" ? (
           <div className="admin-list">{creators.length === 0 ? <div className="admin-empty"><Database size={28} /><h3>公开库暂无记录</h3></div> : creators.map((creator) => <CreatorRow key={creator.id} creator={creator} onAction={openAction} />)}</div>
+        ) : view === "similarity" ? (
+          <CreatorSimilarityLabeler />
         ) : view === "outreach" ? (
           <AdminOutreachPanel records={outreach} onSave={handleOutreachSave} onDelete={handleOutreachDelete} />
         ) : view === "metrics" && data?.product_metrics ? (
