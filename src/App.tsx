@@ -72,6 +72,8 @@ import {
   recordRewardMatchSuccess,
 } from "./services/rewards";
 
+const SHOW_MEN_FLOW = false;
+
 interface LoadedPhoto {
   id: string;
   fileName: string;
@@ -208,6 +210,7 @@ function App() {
         const userId = await currentPlusUserId();
         const stored = await loadLatestLocalAnalysis(userId);
         if (!stored || !active || photoChangedRef.current) return;
+        if (!SHOW_MEN_FLOW && stored.referenceAudience === "men") return;
         const loaded = await loadImageBlob(stored.photo);
         if (!active || photoChangedRef.current) {
           URL.revokeObjectURL(loaded.objectUrl);
@@ -829,17 +832,19 @@ function App() {
         <LandingPage onStart={() => navigate("analysis")} />
       ) : view === "analysis" ? (
         <main className={`analysis-page ${referenceAudience === "men" ? "men-reference-page" : ""}`}>
-          <div className="reference-mode-control">
-            <button
-              aria-label={referenceAudience === "women" ? "切换到男生面部报告" : "切换到女生妆容参考"}
-              className="reference-mode-toggle"
-              onClick={toggleReferenceAudience}
-              title={referenceAudience === "women" ? "切换到男生面部报告" : "切换到女生妆容参考"}
-              type="button"
-            >
-              <span aria-hidden="true">{referenceAudience === "women" ? "♀" : "♂"}</span>
-            </button>
-          </div>
+          {SHOW_MEN_FLOW && (
+            <div className="reference-mode-control">
+              <button
+                aria-label={referenceAudience === "women" ? "切换到男生面部报告" : "切换到女生妆容参考"}
+                className="reference-mode-toggle"
+                onClick={toggleReferenceAudience}
+                title={referenceAudience === "women" ? "切换到男生面部报告" : "切换到女生妆容参考"}
+                type="button"
+              >
+                <span aria-hidden="true">{referenceAudience === "women" ? "♀" : "♂"}</span>
+              </button>
+            </div>
+          )}
           {!photo ? (
             <section className="start-upload-screen" aria-labelledby="upload-title">
               <div className="start-upload-copy">

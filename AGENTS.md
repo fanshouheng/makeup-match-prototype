@@ -11,8 +11,9 @@ The women flow returns authorized creators and tutorial links. Activated Plus
 users can separately consent to send nine disclosed exact ratios and scene/style
 choices to DeepSeek for a structured makeup report; Doubao then receives only
 the generated text summary and plan highlights for names-only public creator
-discovery. The men flow can separately send the nine ratios to DeepSeek for an
-entertainment report. Another separately consented AI flow sends a sanitized
+discovery. The implemented men entertainment-report flow is currently hidden
+from the public UI while the product prepares authorized male makeup-creator
+matching. Another separately consented AI flow sends a sanitized
 photo copy for names-only public creator discovery. It is not identity
 recognition, appearance scoring, medical advice, or a professional result guarantee.
 
@@ -105,9 +106,8 @@ npm run build
 Supabase for consent-backed creator intake, Cloudflare
 Turnstile for submission protection, and manual review before publication.
 The result page supports login-free yes/no feedback, local share-poster
-generation, a separately consented DeepSeek men report, separately consented AI
-names-only discovery using invite-earned or manually purchased credits, and the
-9.9 yuan invitation-only Plus beta. Feedback,
+generation, separately consented AI names-only discovery using invite-earned or
+manually purchased credits, and the 9.9 yuan invitation-only Plus beta. Feedback,
 share, and AI telemetry must remain aggregate and must not include user photos,
 face proportions, match scores, creator names, AI results, rankings, or account
 identifiers.
