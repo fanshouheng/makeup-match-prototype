@@ -3485,3 +3485,279 @@ h3 {
     display: none;
   }
 }
+
+.match-quota-summary {
+  display: flex;
+  width: min(560px, calc(100% - 32px));
+  min-height: 48px;
+  margin-top: 20px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.match-quota-summary > span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.match-quota-summary .button {
+  flex: 0 0 auto;
+}
+
+.rewards-panel {
+  width: min(820px, 100%);
+  margin: 32px auto 0;
+  padding: 26px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.rewards-panel.is-urgent {
+  border-color: var(--line-strong);
+}
+
+.rewards-panel.is-embedded {
+  width: 100%;
+  margin: 18px 0 0;
+  padding: 18px 0;
+  border-right: 0;
+  border-left: 0;
+  border-radius: 0;
+}
+
+.rewards-heading,
+.rewards-session,
+.reward-invite-link,
+.reward-purchase > div,
+.rewards-loading {
+  display: flex;
+  align-items: center;
+}
+
+.rewards-heading {
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.rewards-heading h2 {
+  margin-top: 5px;
+  font-size: 22px;
+  font-weight: 560;
+}
+
+.rewards-heading p:last-child {
+  max-width: 640px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.rewards-heading > svg {
+  flex: 0 0 auto;
+}
+
+.rewards-loading {
+  min-height: 88px;
+  justify-content: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.rewards-auth {
+  max-width: 430px;
+  margin-top: 24px;
+}
+
+.rewards-session {
+  justify-content: space-between;
+  margin-top: 22px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.rewards-session small,
+.rewards-session strong {
+  display: block;
+}
+
+.rewards-session small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.rewards-session strong {
+  margin-top: 3px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.rewards-session button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.reward-balances {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 22px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.reward-balances > div {
+  padding: 16px;
+  border-left: 1px solid var(--line);
+}
+
+.reward-balances > div:first-child {
+  border-left: 0;
+}
+
+.reward-balances span,
+.reward-balances strong {
+  display: block;
+}
+
+.reward-balances span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.reward-balances strong {
+  margin-top: 7px;
+  font: 700 22px/1 "Space Mono", monospace;
+}
+
+.reward-pending,
+.rewards-notice,
+.rewards-error {
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.reward-pending,
+.rewards-notice {
+  color: #245b48;
+}
+
+.rewards-error {
+  color: var(--error-ink);
+}
+
+.reward-invite-link {
+  margin-top: 22px;
+  gap: 9px;
+}
+
+.reward-invite-link input {
+  min-width: 0;
+  height: 42px;
+  flex: 1;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--muted);
+  background: #fff;
+  font: 11px/1.4 "Space Mono", monospace;
+}
+
+.reward-purchase {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.reward-purchase {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.reward-purchase > div {
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.reward-purchase p span,
+.reward-purchase p strong {
+  display: block;
+}
+
+.reward-purchase p strong {
+  font-size: 13px;
+}
+
+.reward-purchase p span {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.reward-purchase img {
+  width: 84px;
+  height: 84px;
+  flex: 0 0 auto;
+  object-fit: cover;
+}
+
+.ai-credit-balance {
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .match-quota-summary,
+  .reward-purchase,
+  .reward-invite-link,
+  .rewards-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .match-quota-summary {
+    padding: 12px 0;
+  }
+
+  .match-quota-summary .button,
+  .reward-invite-link .button {
+    width: 100%;
+  }
+
+  .rewards-panel {
+    padding: 20px 16px;
+  }
+
+  .reward-balances {
+    grid-template-columns: 1fr;
+  }
+
+  .reward-balances > div,
+  .reward-balances > div:first-child {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .reward-balances > div:first-child {
+    border-top: 0;
+  }
+
+  .reward-purchase img {
+    width: 112px;
+    height: 112px;
+  }
+}

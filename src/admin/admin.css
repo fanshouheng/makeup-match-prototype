@@ -178,6 +178,14 @@
 .admin-plus-invites-empty { display: grid; min-height: 220px; place-items: center; align-content: center; gap: 10px; color: var(--admin-muted); border-bottom: 1px solid var(--admin-line); }
 .admin-plus-invites-empty svg { color: var(--admin-ink); }
 .admin-plus-invites-empty p { margin: 0; font-size: 12px; }
+.admin-credit-grant { margin-top: 34px; padding-top: 28px; border-top: 1px solid var(--admin-ink); }
+.admin-credit-grant h3 { margin: 5px 0 0; font-size: 22px; font-weight: 600; }
+.admin-credit-grant > div > p:not(.admin-kicker) { max-width: 680px; margin: 8px 0 0; color: var(--admin-muted); font-size: 11px; line-height: 1.7; }
+.admin-credit-grant form { max-width: 680px; margin-top: 20px; }
+.admin-credit-grant form > label { display: block; margin-bottom: 7px; color: var(--admin-muted); font-size: 10px; }
+.admin-credit-grant form > div { display: flex; gap: 9px; }
+.admin-credit-grant input { min-width: 0; height: 40px; flex: 1; padding: 0 11px; border: 1px solid var(--admin-line-strong); border-radius: 4px; background: #fff; }
+.admin-credit-success { margin: 14px 0 0; color: var(--admin-green); font-size: 12px; }
 .admin-ai { padding-top: 8px; }
 .admin-ai-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin: 28px 0 12px; }
 .admin-ai-heading span { color: var(--admin-muted); font-size: 10px; font-weight: 600; }
@@ -397,4 +405,6 @@
   .admin-field-wide { grid-column: auto; }
   .admin-issued-invite { align-items: stretch; flex-direction: column; }
   .admin-issued-invite strong { overflow-wrap: anywhere; font-size: 20px; }
+  .admin-credit-grant form > div { flex-direction: column; }
+  .admin-credit-grant .admin-primary-button { width: 100%; }
 }

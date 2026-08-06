@@ -2,8 +2,9 @@
 
 ## Positioning
 
-MAKE UP is a privacy-first makeup-reference prototype with login-free base
-matching, free account-gated AI creator discovery, and a 9.9 yuan
+MAKE UP is a privacy-first makeup-reference prototype with three browser-local
+free successful matches, referral-earned match access, credit-gated AI creator
+discovery, and a 9.9 yuan
 invitation-only Plus beta. A user selects a front-facing photo,
 and the browser measures face-structure proportions locally.
 The women flow returns authorized creators and tutorial links. Activated Plus
@@ -47,10 +48,18 @@ npm run build
   consent and Turnstile verification. Do not send the photo, landmarks, identity,
   device/session identifiers, creator data, or local rankings. Do not persist
   ratios, prompts, or generated reports, and label the result as AI-generated.
-- Optional AI discovery requires an authenticated free account and may send only
+- Optional AI discovery requires an authenticated account with an available AI
+  credit and may send only
   a canvas-reencoded JPEG after separate consent and Turnstile verification. Do
   not persist the photo, AI result, returned creator names, or user ID in AI
   invocation logs; request provider-side conversation storage to be off.
+- The first three successful women matches are counted only in the current
+  browser; failed analysis and rerunning the same loaded photo do not count.
+  Later women matches require referral-earned credits and cannot be purchased.
+  A qualified referral means the invited account confirmed its email and
+  completed one successful women match. Reward tables may store the two account
+  IDs, balances, reason, idempotency UUID, and time, but never photos, face data,
+  local rankings, creator names, AI output, payment evidence, or device identity.
 - Optional Plus makeup generation requires an active authenticated membership,
   separate consent, and remaining credit; it does not use Turnstile. DeepSeek
   may receive only the nine disclosed ratios, up to three scenes, and one fixed
@@ -80,7 +89,8 @@ npm run build
 - Do not scrape creators, copy photos, or import third-party lists unless the user
   has explicitly authorized that specific operation and confirmed the required
   creator permissions.
-- Keep free base matching unchanged. Plus is limited to the current 9.9 yuan
+- Keep the three browser-local successful matches and referral-only continuation
+  free of charge. Plus is limited to the current 9.9 yuan
   manual-payment, invitation-only beta. Do not add automatic payments,
   subscriptions, paid ranking, ads, or broader monetization without explicit
   user approval.
@@ -96,7 +106,8 @@ Supabase for consent-backed creator intake, Cloudflare
 Turnstile for submission protection, and manual review before publication.
 The result page supports login-free yes/no feedback, local share-poster
 generation, a separately consented DeepSeek men report, separately consented AI
-names-only discovery, and the 9.9 yuan invitation-only Plus beta. Feedback,
+names-only discovery using invite-earned or manually purchased credits, and the
+9.9 yuan invitation-only Plus beta. Feedback,
 share, and AI telemetry must remain aggregate and must not include user photos,
 face proportions, match scores, creator names, AI results, rankings, or account
 identifiers.

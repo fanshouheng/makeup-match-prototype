@@ -121,7 +121,10 @@ export async function discoverCreatorsWithAi({
     throw new Error("AI 推荐次数较多，请一小时后再试。");
   }
   if (code === "auth_required") {
-    throw new Error("请先登录免费账号，再使用 AI 推荐。");
+    throw new Error("请先登录账号，再使用 AI 推荐。");
+  }
+  if (code === "no_ai_credits") {
+    throw new Error("AI 推荐次数已用完，请邀请朋友或购买次数后再试。");
   }
   if (code === "captcha_failed") {
     throw new Error("安全验证已失效，请重新验证后重试。");

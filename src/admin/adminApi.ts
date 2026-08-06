@@ -179,6 +179,15 @@ export interface AdminIssuedPlusInvite {
   expiresAt: string;
 }
 
+export interface AdminRewardStatus {
+  referralCode: string;
+  matchCredits: number;
+  aiCredits: number;
+  successfulMatchCount: number;
+  successfulInvites: number;
+  pendingReferral: boolean;
+}
+
 interface AdminRequest {
   action: "list" | "verify" | "approve" | "reject" | "cleanup" | "set_active" | "delete_creator" | "save_outreach" | "delete_outreach";
   metricsStartDate?: string;
@@ -308,4 +317,21 @@ export async function issuePlusInvite(): Promise<AdminIssuedPlusInvite> {
   if (code === "auth_required") throw new Error("登录状态已失效，请重新登录。");
   if (code === "service_not_configured") throw new Error("Plus 账号服务配置不完整。");
   throw new Error("邀请码签发失败，请稍后重试。");
+}
+
+export async function grantPurchasedAiCredits(email: string): Promise<AdminRewardStatus> {
+  const { data, error } = await adminClient.functions.invoke("rewards-access", {
+    body: { action: "grantPurchase", credits: 10, email: email.trim().toLowerCase() },
+  });
+  if (!error) return (data as { rewards: AdminRewardStatus }).rewards;
+
+  let code: string | undefined;
+  if ("context" in error && error.context instanceof Response) {
+    const payload = await error.context.clone().json().catch(() => undefined) as { code?: string } | undefined;
+    code = payload?.code;
+  }
+  if (code === "account_not_found") throw new Error("没有找到这个已确认邮箱账号。");
+  if (code === "not_admin") throw new Error("这个账号没有发放 AI 次数的权限。");
+  if (code === "auth_required") throw new Error("登录状态已失效，请重新登录。");
+  throw new Error("AI 次数发放失败，请稍后重试。");
 }

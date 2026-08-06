@@ -5,6 +5,7 @@ import {
   Camera,
   CheckCircle2,
   ChevronDown,
+  Gift,
   ImagePlus,
   LoaderCircle,
   RotateCcw,
@@ -21,6 +22,7 @@ import {
 } from "./components/MatchResults";
 import { MaleFaceReport } from "./components/MaleFaceReport";
 import { PrivacyPolicy } from "./components/PrivacyPolicy";
+import { RewardsPanel } from "./components/RewardsPanel";
 import { SiteHeader, type SiteView } from "./components/SiteHeader";
 import type {
   CreatorContentFilter,
@@ -53,18 +55,38 @@ import {
   type MatchNegativeFeedbackDetails,
 } from "./services/productMetrics";
 import { shareMatchResult } from "./services/resultSharing";
+import { accountClient } from "./services/accountClient";
 import {
   clearLatestLocalAnalysis,
   loadLatestLocalAnalysis,
   saveLatestLocalAnalysis,
   saveLocalGeneratedReport,
 } from "./services/localMemberProfile";
+import {
+  captureReferralCode,
+  FREE_SUCCESSFUL_MATCH_LIMIT,
+  freeSuccessfulMatchesRemaining,
+  getRewardStatus,
+  readLocalSuccessfulMatches,
+  recordLocalSuccessfulMatch,
+  recordRewardMatchSuccess,
+} from "./services/rewards";
 
 interface LoadedPhoto {
+  id: string;
   fileName: string;
   blob: Blob;
   image: HTMLImageElement;
   objectUrl: string;
+}
+
+interface PendingMatchQuota {
+  accessError?: string;
+  consumeBonus: boolean;
+  localQuotaExhausted: boolean;
+  photoId: string;
+  rewardSession: boolean;
+  successId: string;
 }
 
 interface AnalysisResult {
@@ -85,6 +107,7 @@ function viewFromLocation(): SiteView {
 
 function loadImage(file: File): Promise<LoadedPhoto> {
   return loadImageBlob(file).then(({ image, objectUrl }) => ({
+    id: crypto.randomUUID(),
     fileName: file.name,
     blob: file,
     image,
@@ -113,7 +136,10 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const sceneRef = useRef<HTMLElement>(null);
+  const rewardsPanelRef = useRef<HTMLDivElement>(null);
   const photoChangedRef = useRef(false);
+  const countedPhotoRef = useRef<string | undefined>(undefined);
+  const pendingMatchQuotaRef = useRef<PendingMatchQuota | undefined>(undefined);
   const [photo, setPhoto] = useState<LoadedPhoto>();
   const [status, setStatus] = useState<AnalysisStatus>("idle");
   const [result, setResult] = useState<AnalysisResult>();
@@ -131,6 +157,21 @@ function App() {
   const [matchFeedback, setMatchFeedback] = useState<MatchFeedback | null>(null);
   const [matchFeedbackSubmitted, setMatchFeedbackSubmitted] = useState(false);
   const [shareStatus, setShareStatus] = useState<MatchShareStatus>("idle");
+  const [localSuccessfulMatches, setLocalSuccessfulMatches] = useState(() => {
+    try {
+      return readLocalSuccessfulMatches(window.localStorage);
+    } catch {
+      return 0;
+    }
+  });
+  const [showRewardsPanel, setShowRewardsPanel] = useState(() => {
+    try {
+      return Boolean(captureReferralCode(window.location.search, window.localStorage));
+    } catch {
+      return false;
+    }
+  });
+  const [quotaGateOpen, setQuotaGateOpen] = useState(false);
   const trackedResultRef = useRef<
     { result: AnalysisResult; viewKey: string } | undefined
   >(undefined);
@@ -172,7 +213,9 @@ function App() {
           URL.revokeObjectURL(loaded.objectUrl);
           return;
         }
+        const restoredPhotoId = crypto.randomUUID();
         setPhoto({
+          id: restoredPhotoId,
           blob: stored.photo,
           fileName: stored.fileName,
           image: loaded.image,
@@ -185,6 +228,7 @@ function App() {
           luminance: stored.luminance,
         });
         setStatus("complete");
+        countedPhotoRef.current = restoredPhotoId;
       } catch (restoreError) {
         console.warn("无法恢复本机会员档案", restoreError);
       }
@@ -205,6 +249,14 @@ function App() {
     window.addEventListener("popstate", syncView);
     return () => window.removeEventListener("popstate", syncView);
   }, []);
+
+  useEffect(() => {
+    if (!showRewardsPanel || photo) return;
+    const frame = window.requestAnimationFrame(() => {
+      rewardsPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [photo, showRewardsPanel]);
 
   useEffect(() => {
     if (
@@ -273,11 +325,65 @@ function App() {
           ? "makeup"
           : "appearance";
 
+    const nextMatches = rankCreators(result.analysis.features, eligibleCreators, { profile });
     setCreatorsCount(eligibleCreators.length);
-    setMatches(
-      rankCreators(result.analysis.features, eligibleCreators, { profile }),
-    );
-  }, [creatorLibrary, maleContentFilter, referenceAudience, result, status, view]);
+
+    const pendingQuota = pendingMatchQuotaRef.current;
+    if (
+      referenceAudience !== "women" ||
+      !pendingQuota ||
+      pendingQuota.photoId !== photo?.id ||
+      nextMatches.length === 0
+    ) {
+      setMatches(nextMatches);
+      return;
+    }
+
+    pendingMatchQuotaRef.current = undefined;
+    if (pendingQuota.accessError) {
+      setError(pendingQuota.accessError);
+      setStatus("error");
+      setQuotaGateOpen(true);
+      setShowRewardsPanel(true);
+      return;
+    }
+
+    let active = true;
+    setMatching(true);
+    void (async () => {
+      if (pendingQuota.localQuotaExhausted) {
+        await recordRewardMatchSuccess(pendingQuota.successId, pendingQuota.consumeBonus);
+      } else {
+        const fallbackCount = Math.min(localSuccessfulMatches + 1, FREE_SUCCESSFUL_MATCH_LIMIT);
+        try {
+          if (active) setLocalSuccessfulMatches(recordLocalSuccessfulMatch(window.localStorage));
+        } catch {
+          if (active) setLocalSuccessfulMatches(fallbackCount);
+        }
+        if (pendingQuota.rewardSession) {
+          void recordRewardMatchSuccess(pendingQuota.successId, false).catch((rewardError) => {
+            console.warn("无法同步邀请匹配奖励", rewardError);
+          });
+        }
+      }
+      countedPhotoRef.current = pendingQuota.photoId;
+      if (active) setMatches(nextMatches);
+    })()
+      .catch((rewardError) => {
+        if (!active) return;
+        setError(rewardError instanceof Error ? rewardError.message : "匹配权益更新失败，请稍后重试。");
+        setStatus("error");
+        setQuotaGateOpen(true);
+        setShowRewardsPanel(true);
+      })
+      .finally(() => {
+        if (active) setMatching(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [creatorLibrary, localSuccessfulMatches, maleContentFilter, photo?.id, referenceAudience, result, status, view]);
 
   useEffect(() => {
     if (!showMatchScene || !result || !matches?.length) return;
@@ -380,6 +486,8 @@ function App() {
   const clearPhoto = () => {
     photoChangedRef.current = true;
     setPhoto(undefined);
+    countedPhotoRef.current = undefined;
+    pendingMatchQuotaRef.current = undefined;
     resetAnalysis();
     void currentPlusUserId()
       .then((userId) => clearLatestLocalAnalysis(userId))
@@ -497,9 +605,35 @@ function App() {
   const runAnalysis = async () => {
     if (!photo) return;
 
+    pendingMatchQuotaRef.current = undefined;
+    const countsAsNewMatch = referenceAudience === "women" && countedPhotoRef.current !== photo.id;
+    const localQuotaExhausted = countsAsNewMatch && localSuccessfulMatches >= FREE_SUCCESSFUL_MATCH_LIMIT;
+    const rewardSession = accountClient
+      ? (await accountClient.auth.getSession()).data.session
+      : null;
+    let consumeBonus = false;
+    let accessError: string | undefined;
+
+    if (localQuotaExhausted) {
+      if (!rewardSession) {
+        accessError = "3 次免费匹配已用完。登录并邀请一位朋友完成匹配，即可继续免费使用。";
+      } else {
+        try {
+          const rewards = await getRewardStatus();
+          consumeBonus = !rewards.pendingReferral;
+          if (consumeBonus && rewards.matchCredits <= 0) {
+            accessError = "匹配次数已用完。每成功邀请一位朋友，可获得 3 次新匹配。";
+          }
+        } catch (rewardError) {
+          accessError = rewardError instanceof Error ? rewardError.message : "匹配权益读取失败，请稍后重试。";
+        }
+      }
+    }
+
     setStatus("loading");
     setError(undefined);
     setResult(undefined);
+    setQuotaGateOpen(false);
 
     try {
       const detection = await detectFace(photo.image);
@@ -518,9 +652,7 @@ function App() {
         pose: analysis?.pose,
       });
 
-      if (analysis && issues.length === 0) {
-        void recordProductEvent("analysis_succeeded");
-      } else {
+      if (!(analysis && issues.length === 0)) {
         void recordProductEvent(
           "analysis_failed",
           analysisFailureReasonFromIssues(issues) ?? "component_error",
@@ -534,6 +666,17 @@ function App() {
         luminance,
       };
       if (analysis && issues.length === 0) {
+        if (countsAsNewMatch) {
+          pendingMatchQuotaRef.current = {
+            accessError,
+            consumeBonus,
+            localQuotaExhausted,
+            photoId: photo.id,
+            rewardSession: Boolean(rewardSession),
+            successId: crypto.randomUUID(),
+          };
+        }
+        void recordProductEvent("analysis_succeeded");
         try {
           const userId = await currentPlusUserId();
           await saveLatestLocalAnalysis({
@@ -551,8 +694,19 @@ function App() {
       setStatus("complete");
     } catch (analysisError) {
       console.error(analysisError);
-      void recordProductEvent("analysis_failed", "component_error");
-      setError(analysisComponentErrorMessage(window.navigator.userAgent));
+      const rewardMessage = analysisError instanceof Error && [
+        "匹配次数",
+        "权益服务",
+        "请先登录",
+      ].some((text) => analysisError.message.includes(text))
+        ? analysisError.message
+        : undefined;
+      if (!rewardMessage) void recordProductEvent("analysis_failed", "component_error");
+      setError(rewardMessage ?? analysisComponentErrorMessage(window.navigator.userAgent));
+      if (rewardMessage) {
+        setQuotaGateOpen(true);
+        setShowRewardsPanel(true);
+      }
       setStatus("error");
     }
   };
@@ -713,6 +867,18 @@ function App() {
                   <span>正面拍摄</span><span>无遮挡</span><span>光线均匀</span>
                 </div>
                 <p className="local-note"><ShieldCheck size={15} />照片仅在当前设备处理，有效分析保存在本机</p>
+                {referenceAudience === "women" && (
+                  <div className="match-quota-summary">
+                    <span>
+                      {freeSuccessfulMatchesRemaining(localSuccessfulMatches) > 0
+                        ? `还可免费成功匹配 ${freeSuccessfulMatchesRemaining(localSuccessfulMatches)} 次，失败不计次数`
+                        : "免费次数已用完，邀请朋友后继续免费匹配"}
+                    </span>
+                    <button className="button button-ghost" onClick={() => setShowRewardsPanel((current) => !current)} type="button">
+                      <Gift size={16} />邀请赚次数
+                    </button>
+                  </div>
+                )}
                 {inAppBrowser && (
                   <div className="notice notice-warning browser-compatibility-notice" role="status">
                     <AlertCircle size={18} />
@@ -720,6 +886,11 @@ function App() {
                   </div>
                 )}
               </div>
+              {referenceAudience === "women" && showRewardsPanel && (
+                <div ref={rewardsPanelRef}>
+                  <RewardsPanel urgent={quotaGateOpen} />
+                </div>
+              )}
             </section>
           ) : (
             <>
@@ -747,6 +918,7 @@ function App() {
               >
                 <div className="analysis-sticky">
                   {analysisWorkspace}
+                  {quotaGateOpen && <RewardsPanel urgent />}
                   {showMatchScene && matches && result?.analysis && (
                     <div className="match-reveal">
                       <MatchResults

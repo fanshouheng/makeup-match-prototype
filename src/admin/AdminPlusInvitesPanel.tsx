@@ -1,6 +1,11 @@
-import { Check, Copy, KeyRound, LoaderCircle, ShieldCheck } from "lucide-react";
+import { Check, Copy, KeyRound, LoaderCircle, ShieldCheck, Sparkles } from "lucide-react";
 import { useState } from "react";
-import { issuePlusInvite, type AdminIssuedPlusInvite } from "./adminApi";
+import {
+  grantPurchasedAiCredits,
+  issuePlusInvite,
+  type AdminIssuedPlusInvite,
+  type AdminRewardStatus,
+} from "./adminApi";
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -14,6 +19,9 @@ export function AdminPlusInvitesPanel() {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const [purchaseEmail, setPurchaseEmail] = useState("");
+  const [grantBusy, setGrantBusy] = useState(false);
+  const [grantedRewards, setGrantedRewards] = useState<AdminRewardStatus | null>(null);
 
   async function handleIssue() {
     setBusy(true);
@@ -35,6 +43,21 @@ export function AdminPlusInvitesPanel() {
       setCopied(true);
     } catch {
       setError("无法自动复制，请手动选中邀请码。");
+    }
+  }
+
+  async function handleGrant(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setGrantBusy(true);
+    setGrantedRewards(null);
+    setError("");
+    try {
+      setGrantedRewards(await grantPurchasedAiCredits(purchaseEmail));
+      setPurchaseEmail("");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "AI 次数发放失败。");
+    } finally {
+      setGrantBusy(false);
     }
   }
 
@@ -76,6 +99,29 @@ export function AdminPlusInvitesPanel() {
       )}
 
       {error && <div className="admin-alert" role="alert">{error}</div>}
+
+      <div className="admin-credit-grant">
+        <div>
+          <p className="admin-kicker">AI CREDITS / MANUAL PAYMENT</p>
+          <h3>发放 10 次 AI 推荐</h3>
+          <p>仅在微信人工确认 ¥9.9 到账后操作。这里只保存账号、次数变化和发放时间，不保存付款凭证。</p>
+        </div>
+        <form onSubmit={handleGrant}>
+          <label htmlFor="ai-credit-email">用户账号邮箱</label>
+          <div>
+            <input autoComplete="off" id="ai-credit-email" onChange={(event) => setPurchaseEmail(event.target.value)} required type="email" value={purchaseEmail} />
+            <button className="admin-primary-button" disabled={grantBusy} type="submit">
+              {grantBusy ? <LoaderCircle className="admin-spin" size={16} /> : <Sparkles size={16} />}
+              发放 10 次
+            </button>
+          </div>
+        </form>
+        {grantedRewards && (
+          <p className="admin-credit-success" role="status">
+            已发放，账号当前共有 {grantedRewards.aiCredits} 次 AI 推荐。
+          </p>
+        )}
+      </div>
     </section>
   );
 }

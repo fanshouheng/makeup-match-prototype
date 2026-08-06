@@ -233,6 +233,7 @@ Deno.serve(async (request) => {
     });
     const { data: authData, error: authError } = await admin.auth.getUser(accessToken);
     if (authError || !authData.user) return reply(origin, 401, "auth_required");
+    const userId = authData.user.id;
 
     const formData = await request.formData();
     const photo = formData.get("photo");
@@ -272,6 +273,17 @@ Deno.serve(async (request) => {
 
     const photoBytes = new Uint8Array(await photo.arrayBuffer());
     if (!isJpeg(photo, photoBytes)) return reply(origin, 400, "invalid_request");
+    const creditReservationId = crypto.randomUUID();
+    const creditReservation = await admin.rpc("reserve_reward_ai_credit", {
+      p_user_id: userId,
+      p_reservation_id: creditReservationId,
+    });
+    if (creditReservation.error) {
+      if (creditReservation.error.message.includes("no_ai_credits")) {
+        return reply(origin, 409, "no_ai_credits");
+      }
+      return reply(origin, 500, "credit_reservation_failed");
+    }
     const imageUrl = `data:image/jpeg;base64,${toBase64(photoBytes)}`;
     const providerStartedAt = Date.now();
     let providerResponse: Response;
@@ -319,6 +331,10 @@ Deno.serve(async (request) => {
         signal: AbortSignal.timeout(70_000),
       });
     } catch (error) {
+      await admin.rpc("refund_reward_ai_credit", {
+        p_user_id: userId,
+        p_reservation_id: creditReservationId,
+      });
       const errorCode = invocationErrorCode(error);
       await recordAiInvocation(admin, {
         contentFilter,
@@ -333,6 +349,10 @@ Deno.serve(async (request) => {
     }
 
     if (!providerResponse.ok) {
+      await admin.rpc("refund_reward_ai_credit", {
+        p_user_id: userId,
+        p_reservation_id: creditReservationId,
+      });
       const providerError = await providerResponse
         .clone()
         .json()
@@ -365,6 +385,11 @@ Deno.serve(async (request) => {
 
     try {
       const names = parseProviderCreatorNames(await providerResponse.json());
+      const committed = await admin.rpc("commit_reward_ai_credit", {
+        p_user_id: userId,
+        p_reservation_id: creditReservationId,
+      });
+      if (committed.error) console.error("AI credit commit failed", { code: committed.error.code });
       await recordAiInvocation(admin, {
         contentFilter,
         durationMs: Date.now() - providerStartedAt,
@@ -377,6 +402,10 @@ Deno.serve(async (request) => {
         headers: headers(origin),
       });
     } catch (error) {
+      await admin.rpc("refund_reward_ai_credit", {
+        p_user_id: userId,
+        p_reservation_id: creditReservationId,
+      });
       await recordAiInvocation(admin, {
         contentFilter,
         durationMs: Date.now() - providerStartedAt,

@@ -29,6 +29,8 @@ import {
 } from "../services/aiCreatorDiscovery";
 import { accountClient } from "../services/accountClient";
 import { hasSupabaseConfig } from "../services/supabaseClient";
+import { getRewardStatus, type RewardStatus } from "../services/rewards";
+import { RewardsPanel } from "./RewardsPanel";
 
 interface AiCreatorDiscoveryProps {
   contentFilter: CreatorContentFilter;
@@ -72,6 +74,8 @@ export function AiCreatorDiscovery({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiCreatorDiscoveryResult>();
   const [error, setError] = useState<string>();
+  const [rewards, setRewards] = useState<RewardStatus>();
+  const [rewardsLoading, setRewardsLoading] = useState(false);
 
   useEffect(() => {
     if (!accountClient) {
@@ -95,6 +99,28 @@ export function AiCreatorDiscovery({
       listener.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!session) {
+      setRewards(undefined);
+      return;
+    }
+    let active = true;
+    setRewardsLoading(true);
+    void getRewardStatus()
+      .then((next) => {
+        if (active) setRewards(next);
+      })
+      .catch((rewardError) => {
+        if (active) setError(rewardError instanceof Error ? rewardError.message : "AI 权益读取失败。");
+      })
+      .finally(() => {
+        if (active) setRewardsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [session]);
 
   async function handleAuth(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -134,7 +160,11 @@ export function AiCreatorDiscovery({
   async function handleDiscover() {
     setError(undefined);
     if (!session) {
-      setError("请先登录免费账号，再使用 AI 推荐。");
+      setError("请先登录账号，再使用 AI 推荐。");
+      return;
+    }
+    if (!rewards || rewards.aiCredits <= 0) {
+      setError("AI 推荐次数已用完，请邀请朋友或购买次数后再试。");
       return;
     }
     if (!consent) {
@@ -159,6 +189,7 @@ export function AiCreatorDiscovery({
         referenceAudience,
         turnstileToken,
       }));
+      setRewards(await getRewardStatus());
     } catch (discoveryError) {
       setError(
         discoveryError instanceof Error
@@ -184,7 +215,7 @@ export function AiCreatorDiscovery({
         <div>
           <p className="eyebrow">AI DISCOVERY / 联网推荐</p>
           <h3 id="ai-discovery-title">让 AI 再找几个参考</h3>
-          <p>登录免费账号后，AI 会分析这张照片并联网查找，只返回博主名字。</p>
+          <p>每次消耗 1 次 AI 推荐。邀请朋友或购买次数后，AI 会分析照片并联网查找，只返回博主名字。</p>
         </div>
         <button
           aria-controls="ai-discovery-content"
@@ -220,7 +251,7 @@ export function AiCreatorDiscovery({
               </div>
             ) : !session ? (
               <div className="ai-auth-panel">
-                <div className="ai-auth-tabs" aria-label="免费账号方式" role="tablist">
+                <div className="ai-auth-tabs" aria-label="账号方式" role="tablist">
                   <button aria-selected={authMode === "register"} onClick={() => switchAuthMode("register")} role="tab" type="button">注册</button>
                   <button aria-selected={authMode === "login"} onClick={() => switchAuthMode("login")} role="tab" type="button">登录</button>
                 </div>
@@ -256,14 +287,14 @@ export function AiCreatorDiscovery({
                   </div>
                   <button className="button button-primary" disabled={authBusy} type="submit">
                     {authBusy ? <LoaderCircle className="spin" size={16} /> : authMode === "register" ? <UserPlus size={16} /> : <LogIn size={16} />}
-                    {authBusy ? "请稍候" : authMode === "register" ? "注册免费账号" : "登录"}
+                    {authBusy ? "请稍候" : authMode === "register" ? "注册账号" : "登录"}
                   </button>
                 </form>
                 {authNotice && <p className="ai-auth-notice" role="status">{authNotice}</p>}
               </div>
             ) : (
               <div className="ai-auth-session">
-                <div><small>当前免费账号</small><strong>{session.user.email}</strong></div>
+                <div><small>当前账号</small><strong>{session.user.email}</strong></div>
                 <button
                   aria-label="退出登录"
                   onClick={() => void accountClient?.auth.signOut()}
@@ -276,6 +307,10 @@ export function AiCreatorDiscovery({
             )}
             {authReady && session && (
               <>
+                <p className="ai-credit-balance">
+                  {rewardsLoading ? "正在读取 AI 推荐次数…" : `当前剩余 ${rewards?.aiCredits ?? 0} 次 AI 推荐`}
+                </p>
+                {!rewardsLoading && rewards?.aiCredits === 0 && <RewardsPanel embedded />}
                 <p>
                   开始后，浏览器会生成一张去除照片元数据的压缩副本，并发送给第三方 AI 服务完成本次分析和联网推荐。副本不会写入 MAKE UP 数据库。
                 </p>
@@ -322,7 +357,7 @@ export function AiCreatorDiscovery({
                 )}
                 <button
                   className="button button-primary ai-discovery-submit"
-                  disabled={loading || !consent || !hasSupabaseConfig || !hasTurnstileConfig || !turnstileToken}
+                  disabled={loading || rewardsLoading || !rewards?.aiCredits || !consent || !hasSupabaseConfig || !hasTurnstileConfig || !turnstileToken}
                   onClick={() => void handleDiscover()}
                   type="button"
                 >
