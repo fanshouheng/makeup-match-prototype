@@ -2,8 +2,9 @@
 
 ## Positioning
 
-MAKE UP is a free, privacy-first makeup-reference prototype. A user selects a
-front-facing photo and the browser measures face-structure proportions locally.
+MAKE UP is a privacy-first makeup-reference prototype with free base matching
+and a 9.9 yuan invitation-only Plus beta. A user selects a front-facing photo,
+and the browser measures face-structure proportions locally.
 The women flow returns authorized creators and tutorial links. Activated Plus
 users can separately consent to send nine disclosed exact ratios and scene/style
 choices to DeepSeek for a structured makeup report; Doubao then receives only
@@ -77,8 +78,10 @@ npm run build
 - Do not scrape creators, copy photos, or import third-party lists unless the user
   has explicitly authorized that specific operation and confirmed the required
   creator permissions.
-- Keep the current free-product wording; do not add monetization claims unless the
-  user explicitly reopens that decision.
+- Keep free base matching unchanged. Plus is limited to the current 9.9 yuan
+  manual-payment, invitation-only beta. Do not add automatic payments,
+  subscriptions, paid ranking, ads, or broader monetization without explicit
+  user approval.
 - Production audits are read-only by default. Approval, rejection, deletion, or
   Storage changes require explicit user authorization. A direct instruction to
   upload, import, approve, reject, delete, or change Storage is that authorization;
@@ -86,13 +89,13 @@ npm run build
 
 ## Current State
 
-`main` is the authoritative release branch. The public app uses Vercel Analytics
-and Speed Insights, Supabase for consent-backed creator intake, Cloudflare
+`main` is the authoritative release branch. The public app uses Vercel Analytics,
+Supabase for consent-backed creator intake, Cloudflare
 Turnstile for submission protection, and manual review before publication.
 The result page supports login-free yes/no feedback, local share-poster
-generation, a separately consented DeepSeek men report, and separately consented
-AI names-only discovery. Feedback, share, and AI telemetry must remain aggregate
-and must not include user photos, face proportions, match scores, creator names,
-AI results, or rankings.
+generation, a separately consented DeepSeek men report, separately consented AI
+names-only discovery, and the 9.9 yuan invitation-only Plus beta. Feedback,
+share, and AI telemetry must remain aggregate and must not include user photos,
+face proportions, match scores, creator names, AI results, or rankings.
 Read `README.md`, `SUPABASE_SETUP.md`, and `docs/ADMIN_REVIEW.md` before changing
 the public data flow or deployment contract.
