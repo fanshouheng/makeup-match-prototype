@@ -9,6 +9,8 @@ import {
   type AdminMetricsRange,
 } from "./adminMetricsRange.ts";
 import { summarizeMatchNegativeFeedback } from "../_shared/matchNegativeFeedback.ts";
+import { isAuthorizedAdmin } from "../_shared/adminAuthorization.ts";
+import { isValidFaceFeatureVector } from "../_shared/faceFeatureVector.ts";
 
 const PHOTO_BUCKET = "creator-photos";
 const SIGNED_URL_TTL_SECONDS = 300;
@@ -58,11 +60,6 @@ const PRODUCT_FAILURE_REASONS = [
   "component_error",
 ] as const;
 type ProductFailureReason = typeof PRODUCT_FAILURE_REASONS[number];
-const FEATURE_KEYS = [
-  "faceAspectRatio", "jawToCheekRatio", "foreheadToCheekRatio",
-  "lowerThirdRatio", "eyeSpacingRatio", "eyeAspectRatio",
-  "noseWidthRatio", "lipWidthRatio", "lipAspectRatio",
-] as const;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_REFERENCE_AUDIENCES = new Set(["women", "men"]);
 const ALLOWED_CONTENT_TYPES = new Set(["appearance", "hair", "makeup"]);
@@ -144,10 +141,6 @@ function secretKey(): string | undefined {
     keyFromCollection("SUPABASE_SECRET_KEYS");
 }
 
-function adminEmails(): Set<string> {
-  return new Set((Deno.env.get("ADMIN_EMAILS") ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean));
-}
-
 function requiredText(formData: FormData, key: string, maxLength: number): string | undefined {
   const value = formData.get(key);
   if (typeof value !== "string") return undefined;
@@ -201,10 +194,6 @@ function isValidReferenceSelection(
   );
 }
 
-function isFeatureVector(value: Record<string, unknown> | undefined): boolean {
-  return Boolean(value && FEATURE_KEYS.every((key) => typeof value[key] === "number" && Number.isFinite(value[key])));
-}
-
 function isHttpsUrl(value: string): boolean {
   try {
     return new URL(value).protocol === "https:";
@@ -241,8 +230,10 @@ async function authenticate(request: Request, origin: string): Promise<{ user: U
     global: { headers: { Authorization: authorization } },
   });
   const { data, error } = await userClient.auth.getUser(accessToken);
-  if (error || !data.user || !data.user.email) return reply(origin, 401, { code: "auth_required" });
-  if (!adminEmails().has(data.user.email.toLowerCase())) return reply(origin, 403, { code: "not_admin" });
+  if (error || !data.user) return reply(origin, 401, { code: "auth_required" });
+  if (!isAuthorizedAdmin(data.user, Deno.env.get("ADMIN_USER_IDS"))) {
+    return reply(origin, 403, { code: "not_admin" });
+  }
 
   return { user: data.user, admin: createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } }) };
 }
@@ -434,7 +425,7 @@ async function createSubmission(admin: SupabaseClient, user: User, formData: For
     (tutorialUrl && !isCreatorPlatformUrl(platform, tutorialUrl)) ||
     !isValidReferenceSelection(referenceAudience, contentTypes) ||
     !(referencePhoto instanceof File) || referencePhoto.size > MAX_PHOTO_BYTES ||
-    !ALLOWED_MIME_TYPES.has(referencePhoto.type) || !isFeatureVector(featureVector) ||
+    !ALLOWED_MIME_TYPES.has(referencePhoto.type) || !isValidFaceFeatureVector(featureVector) ||
     !qualityMetrics || consentVersion !== CONSENT_VERSION
   ) {
     return reply(origin, 400, { code: "invalid_submission" });
@@ -662,9 +653,17 @@ Deno.serve(async (request) => {
       const note = body.reviewNote?.trim() ?? "";
       if (!note || note.length > MAX_REVIEW_NOTE_LENGTH) return reply(origin, 400, { code: "review_note_required" });
       if (current.status !== "pending") return reply(origin, 409, { code: "submission_already_reviewed" });
-      const result = await identity.admin.from("creator_submissions").update({ status: "rejected", reviewed_at: new Date().toISOString(), review_note: note }).eq("id", body.submissionId).eq("status", "pending");
+      const result = await identity.admin.from("creator_submissions")
+        .update({ status: "rejected", reviewed_at: new Date().toISOString(), review_note: note })
+        .eq("id", body.submissionId)
+        .eq("status", "pending")
+        .select("id,reference_photo_path")
+        .maybeSingle();
       if (result.error) throw result.error;
-      const cleanup = current.reference_photo_path ? await identity.admin.storage.from(PHOTO_BUCKET).remove([current.reference_photo_path]) : { error: null };
+      if (!result.data) return reply(origin, 409, { code: "submission_already_reviewed" });
+      const cleanup = result.data.reference_photo_path
+        ? await identity.admin.storage.from(PHOTO_BUCKET).remove([result.data.reference_photo_path])
+        : { error: null };
       return reply(origin, 200, { ok: true, photoCleanup: cleanup.error ? "failed" : "complete" });
     }
 

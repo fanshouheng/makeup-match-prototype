@@ -1,10 +1,12 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.110.7";
 import { parseProviderCreatorNames } from "../_shared/aiCreatorDiscovery.ts";
+import { readJsonWithLimit } from "../_shared/requestBody.ts";
 import {
   MALE_FACE_REPORT_FEATURE_KEYS,
   type MaleFaceReportFeatureKey,
 } from "../_shared/maleFaceReport.ts";
 import {
+  approvedCreatorDiscoveryKeywords,
   parseDeepSeekPlusMakeupReport,
   PLUS_MAKEUP_DIRECTIONS,
   PLUS_MAKEUP_REPORT_CONSENT_VERSION,
@@ -357,13 +359,13 @@ async function generateCoreReport(
 }
 
 function creatorPrompt(input: PlusMakeupRequest, report: PlusMakeupCoreReport): string {
+  const approvedKeywords = approvedCreatorDiscoveryKeywords(report);
   return [
     "联网搜索 3 到 5 位中国公开美妆博主，作为以下妆容方案的手法参考。",
     "只返回博主公开使用的名字，不返回链接、账号、相似度或解释。不要识别用户身份，不要下载或分析候选博主照片，也不要声称博主与本站合作或已经授权。",
     `场景：${[...input.scenes.map((scene) => SCENE_LABELS[scene]), input.customScene].filter(Boolean).join("、")}`,
     `妆造方向：${DIRECTION_LABELS[input.direction]}`,
-    `面部结构摘要：${report.faceProfile.summary}`,
-    `方案重点：${report.plans.map((plan) => `${plan.name}：${plan.effect}`).join("；")}`,
+    `方案关键词：${approvedKeywords.length ? approvedKeywords.join("、") : "通用妆容手法"}`,
   ].join("\n");
 }
 
@@ -637,15 +639,10 @@ Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: headers(origin) });
   if (request.method !== "POST") return reply(origin, 405, { code: "method_not_allowed" });
 
-  const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (contentLength > MAX_REQUEST_BYTES) {
-    return reply(origin, 413, { code: "request_too_large" });
-  }
-
   try {
     const identity = await authenticate(request, origin);
     if (identity instanceof Response) return identity;
-    const body = await request.json();
+    const body = await readJsonWithLimit(request, MAX_REQUEST_BYTES);
     if (typeof body !== "object" || body === null || Array.isArray(body)) {
       throw new Error("invalid_request");
     }
@@ -740,6 +737,9 @@ Deno.serve(async (request) => {
 
     throw new Error("invalid_request");
   } catch (error) {
+    if (error instanceof Error && error.message === "request_too_large") {
+      return reply(origin, 413, { code: "request_too_large" });
+    }
     if (
       error instanceof SyntaxError ||
       (error instanceof Error && error.message === "invalid_request")

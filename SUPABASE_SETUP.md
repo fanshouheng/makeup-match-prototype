@@ -4,30 +4,9 @@
 
 ## 1. 初始化数据库
 
-按顺序执行：
+使用 `supabase db push` 按文件名顺序执行 `supabase/migrations/` 中的全部迁移，不要手工跳过文件。`202607170003_lock_creator_submission_writes.sql` 会关闭匿名数据库与 Storage 直写；`20260727090637_fix_plus_invite_redeem_conflict.sql` 因历史排序问题保留为无操作迁移；`20260807090000_security_hardening.sql` 会再次关闭匿名直写、恢复最终邀请码函数、增加匿名事件限流，并为新写入的创作者特征向量增加数据库约束。
 
-1. `supabase/migrations/202607170001_public_creator_library.sql`
-2. `supabase/migrations/202607170002_creator_submission_rate_limit.sql`
-3. `supabase/migrations/202607170004_explicit_rate_limit_denial.sql`
-4. `supabase/migrations/20260722071544_add_creator_reference_modes.sql`
-5. `supabase/migrations/20260722094929_product_event_metrics.sql`
-6. `supabase/migrations/20260723054229_enforce_creator_reference_modes.sql`
-7. `supabase/migrations/20260723054251_extend_product_event_metrics.sql`
-8. `supabase/migrations/20260723060615_add_men_photo_selected_metric.sql`
-9. `supabase/migrations/20260723080320_add_women_photo_selected_metric.sql`
-10. `supabase/migrations/20260723092337_creator_outreach_tracking.sql`
-11. `supabase/migrations/20260723173725_add_analysis_failure_reason.sql`
-12. `supabase/migrations/20260723174626_add_creator_platform_support.sql`
-13. `supabase/migrations/20260723124712_ai_creator_discovery_rate_limit.sql`
-14. `supabase/migrations/20260723232454_ai_creator_discovery_logs.sql`
-15. `supabase/migrations/20260727114006_plus_invite_memberships.sql`
-16. `supabase/migrations/20260727125231_match_negative_feedback.sql`
-17. `supabase/migrations/20260731092923_plus_makeup_background_jobs.sql`
-18. `supabase/migrations/20260806150000_referral_reward_wallets.sql`
-
-第二、三个迁移只增加私有限流能力并显式拒绝客户端访问，不会关闭现有提交入口。第四个迁移为现有申请和公开创作者补充参考页面与内容方向，已有记录默认保持为“女生 + 妆容”。第五个迁移创建匿名会话事件表。第六个迁移约束女生参考只使用妆容内容，第七个迁移补充访问和创作者链接点击事件，第八、九个迁移分别补充男生和女生模式选图事件；产品事件表不向匿名或已登录客户端开放读写权限。第十个迁移创建私有博主跟进台账，只允许 `service_role` 访问，不能向 `anon` 或 `authenticated` 授权。第十一个迁移为分析失败增加固定原因代码；旧事件保持未分类，不做历史猜测。第十二个迁移增加抖音/小红书平台与通用主页字段，并保留旧抖音字段用于滚动部署兼容。第十三个迁移为可选 AI 推荐创建私有限流表和原子计数函数。第十四个迁移创建私有 AI 调用日志，只保存时间、状态、耗时、固定错误分类和参考模式。第十五个迁移创建私有一次性邀请码和用户自读的 Plus 权益表，并提供仅 `service_role` 可调用的原子兑换函数。第十六个迁移创建结构化负反馈表。第十七个迁移创建仅 `service_role` 可访问的 Plus 后台任务表、原子预占/退款函数和每小时过期清理任务。第十八个迁移创建私有邀请关系、匹配与 AI 次数钱包、不可变交易记录、原子扣退函数和超时 AI 预扣清理任务；这些表不向浏览器角色开放。
-
-暂时不要执行 `202607170003_lock_creator_submission_writes.sql`。它会关闭浏览器直接写数据库和存储的旧入口，应在 Edge Function 验证成功后最后执行。
+全新环境必须从空数据库执行完整迁移集。已有环境部署前先运行 `supabase migration list`，确认迁移历史；不要通过改名或手工跳过迁移来消除差异。
 
 如果新项目关闭了 Data API 的自动授权，在启用 RLS 后还需要允许匿名客户端读取公开博主表：
 
@@ -68,10 +47,13 @@ RATE_LIMIT_SALT=至少 32 个随机字符
 ARK_API_KEY=火山引擎方舟 API Key
 ARK_MODEL=支持图片理解与联网搜索的模型或推理接入点 ID
 DEEPSEEK_API_KEY=DeepSeek 开放平台 API Key
-ADMIN_EMAILS=允许签发邀请码和访问管理台的邮箱，多个邮箱用英文逗号分隔
+ADMIN_USER_IDS=允许签发邀请码和访问管理台的已确认 Auth 用户 UUID，多个值用英文逗号分隔
+ENABLE_MALE_FACE_REPORT=false
 ```
 
 多个允许域名使用英文逗号分隔。不要在 `ALLOWED_ORIGINS` 中使用 `*`。
+
+管理员权限只按不可变的 Auth 用户 UUID 判断，不按邮箱字符串判断。先在 Supabase Authentication 中确认管理员账号已完成邮箱验证，再把其 UUID 写入 `ADMIN_USER_IDS`；不要把普通 Plus 用户 UUID 加入该变量。生产环境应开启邮箱确认，并为管理员启用 MFA。
 
 本地联调时可以临时增加 `ALLOW_LOCAL_ORIGINS=true`，完成测试后应删除或改回 `false`。正式 Turnstile 站点也必须允许相应的本地域名。
 
@@ -87,7 +69,7 @@ ADMIN_EMAILS=允许签发邀请码和访问管理台的邮箱，多个邮箱用�
 
 部署 `supabase/functions/submit-creator/index.ts`。该公开函数必须设置 `verify_jwt = false`，因为它使用 Turnstile 和函数内限流完成自己的授权检查。
 
-先保持旧匿名策略存在，完成以下验证：
+完成以下验证：
 
 1. 未完成 Turnstile 时前端不能提交。
 2. 有效 Turnstile token 可以提交一条 `pending` 申请。
@@ -97,11 +79,12 @@ ADMIN_EMAILS=允许签发邀请码和访问管理台的邮箱，多个邮箱用�
 6. 匿名用户仍不能读取 `creator_submissions`。
 7. 女生申请保存为 `women + makeup`，男生申请能保存所选的形象参考、发型或妆容方向。
 
-## 6. 关闭匿名直写
+## 6. 核验匿名直写已关闭
 
-Edge Function 验证通过后，执行：
+迁移完成后确认以下两个写策略均不存在：
 
-`supabase/migrations/202607170003_lock_creator_submission_writes.sql`
+- `anyone can submit a pending creator application`
+- `anyone can upload a creator submission photo`
 
 然后再次验证：
 
@@ -126,7 +109,7 @@ Edge Function 验证通过后，执行：
 
 ## 8. 部署并验证男生 DeepSeek 报告
 
-部署 `supabase/functions/male-face-report/index.ts`，并设置 `verify_jwt = false`。该公开函数只接受允许来源，并在函数内验证 Turnstile、同意版本、固定九项比例、数值范围、报告模式、文风和共享 AI 限流。
+男生报告没有公开入口时保持 `ENABLE_MALE_FACE_REPORT=false` 或不设置。需要重新开放时，部署 `supabase/functions/male-face-report/index.ts`，设置 `verify_jwt = false` 和 `ENABLE_MALE_FACE_REPORT=true`；函数会验证允许来源、Turnstile、同意版本、固定九项比例、数值范围、报告模式、文风，并与 AI 联网推荐共享原子 IP 限流。
 
 上线前验证：
 
@@ -141,7 +124,7 @@ Edge Function 验证通过后，执行：
 
 ## 9. 产品事件与管理台指标
 
-部署 `supabase/functions/record-product-event/index.ts`，并保持 `verify_jwt = false`。该函数只接受允许来源提交的随机会话 UUID、固定事件名，以及分析失败时可选的固定原因代码。结构化“不符合”反馈还必须携带 1 至 3 个博主 UUID 的无顺序集合、`weighted-rms-v1` 算法版本、至少一个固定原因，以及可选的最多 160 字“其他”原因。`product_events` 与 `match_negative_feedback` 都不向 `anon` 或 `authenticated` 开放读取或直写权限。
+部署 `supabase/functions/record-product-event/index.ts`，并保持 `verify_jwt = false`。该函数只接受允许来源提交的随机会话 UUID、固定事件名，以及分析失败时可选的固定原因代码；同一加盐 IP 哈希每小时最多写入 120 次。结构化“不符合”反馈还必须携带 1 至 3 个当前公开博主 UUID 的无顺序集合、`weighted-rms-v1` 算法版本、至少一个固定原因，以及可选的最多 160 字“其他”原因。`product_events` 与 `match_negative_feedback` 都不向 `anon` 或 `authenticated` 开放读取或直写权限。
 
 重新部署 `supabase/functions/admin-review/index.ts`，让受保护的 `/admin` 管理台按所选北京时间日期范围读取访问、选图、女生与男生模式选图、分析、结果、反馈、创作者链接点击和分享聚合指标；未传日期的旧版管理台请求仍读取最近 7×24 小时。验证：
 
@@ -165,25 +148,25 @@ Edge Function 验证通过后，执行：
 
 ## 11. 部署并验证 Plus 邀请账号
 
-执行第十五个迁移后，部署 `supabase/functions/plus-access/index.ts`，并保持 `verify_jwt = false`。`register` 在登录前调用，因此网关不预先校验 JWT；函数会先校验邮箱、密码和一次性邀请码，再通过服务端创建已确认邮箱的 Supabase Auth 用户并原子兑换邀请码，兑换失败时删除刚创建的用户。`status`、`redeem` 和 `issue` 仍在函数内部验证 JWT，`issue` 还会校验 `ADMIN_EMAILS`。浏览器端不得接触 `service_role` 或 secret key。上线前验证：
+执行 Plus 与安全硬化迁移后，部署 `supabase/functions/plus-access/index.ts`，并保持 `verify_jwt = false`。新账号只通过 Supabase Auth 标准注册和确认邮件创建；`status`、`redeem` 和 `issue` 在函数内部验证 JWT，`redeem` 要求邮箱已确认，`issue` 还要求用户 UUID 存在于 `ADMIN_USER_IDS`。浏览器端不得接触 `service_role` 或 secret key。上线前验证：
 
 1. 当前浏览器前 3 次女生成功匹配未登录可用；失败和同一照片重试不计，之后只接受邀请所得匹配次数。
-2. 已有账号登录后可以兑换有效邀请码；新用户填写邮箱、至少 8 位密码和有效邀请码后可直接注册激活，不发送确认邮件。
+2. 新用户注册后必须先点击确认邮件，再登录并兑换有效邀请码；未确认邮箱不能激活 Plus。
 3. 普通账号和 Plus 复用 `make-up-plus-auth` 存储键，不会覆盖 `/admin` 的管理员登录态。
-4. 非管理员调用 `issue` 返回 `not_admin`；管理员签发后只收到一次邀请码明文，数据库只有 64 位哈希。
-5. 无效、过期或已被其他账号兑换的邀请码分别被拒绝；创建账号后若原子兑换失败，函数会清理刚创建的账号，并应在上线验证中确认没有留下可登录但未激活的孤立账号。
-6. 两个账号同时使用同一邀请码注册或兑换时只有一个成功；成功账号能读取自己的权益，不能读取其他账号或邀请码表。
+4. 邮箱与管理员邮箱相同但 UUID 未授权的账号调用管理接口和 `issue` 均返回 `not_admin`；管理员签发后只收到一次邀请码明文，数据库只有 64 位哈希。
+5. 无效、过期或已被其他账号兑换的邀请码分别被拒绝。
+6. 两个已确认账号同时兑换同一邀请码时只有一个成功；成功账号能读取自己的权益，不能读取其他账号或邀请码表。
 7. 激活后显示 3 次报告额度和 180 天有效期；当前 9.9 元内测包将其表述为 1 份正式报告和 2 次内测重试。会员页能从当前浏览器 IndexedDB 恢复最近一次有效分析和真实生成成功的报告。网站数据库和 Storage 中没有密码明文、普通用户照片、付款凭证或微信聊天；Plus 任务可按第 12 节边界临时保存比例、配置和报告。
 8. `/plus` 不展示收款码、不声明自动确认付款，并要求用户付款前在微信确认名额、交付内容、时间和退款方式。
 
 ## 12. 部署并验证 Plus 妆造报告
 
-执行第十七个迁移后，部署 `supabase/functions/plus-makeup-report/index.ts`，并保持 `verify_jwt = true`。网关和函数内部都会验证登录态；函数还会检查 Plus 权益、剩余额度、允许来源、同意版本、场景数量、妆造方向、九项比例键和值域。Plus 登录生成不要求 Turnstile；男生报告、AI 联网推荐和博主申请的 Turnstile 保持不变。函数支持 `start`、`status`、`ack` 三个动作，并通过 `EdgeRuntime.waitUntil()` 在首次请求返回后继续处理。上线前验证：
+执行 `20260731092923_plus_makeup_background_jobs.sql` 后，部署 `supabase/functions/plus-makeup-report/index.ts`，并保持 `verify_jwt = true`。网关和函数内部都会验证登录态；函数还会检查 Plus 权益、剩余额度、允许来源、同意版本、场景数量、妆造方向、九项比例键和值域。Plus 登录生成不要求 Turnstile；男生报告、AI 联网推荐和博主申请的 Turnstile 保持不变。函数支持 `start`、`status`、`ack` 三个动作，并通过 `EdgeRuntime.waitUntil()` 在首次请求返回后继续处理。上线前验证：
 
 1. 未登录、权益失效、额度为 0 或未同意时不能创建任务；有效登录用户不再被 Turnstile 阻塞。
 2. `start` 请求只包含九项精确比例、1 至 3 个场景、一个妆造方向和同意版本；不包含照片、关键点、姓名、设备标识、本地排名或博主库数据。
 3. DeepSeek 输出只接受严格 JSON：一份结构报告、正好 3 套方案、每套 5 至 7 个步骤，以及边界说明；肤色、肤质、眼皮形态等未提供信息必须列为限制，不能虚构。
-4. 豆包只接收场景、妆造方向、DeepSeek 生成的结构文字摘要和方案重点，不接收照片或九项精确比例；只返回 1 至 5 个无链接的公开博主名字，并设置 `store: false`。
+4. 豆包只接收场景、妆造方向和由服务端允许列表提取的妆容关键词，不接收照片、九项精确比例或 DeepSeek 自由文本；只返回 1 至 5 个无链接的公开博主名字，并设置 `store: false`。
 5. `start` 原子预占 1 次额度并立即返回任务 ID；同一账号只能有一个处理中任务。失败、第二次恢复仍失败或过期时只退款一次，额度不能扣成负数或重复退回。
 6. 额度更新只使用 Edge Function 内的服务端密钥；`anon` 和 `authenticated` 仍不能直接修改 `plus_memberships`。
 7. 私有任务表暂存账号 ID、九项比例、场景、妆造方向和生成结果，不保存照片、关键点、完整提示词、设备标识或本地排名。生成成功或失败时立即清除精确比例；失败时同时清除配置和报告；成功报告写入当前浏览器 IndexedDB 后，前端调用 `ack` 删除整个任务。
@@ -194,7 +177,7 @@ Edge Function 验证通过后，执行：
 
 ## 13. 部署并验证邀请与 AI 次数
 
-执行第十八个迁移后，部署 `supabase/functions/rewards-access/index.ts` 并设置 `verify_jwt = true`，再重新部署 `ai-creator-discovery`。验证：
+执行 `20260806150000_referral_reward_wallets.sql` 后，部署 `supabase/functions/rewards-access/index.ts` 并设置 `verify_jwt = true`，再重新部署 `ai-creator-discovery`。验证：
 
 1. 邀请链接只携带 10 位随机代码，不包含用户 ID；受邀账号必须确认邮箱并成功完成一次女生匹配才算有效。
 2. 每个有效邀请给邀请人 3 次匹配和 1 次 AI 推荐，受邀人 1 次 AI 推荐；邀请人 30 天最多获得 5 位奖励。

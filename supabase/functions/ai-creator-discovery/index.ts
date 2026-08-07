@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.110.7";
 import { parseProviderCreatorNames } from "../_shared/aiCreatorDiscovery.ts";
+import { clientIpFromRequest, hashRateKey } from "../_shared/rateLimit.ts";
+import { hasAcceptableContentLength } from "../_shared/requestBody.ts";
 
 const AI_DISCOVERY_CONSENT_VERSION = "2026-07-23";
 const MAX_PHOTO_BYTES = 1.5 * 1024 * 1024;
@@ -115,14 +117,6 @@ function secretKey(): string | undefined {
     keyFromCollection("SUPABASE_SECRET_KEYS");
 }
 
-async function hashRateKey(value: string, salt: string): Promise<string> {
-  const bytes = new TextEncoder().encode(`${salt}:${value}`);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 async function verifyTurnstile(
   token: string,
   secret: string,
@@ -204,8 +198,9 @@ Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: headers(origin) });
   if (request.method !== "POST") return reply(origin, 405, "method_not_allowed");
 
-  const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (contentLength > MAX_REQUEST_BYTES) return reply(origin, 413, "request_too_large");
+  if (!hasAcceptableContentLength(request, MAX_REQUEST_BYTES)) {
+    return reply(origin, 413, "request_too_large");
+  }
 
   const arkApiKey = Deno.env.get("ARK_API_KEY");
   const arkModel = Deno.env.get("ARK_MODEL");
@@ -256,8 +251,7 @@ Deno.serve(async (request) => {
       return reply(origin, 400, "invalid_request");
     }
 
-    const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-    const clientIp = request.headers.get("cf-connecting-ip") ?? forwardedFor;
+    const clientIp = clientIpFromRequest(request);
     if (!clientIp) return reply(origin, 400, "client_address_missing");
     if (!await verifyTurnstile(turnstileToken, turnstileSecret, clientIp)) {
       return reply(origin, 403, "captcha_failed");

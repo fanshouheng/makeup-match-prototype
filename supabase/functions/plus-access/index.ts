@@ -4,18 +4,15 @@ import {
   hashInviteCode,
   normalizeInviteCode,
 } from "../_shared/plusInvite.ts";
-import {
-  isValidPlusEmail,
-  isValidPlusPassword,
-} from "../_shared/plusAccountValidation.ts";
+import { isAuthorizedAdmin } from "../_shared/adminAuthorization.ts";
+import { readJsonWithLimit } from "../_shared/requestBody.ts";
 
-type Action = "issue" | "redeem" | "register" | "status";
+const MAX_REQUEST_BYTES = 8 * 1024;
+type Action = "issue" | "redeem" | "status";
 
 interface RequestBody {
   action?: Action;
-  email?: string;
   inviteCode?: string;
-  password?: string;
 }
 
 interface PlusMembershipRow {
@@ -88,15 +85,6 @@ function secretKey(): string | undefined {
     keyFromCollection("SUPABASE_SECRET_KEYS");
 }
 
-function adminEmails(): Set<string> {
-  return new Set(
-    (Deno.env.get("ADMIN_EMAILS") ?? "")
-      .split(",")
-      .map((value) => value.trim().toLowerCase())
-      .filter(Boolean),
-  );
-}
-
 function membershipResponse(row: PlusMembershipRow): Record<string, unknown> {
   return {
     userId: row.user_id,
@@ -150,75 +138,6 @@ async function status(admin: SupabaseClient, userId: string): Promise<PlusMember
   return result.data as PlusMembershipRow | null;
 }
 
-async function register(body: RequestBody, origin: string): Promise<Response> {
-  const keys = Object.keys(body);
-  if (keys.some((key) => !["action", "email", "password", "inviteCode"].includes(key))) {
-    return reply(origin, 400, { code: "invalid_request" });
-  }
-
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  const password = typeof body.password === "string" ? body.password : "";
-  const inviteCode = typeof body.inviteCode === "string"
-    ? normalizeInviteCode(body.inviteCode)
-    : undefined;
-  if (!isValidPlusEmail(email)) return reply(origin, 400, { code: "invalid_email" });
-  if (!isValidPlusPassword(password)) return reply(origin, 400, { code: "invalid_password" });
-  if (!inviteCode) return reply(origin, 400, { code: "invite_invalid" });
-
-  const url = Deno.env.get("SUPABASE_URL");
-  const serviceKey = secretKey();
-  if (!url || !serviceKey) return reply(origin, 503, { code: "service_not_configured" });
-  const admin = createClient(url, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-  const codeHash = await hashInviteCode(inviteCode);
-  const inviteResult = await admin
-    .from("plus_invites")
-    .select("expires_at,redeemed_at")
-    .eq("code_hash", codeHash)
-    .maybeSingle();
-  if (inviteResult.error) throw inviteResult.error;
-  if (!inviteResult.data) return reply(origin, 400, { code: "invite_invalid" });
-  if (inviteResult.data.redeemed_at) return reply(origin, 400, { code: "invite_redeemed" });
-  if (new Date(inviteResult.data.expires_at).getTime() <= Date.now()) {
-    return reply(origin, 400, { code: "invite_expired" });
-  }
-
-  const created = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-  });
-  if (created.error) {
-    if (
-      created.error.code === "email_exists" ||
-      created.error.code === "user_already_exists"
-    ) {
-      return reply(origin, 409, { code: "email_exists" });
-    }
-    if (created.error.code === "weak_password") {
-      return reply(origin, 400, { code: "invalid_password" });
-    }
-    throw created.error;
-  }
-
-  const userId = created.data.user.id;
-  const redeemed = await admin.rpc("redeem_plus_invite", {
-    p_code_hash: codeHash,
-    p_user_id: userId,
-  });
-  if (redeemed.error || !redeemed.data?.[0]) {
-    const cleanup = await admin.auth.admin.deleteUser(userId);
-    if (cleanup.error) console.error("plus registration cleanup failed");
-    const knownCode = ["invite_invalid", "invite_expired", "invite_redeemed"]
-      .find((code) => redeemed.error?.message.includes(code));
-    if (knownCode) return reply(origin, 400, { code: knownCode });
-    throw redeemed.error ?? new Error("membership_missing_after_register");
-  }
-
-  return reply(origin, 200, { registered: true });
-}
-
 Deno.serve(async (request) => {
   const origin = resolveOrigin(request);
   if (!origin) {
@@ -231,14 +150,12 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") return reply(origin, 405, { code: "method_not_allowed" });
 
   try {
-    const parsedBody = await request.json();
+    const parsedBody = await readJsonWithLimit(request, MAX_REQUEST_BYTES);
     if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
       return reply(origin, 400, { code: "invalid_request" });
     }
     const body = parsedBody as RequestBody;
     if (!body.action) return reply(origin, 400, { code: "action_required" });
-    if (body.action === "register") return await register(body, origin);
-
     const identity = await authenticate(request, origin);
     if (identity instanceof Response) return identity;
     const keys = Object.keys(body);
@@ -261,6 +178,9 @@ Deno.serve(async (request) => {
         ? normalizeInviteCode(body.inviteCode)
         : undefined;
       if (!inviteCode) return reply(origin, 400, { code: "invite_invalid" });
+      if (!identity.user.email_confirmed_at) {
+        return reply(origin, 403, { code: "email_not_verified" });
+      }
       const codeHash = await hashInviteCode(inviteCode);
       const result = await identity.admin.rpc("redeem_plus_invite", {
         p_code_hash: codeHash,
@@ -281,7 +201,7 @@ Deno.serve(async (request) => {
       if (keys.some((key) => key !== "action")) {
         return reply(origin, 400, { code: "invalid_request" });
       }
-      if (!adminEmails().has(identity.user.email!.toLowerCase())) {
+      if (!isAuthorizedAdmin(identity.user, Deno.env.get("ADMIN_USER_IDS"))) {
         return reply(origin, 403, { code: "not_admin" });
       }
       const inviteCode = generateInviteCode();
@@ -298,6 +218,9 @@ Deno.serve(async (request) => {
 
     return reply(origin, 400, { code: "unsupported_action" });
   } catch (error) {
+    if (error instanceof Error && error.message === "request_too_large") {
+      return reply(origin, 413, { code: "request_too_large" });
+    }
     console.error("plus-access failed", error instanceof Error ? error.message : "unknown_error");
     return reply(origin, 500, { code: "unexpected_error" });
   }

@@ -3,6 +3,10 @@ import {
   isUuid,
   parseMatchNegativeFeedback,
 } from "../_shared/matchNegativeFeedback.ts";
+import { clientIpFromRequest, hashRateKey } from "../_shared/rateLimit.ts";
+import { readJsonWithLimit } from "../_shared/requestBody.ts";
+
+const MAX_REQUEST_BYTES = 1024;
 
 const EVENT_NAMES = new Set([
   "landing_view",
@@ -115,15 +119,19 @@ Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: headers(origin) });
   if (request.method !== "POST") return reply(origin, 405, "method_not_allowed");
 
-  const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (contentLength > 1024) return reply(origin, 413, "request_too_large");
-
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = secretKey();
-  if (!supabaseUrl || !serviceKey) return reply(origin, 503, "service_not_configured");
+  const rateLimitSalt = Deno.env.get("RATE_LIMIT_SALT");
+  if (!supabaseUrl || !serviceKey || !rateLimitSalt) {
+    return reply(origin, 503, "service_not_configured");
+  }
 
   try {
-    const body = await request.json() as Record<string, unknown>;
+    const parsedBody = await readJsonWithLimit(request, MAX_REQUEST_BYTES);
+    if (typeof parsedBody !== "object" || parsedBody === null || Array.isArray(parsedBody)) {
+      return reply(origin, 400, "invalid_event");
+    }
+    const body = parsedBody as Record<string, unknown>;
     const keys = Object.keys(body);
     const hasFailureReason = Object.prototype.hasOwnProperty.call(body, "failureReason");
     const eventNameIsValid = typeof body.eventName === "string" && EVENT_NAMES.has(body.eventName);
@@ -171,7 +179,24 @@ Deno.serve(async (request) => {
     const admin = createClient(supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+    const clientIp = clientIpFromRequest(request);
+    if (!clientIp) return reply(origin, 400, "client_address_missing");
+    const rateKey = await hashRateKey(`product-events:${clientIp}`, rateLimitSalt);
+    const rateLimit = await admin.rpc("consume_product_event_rate_limit", {
+      rate_key: rateKey,
+    });
+    if (rateLimit.error) return reply(origin, 500, "rate_limit_failed");
+    if (!rateLimit.data) return reply(origin, 429, "rate_limited");
+
     if (parsedNegativeFeedback) {
+      const creators = await admin.from("creators")
+        .select("id")
+        .in("id", parsedNegativeFeedback.creatorIds)
+        .eq("is_active", true);
+      if (creators.error) throw creators.error;
+      if (creators.data.length !== parsedNegativeFeedback.creatorIds.length) {
+        return reply(origin, 400, "invalid_event");
+      }
       const { error } = await admin.from("match_negative_feedback").upsert(
         {
           session_id: body.sessionId,
@@ -198,6 +223,9 @@ Deno.serve(async (request) => {
 
     return reply(origin, 202, "recorded");
   } catch (error) {
+    if (error instanceof Error && error.message === "request_too_large") {
+      return reply(origin, 413, "request_too_large");
+    }
     const code = typeof error === "object" && error !== null && "code" in error
       ? String(error.code)
       : undefined;

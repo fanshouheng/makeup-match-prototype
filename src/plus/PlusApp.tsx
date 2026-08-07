@@ -23,7 +23,9 @@ import { FEATURE_LABELS } from "../domain/featureLabels";
 import { MALE_REPORT_STYLES } from "../domain/maleReportStyles";
 import {
   claimPendingMemberData,
+  deletePendingMemberData,
   deleteLocalMemberProfile,
+  hasPendingMemberData,
   loadLocalMemberProfile,
   saveLocalPlusMakeupReport,
   type LocalPlusMakeupReport,
@@ -105,6 +107,7 @@ export default function PlusApp() {
   const [localProfile, setLocalProfile] = useState<LocalMemberProfile>();
   const [localProfileLoading, setLocalProfileLoading] = useState(false);
   const [localProfileError, setLocalProfileError] = useState("");
+  const [pendingDataAvailable, setPendingDataAvailable] = useState(false);
   const [localPhotoUrl, setLocalPhotoUrl] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -112,6 +115,7 @@ export default function PlusApp() {
   const [inviteCode, setInviteCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const authenticatingRef = useRef(false);
   const activeMembership = membership?.status === "active" &&
     new Date(membership.benefitExpiresAt).getTime() > Date.now();
@@ -164,16 +168,22 @@ export default function PlusApp() {
     if (!session || !activeMembership) {
       setLocalProfile(undefined);
       setLocalProfileError("");
+      setPendingDataAvailable(false);
       return;
     }
 
     let mounted = true;
     setLocalProfileLoading(true);
     setLocalProfileError("");
-    claimPendingMemberData(session.user.id)
-      .then(() => loadLocalMemberProfile(session.user.id))
-      .then((profile) => {
-        if (mounted) setLocalProfile(profile);
+    Promise.all([
+      loadLocalMemberProfile(session.user.id),
+      hasPendingMemberData(),
+    ])
+      .then(([profile, hasPending]) => {
+        if (mounted) {
+          setLocalProfile(profile);
+          setPendingDataAvailable(hasPending);
+        }
       })
       .catch((profileError) => {
         console.error(profileError);
@@ -202,11 +212,17 @@ export default function PlusApp() {
     authenticatingRef.current = true;
     setBusy(true);
     setError("");
+    setNotice("");
     try {
       if (authMode === "register") {
-        await registerPlusAccount(email.trim(), password, inviteCode);
+        const nextSession = await registerPlusAccount(email.trim(), password);
+        if (!nextSession) {
+          setNotice("确认邮件已发送。请先在邮箱中完成确认，再返回登录并兑换邀请码。");
+          setAuthMode("login");
+          setPassword("");
+          return;
+        }
         setMembership(await getPlusMembership());
-        setInviteCode("");
       } else {
         await signInPlusAccount(email.trim(), password);
         setMembership(await getPlusMembership());
@@ -241,6 +257,38 @@ export default function PlusApp() {
     setPassword("");
     setInviteCode("");
     setError("");
+    setNotice("");
+  }
+
+  async function importPendingData() {
+    if (!session) return;
+    setLocalProfileLoading(true);
+    setLocalProfileError("");
+    try {
+      await claimPendingMemberData(session.user.id);
+      setLocalProfile(await loadLocalMemberProfile(session.user.id));
+      setPendingDataAvailable(false);
+    } catch (profileError) {
+      console.error(profileError);
+      setLocalProfileError("访客资料导入失败，请稍后重试。");
+    } finally {
+      setLocalProfileLoading(false);
+    }
+  }
+
+  async function discardPendingData() {
+    if (!window.confirm("确定删除这台设备上未归属账号的访客照片、面部数据和报告吗？")) return;
+    setLocalProfileLoading(true);
+    setLocalProfileError("");
+    try {
+      await deletePendingMemberData();
+      setPendingDataAvailable(false);
+    } catch (profileError) {
+      console.error(profileError);
+      setLocalProfileError("访客资料删除失败，请稍后重试。");
+    } finally {
+      setLocalProfileLoading(false);
+    }
   }
 
   async function clearLocalProfile() {
@@ -342,6 +390,26 @@ export default function PlusApp() {
                   <div><dt>权益有效期</dt><dd>{formatDate(membership.benefitExpiresAt)}</dd></div>
                 </dl>
               </section>
+
+              {pendingDataAvailable && (
+                <section className="plus-pending-import" aria-labelledby="pending-import-title">
+                  <div>
+                    <ShieldCheck size={20} />
+                    <div>
+                      <h2 id="pending-import-title">这台设备有一份访客资料</h2>
+                      <p>资料尚未归属任何账号。只有你明确导入后，当前账号才会看到其中的照片、面部数据和报告。</p>
+                    </div>
+                  </div>
+                  <div>
+                    <button className="button button-primary" disabled={localProfileLoading} onClick={() => void importPendingData()} type="button">
+                      <ArrowRight size={17} />导入当前账号
+                    </button>
+                    <button className="button button-secondary" disabled={localProfileLoading} onClick={() => void discardPendingData()} type="button">
+                      <Trash2 size={17} />删除访客资料
+                    </button>
+                  </div>
+                </section>
+              )}
 
               <section className="plus-member-section" aria-labelledby="member-analysis-title">
                 <div className="plus-member-section-heading">
@@ -540,8 +608,8 @@ export default function PlusApp() {
             <div className="plus-flow-step">
               <span>03</span>
               <div>
-                <h2>登录账号并激活 Plus</h2>
-                <p>已有账号可登录后兑换邀请码；新用户也可填写邮箱、密码和邀请码直接注册激活。女生流程前 3 次成功匹配无需登录，后续匹配通过邀请获得。</p>
+                <h2>确认邮箱后激活 Plus</h2>
+                <p>新用户先注册并确认邮箱，再登录兑换邀请码。女生流程前 3 次成功匹配无需登录，后续匹配通过邀请获得。</p>
               </div>
             </div>
           </div>
@@ -555,7 +623,7 @@ export default function PlusApp() {
           <div className="plus-access-intro">
             <p className="eyebrow">ACCOUNT / 账号激活</p>
             <h2 id="plus-access-title">邮箱密码注册与登录</h2>
-            <p>已有账号可直接登录并兑换邀请码；没有账号时可使用邀请码注册激活。密码由 Supabase Auth 负责认证，业务表不会保存密码明文，也不会保存照片、面部比例、报告或博主结果。</p>
+            <p>已有账号可直接登录并兑换邀请码；没有账号时先注册并完成邮箱确认。密码由 Supabase Auth 负责认证，业务表不会保存密码明文，也不会保存照片、面部比例、报告或博主结果。</p>
             <div className="plus-benefits">
               <p><Sparkles size={17} /><span><strong>早期用户资格</strong>后续 Plus 功能优先体验</span></p>
               <p><CheckCircle2 size={17} /><span><strong>共 3 次报告额度</strong>1 份正式报告 + 2 次内测重试，180 天内有效</span></p>
@@ -575,7 +643,7 @@ export default function PlusApp() {
                     role="tab"
                     type="button"
                   >
-                    注册并激活
+                    注册账号
                   </button>
                   <button
                     aria-selected={authMode === "login"}
@@ -618,24 +686,9 @@ export default function PlusApp() {
                       {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                     </button>
                   </div>
-                  {authMode === "register" && (
-                    <>
-                      <label htmlFor="plus-register-invite">一次性邀请码</label>
-                      <input
-                        autoCapitalize="characters"
-                        autoComplete="off"
-                        id="plus-register-invite"
-                        onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
-                        placeholder="MAKEUP-XXXX-XXXX-XXXX"
-                        required
-                        type="text"
-                        value={inviteCode}
-                      />
-                    </>
-                  )}
                   <button className="button button-primary" disabled={busy} type="submit">
                     {busy ? <LoaderCircle className="spin" size={17} /> : authMode === "register" ? <KeyRound size={17} /> : <LogIn size={17} />}
-                    {authMode === "register" ? "注册并登录" : "登录"}
+                    {authMode === "register" ? "发送确认邮件" : "登录"}
                   </button>
                 </form>
               </>
@@ -664,6 +717,7 @@ export default function PlusApp() {
                 </button>
               </form>
             )}
+            {notice && <p className="plus-access-notice" role="status">{notice}</p>}
             {error && <p className="plus-access-error" role="alert">{error}</p>}
           </div>
         </section>

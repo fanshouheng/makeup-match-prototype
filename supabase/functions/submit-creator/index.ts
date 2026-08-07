@@ -3,22 +3,14 @@ import {
   isCreatorPlatform,
   isCreatorPlatformUrl,
 } from "../_shared/creatorPlatform.ts";
+import { isValidFaceFeatureVector } from "../_shared/faceFeatureVector.ts";
+import { hasAcceptableContentLength } from "../_shared/requestBody.ts";
 
 const PHOTO_BUCKET = "creator-photos";
 const CONSENT_VERSION = "2026-07-21";
 const LEGACY_CONSENT_VERSION = "2026-07-17";
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
-const FEATURE_KEYS = [
-  "faceAspectRatio",
-  "jawToCheekRatio",
-  "foreheadToCheekRatio",
-  "lowerThirdRatio",
-  "eyeSpacingRatio",
-  "eyeAspectRatio",
-  "noseWidthRatio",
-  "lipWidthRatio",
-  "lipAspectRatio",
-] as const;
+const MAX_REQUEST_BYTES = 6 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_REFERENCE_AUDIENCES = new Set(["women", "men"]);
 const ALLOWED_CONTENT_TYPES = new Set(["appearance", "hair", "makeup"]);
@@ -148,15 +140,6 @@ function isValidReferenceSelection(
   );
 }
 
-function isFeatureVector(value: Record<string, unknown> | undefined): boolean {
-  return Boolean(
-    value &&
-      FEATURE_KEYS.every(
-        (key) => typeof value[key] === "number" && Number.isFinite(value[key]),
-      ),
-  );
-}
-
 function extensionForMimeType(type: string): string {
   if (type === "image/png") return "png";
   if (type === "image/webp") return "webp";
@@ -190,6 +173,9 @@ Deno.serve(async (request) => {
     return new Response("ok", { headers: corsHeaders(origin) });
   }
   if (request.method !== "POST") return response(405, "method_not_allowed", origin);
+  if (!hasAcceptableContentLength(request, MAX_REQUEST_BYTES)) {
+    return response(413, "request_too_large", origin);
+  }
 
   const turnstileSecret = Deno.env.get("CLOUDFLARE_SECRET_KEY");
   const rateLimitSalt = Deno.env.get("RATE_LIMIT_SALT");
@@ -250,7 +236,7 @@ Deno.serve(async (request) => {
       !(referencePhoto instanceof File) ||
       referencePhoto.size > MAX_PHOTO_BYTES ||
       !ALLOWED_MIME_TYPES.has(referencePhoto.type) ||
-      !isFeatureVector(featureVector) ||
+      !isValidFaceFeatureVector(featureVector) ||
       !qualityMetrics
     ) {
       return response(400, "invalid_submission", origin);

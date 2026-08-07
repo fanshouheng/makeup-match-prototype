@@ -1,8 +1,11 @@
+import { createClient } from "npm:@supabase/supabase-js@2.110.7";
 import {
   MALE_FACE_REPORT_FEATURE_KEYS,
   parseDeepSeekMaleFaceReport,
   type MaleFaceReportFeatureKey,
 } from "../_shared/maleFaceReport.ts";
+import { clientIpFromRequest, hashRateKey } from "../_shared/rateLimit.ts";
+import { readJsonWithLimit } from "../_shared/requestBody.ts";
 
 const CONSENT_VERSION = "2026-07-25";
 const MAX_REQUEST_BYTES = 16 * 1024;
@@ -117,6 +120,23 @@ function reply(origin: string, status: number, body: unknown): Response {
     status,
     headers: responseHeaders(origin),
   });
+}
+
+function keyFromCollection(name: string): string | undefined {
+  const collection = Deno.env.get(name);
+  if (!collection) return undefined;
+  try {
+    const values = Object.values(JSON.parse(collection) as Record<string, unknown>);
+    return values.find((value): value is string => typeof value === "string" && value.length > 0);
+  } catch {
+    return undefined;
+  }
+}
+
+function secretKey(): string | undefined {
+  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
+    Deno.env.get("SUPABASE_SECRET_KEY") ??
+    keyFromCollection("SUPABASE_SECRET_KEYS");
 }
 
 async function verifyTurnstile(
@@ -243,26 +263,37 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") {
     return reply(origin, 405, { code: "method_not_allowed" });
   }
-
-  const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (contentLength > MAX_REQUEST_BYTES) {
-    return reply(origin, 413, { code: "request_too_large" });
+  if (Deno.env.get("ENABLE_MALE_FACE_REPORT") !== "true") {
+    return reply(origin, 404, { code: "feature_disabled" });
   }
 
   const deepSeekApiKey = Deno.env.get("DEEPSEEK_API_KEY");
   const turnstileSecret = Deno.env.get("CLOUDFLARE_SECRET_KEY");
-  if (!deepSeekApiKey || !turnstileSecret) {
+  const rateLimitSalt = Deno.env.get("RATE_LIMIT_SALT");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const adminKey = secretKey();
+  if (!deepSeekApiKey || !turnstileSecret || !rateLimitSalt || !supabaseUrl || !adminKey) {
     return reply(origin, 503, { code: "service_not_configured" });
   }
 
   try {
-    const input = parseRequest(await request.json());
-    const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-    const clientIp = request.headers.get("cf-connecting-ip") ?? forwardedFor;
+    const input = parseRequest(await readJsonWithLimit(request, MAX_REQUEST_BYTES));
+    const clientIp = clientIpFromRequest(request);
     if (!clientIp) return reply(origin, 400, { code: "client_address_missing" });
     if (!await verifyTurnstile(input.turnstileToken, turnstileSecret, clientIp)) {
       return reply(origin, 403, { code: "captcha_failed" });
     }
+
+    const admin = createClient(supabaseUrl, adminKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const rateKey = await hashRateKey(`ip:${clientIp}`, rateLimitSalt);
+    const { data: allowed, error: rateError } = await admin.rpc(
+      "consume_ai_creator_discovery_rate_limit",
+      { rate_key: rateKey },
+    );
+    if (rateError) return reply(origin, 500, { code: "rate_limit_failed" });
+    if (!allowed) return reply(origin, 429, { code: "rate_limited" });
 
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       let providerResponse: Response;
@@ -306,6 +337,9 @@ Deno.serve(async (request) => {
     }
     return reply(origin, 502, { code: "invalid_provider_response" });
   } catch (error) {
+    if (error instanceof Error && error.message === "request_too_large") {
+      return reply(origin, 413, { code: "request_too_large" });
+    }
     if (error instanceof SyntaxError || (error instanceof Error && error.message === "invalid_request")) {
       return reply(origin, 400, { code: "invalid_request" });
     }

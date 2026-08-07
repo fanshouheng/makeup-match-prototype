@@ -259,6 +259,29 @@ export async function claimPendingMemberData(userId: string): Promise<void> {
   );
 }
 
+export async function hasPendingMemberData(): Promise<boolean> {
+  const [analysis, reports] = await Promise.all([
+    getAnalysis(PENDING_OWNER),
+    getReports(),
+  ]);
+  return Boolean(analysis || reports.some((report) => report.ownerKey === PENDING_OWNER));
+}
+
+export async function deletePendingMemberData(): Promise<void> {
+  const reports = (await getReports()).filter(
+    (report) => report.ownerKey === PENDING_OWNER,
+  );
+  const database = await openDatabase();
+  const transaction = database.transaction(
+    [ANALYSIS_STORE, REPORT_STORE],
+    "readwrite",
+  );
+  transaction.objectStore(ANALYSIS_STORE).delete(PENDING_OWNER);
+  const reportStore = transaction.objectStore(REPORT_STORE);
+  reports.forEach((report) => reportStore.delete(report.id));
+  await transactionDone(transaction);
+}
+
 export async function loadLocalMemberProfile(
   userId: string,
 ): Promise<LocalMemberProfile> {

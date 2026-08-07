@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient, type User } from "npm:@supabase/supabase-js@2.110.7";
+import { isAuthorizedAdmin } from "../_shared/adminAuthorization.ts";
 
 type Action = "claimReferral" | "grantPurchase" | "recordMatchSuccess" | "status";
 
@@ -78,15 +79,6 @@ function secretKey(): string | undefined {
   return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
     Deno.env.get("SUPABASE_SECRET_KEY") ??
     keyFromCollection("SUPABASE_SECRET_KEYS");
-}
-
-function adminEmails(): Set<string> {
-  return new Set(
-    (Deno.env.get("ADMIN_EMAILS") ?? "")
-      .split(",")
-      .map((value) => value.trim().toLowerCase())
-      .filter(Boolean),
-  );
 }
 
 function rewardResponse(row: RewardStatusRow): Record<string, unknown> {
@@ -221,7 +213,7 @@ Deno.serve(async (request) => {
         typeof body.email !== "string" ||
         body.credits !== 10
       ) return reply(origin, 400, { code: "invalid_request" });
-      if (!adminEmails().has(identity.user.email!.toLowerCase())) {
+      if (!isAuthorizedAdmin(identity.user, Deno.env.get("ADMIN_USER_IDS"))) {
         return reply(origin, 403, { code: "not_admin" });
       }
       const result = await identity.admin.rpc("grant_reward_ai_purchase", {

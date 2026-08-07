@@ -52,6 +52,38 @@ export interface PlusMakeupReport extends PlusMakeupCoreReport {
   creatorNames: string[];
 }
 
+const CREATOR_DISCOVERY_KEYWORDS = [
+  "底妆",
+  "遮瑕",
+  "眉形",
+  "眉峰",
+  "眼线",
+  "眼影",
+  "睫毛",
+  "卧蚕",
+  "腮红",
+  "修容",
+  "高光",
+  "唇妆",
+  "唇线",
+  "哑光",
+  "珠光",
+] as const;
+
+export function approvedCreatorDiscoveryKeywords(
+  report: PlusMakeupCoreReport,
+): string[] {
+  const text = [
+    ...report.faceProfile.focusAreas,
+    ...report.plans.flatMap((plan) => [
+      ...plan.steps.flatMap((step) => [step.area, step.instruction]),
+      ...plan.products,
+      ...plan.avoid,
+    ]),
+  ].join("\n");
+  return CREATOR_DISCOVERY_KEYWORDS.filter((keyword) => text.includes(keyword)).slice(0, 8);
+}
+
 const BANNED_TEXT =
   /(?:种族|民族|残疾|残障|智障|弱智|畸形|丑陋|性能力|性取向|人格缺陷|性格决定|健康状况|疾病诊断)/i;
 

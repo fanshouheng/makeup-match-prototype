@@ -333,6 +333,13 @@
   line-height: 1.6;
 }
 
+.plus-access-notice {
+  margin: 18px 0 0;
+  color: #225d47;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .plus-signed-in {
   display: flex;
   align-items: center;
@@ -499,6 +506,42 @@
   margin-top: 5px;
   font-size: 13px;
   font-weight: 650;
+}
+
+.plus-pending-import {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.plus-pending-import > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.plus-pending-import > div:first-child {
+  align-items: flex-start;
+}
+
+.plus-pending-import h2,
+.plus-pending-import p {
+  margin: 0;
+}
+
+.plus-pending-import h2 {
+  font-size: 16px;
+}
+
+.plus-pending-import p {
+  max-width: 680px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
 }
 
 .plus-member-section {
@@ -1337,8 +1380,14 @@
   .plus-access-section,
   .plus-member-heading,
   .plus-member-summary,
+  .plus-pending-import,
   .plus-member-analysis-layout {
     grid-template-columns: 1fr;
+  }
+
+  .plus-pending-import {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .plus-makeup-config,

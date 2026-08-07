@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  approvedCreatorDiscoveryKeywords,
   parseDeepSeekPlusMakeupReport,
   parsePlusMakeupReport,
 } from "./plusMakeupReport";
@@ -53,5 +54,21 @@ describe("Plus makeup report parsing", () => {
     expect(parseDeepSeekPlusMakeupReport({
       choices: [{ message: { content: `\`\`\`json\n${JSON.stringify(coreReport)}\n\`\`\`` } }],
     }).title).toBe(coreReport.title);
+  });
+
+  it("reduces model text to server-approved makeup keywords before another provider", () => {
+    const keywords = approvedCreatorDiscoveryKeywords({
+      ...coreReport,
+      faceProfile: {
+        ...coreReport.faceProfile,
+        summary: "脸部长宽比为 1.234567，下颌比例是一点二三。",
+      },
+      plans: coreReport.plans.map((plan) => ({
+        ...plan,
+        effect: "精确比例 1.234567",
+      })),
+    });
+    expect(keywords).toContain("底妆");
+    expect(keywords.join(" ")).not.toMatch(/1\.234567|一点二三|精确比例/);
   });
 });
