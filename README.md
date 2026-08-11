@@ -150,13 +150,18 @@ AI 推荐也可以按 ¥9.9/10 次购买。网站不自动收款；运营者在�
 
 **真实反馈先于功能数量。** 先验证匹配是否真的帮助用户，再决定下一项功能。
 
-## 参与社区
+## 联系作者与参与社区
 
 这个项目需要三类参与者：真实使用并提供反馈的用户、愿意授权加入匹配的博主，以及帮助改进产品的开发者。
 
-欢迎扫码加入用户反馈群 + 过程分享群，反馈真实使用感受，也可以围观 MAKE UP 的开发和验证过程。
+微信群二维码有效期较短，GitHub 不再把群二维码作为长期联系入口。欢迎扫码添加作者微信，备注“MAKE UP”，反馈真实使用感受、申请加入交流群或交流项目。
 
-<img src="public/user-feedback-group.jpg" width="320" alt="MAKE UP 用户反馈群和过程分享群二维码" />
+<img src="public/wechat-contact.jpg" width="320" alt="MAKE UP 作者个人微信二维码" />
+
+作者个人自媒体记录 AI 小产品从想法、开发到上线验证的过程，与 MAKE UP 产品官方账号分开：
+
+- [小红书：koten（小红书号 5512099838）](https://www.xiaohongshu.com/user/profile/64a7b0c1000000000b014d07)
+- [抖音：ai shandong（抖音号 1259791158）](https://www.douyin.com/user/MS4wLjABAAAA8EsCkkVc2Pqmg1d2WrF2I1_Zp-6-6BWM8BdVjK_0_Gc)
 
 - 遇到可复现的问题：提交 [Bug 报告](https://github.com/fanshouheng/makeup-match-prototype/issues/new?template=bug_report.yml)。
 - 想讨论功能和使用场景：前往 [Discussions](https://github.com/fanshouheng/makeup-match-prototype/discussions)。
