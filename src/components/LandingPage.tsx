@@ -1,4 +1,4 @@
-import { ArrowRight, MessageCircle, Music2, X } from "lucide-react";
+import { ArrowRight, Info, MessageCircle, Music2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { contactDouyinUrl } from "../config";
 
@@ -45,6 +45,9 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
       <footer className="site-footer">
         <div className="footer-inner">
           <div className="social-links" aria-label="联系方式">
+            <a aria-label="了解 MAKE UP 的方法与隐私边界" href="/about" title="方法与隐私">
+              <Info size={18} />
+            </a>
             <button
               aria-label="用户反馈群和过程分享群"
               aria-expanded={wechatOpen}

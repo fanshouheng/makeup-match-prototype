@@ -38,7 +38,13 @@
   font: 500 9px/1.4 "Space Mono", "Cascadia Mono", Consolas, monospace;
 }
 
-.plus-account-free-link {
+.plus-account-nav {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.plus-account-nav a {
   color: var(--ink);
   font-size: 12px;
   font-weight: 650;

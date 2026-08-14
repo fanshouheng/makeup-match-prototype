@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /similarity-labeler
+
+Sitemap: https://makeup.soul.xn--fiqs8s/sitemap.xml

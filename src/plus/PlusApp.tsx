@@ -353,9 +353,12 @@ export default function PlusApp() {
           <strong>MAKE UP</strong>
           <span>PLUS EARLY ACCESS</span>
         </a>
-        <a className="plus-account-free-link" href="/#start">
-          {activeMembership ? "继续分析" : "免费匹配"}
-        </a>
+        <nav className="plus-account-nav" aria-label="Plus 页面导航">
+          <a href="/about">方法与隐私</a>
+          <a className="plus-account-free-link" href="/#start">
+            {activeMembership ? "继续分析" : "免费匹配"}
+          </a>
+        </nav>
       </header>
 
       <main className={`plus-account-main ${showMemberSurface ? "plus-member-main" : ""}`}>

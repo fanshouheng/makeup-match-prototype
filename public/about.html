@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f8f4" />
+    <meta name="robots" content="index, follow" />
+    <meta
+      name="description"
+      content="了解 MAKE UP 如何在浏览器本地比较面部结构、如何使用授权创作者资料，以及免费匹配、AI 功能和 Plus 的隐私边界。"
+    />
+    <link rel="canonical" href="https://makeup.soul.xn--fiqs8s/about" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link rel="stylesheet" href="/site-info.css" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:site_name" content="MAKE UP" />
+    <meta property="og:title" content="MAKE UP 的方法与隐私边界" />
+    <meta
+      property="og:description"
+      content="了解本地面部结构比较、授权创作者资料，以及免费匹配、AI 功能和 Plus 的隐私边界。"
+    />
+    <meta property="og:url" content="https://makeup.soul.xn--fiqs8s/about" />
+    <meta property="og:image" content="https://makeup.soul.xn--fiqs8s/og-cover.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="MAKE UP 妆容参考工具首页" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="MAKE UP 的方法与隐私边界" />
+    <meta
+      name="twitter:description"
+      content="了解本地面部结构比较、授权创作者资料，以及免费匹配、AI 功能和 Plus 的隐私边界。"
+    />
+    <meta name="twitter:image" content="https://makeup.soul.xn--fiqs8s/og-cover.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "name": "MAKE UP 的方法与隐私边界",
+        "url": "https://makeup.soul.xn--fiqs8s/about",
+        "inLanguage": "zh-CN",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "MAKE UP 是人脸识别吗？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "不是。MAKE UP 只比较照片中的部分面部结构比例，不确认人物身份，也不评价长相好坏。"
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "默认匹配会上传照片吗？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "不会。默认匹配中的照片、面部比例和排名只在当前浏览器处理。可选 AI 功能会在单独说明并取得同意后发送明确披露的数据。"
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "匹配结果代表专业化妆结论吗？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "不代表。结果只用于缩小妆容参考范围，会受到创作者库规模、照片角度、光线和表情影响。"
+            }
+          }
+        ]
+      }
+    </script>
+    <title>MAKE UP 的方法与隐私边界</title>
+  </head>
+  <body class="info-body">
+    <header class="info-header">
+      <a class="info-brand" href="/" aria-label="返回 MAKE UP 首页">
+        <img alt="" src="/favicon.png" />
+        <span>MAKE UP</span>
+      </a>
+      <nav aria-label="站点导航">
+        <a href="/#start">免费匹配</a>
+        <a href="/plus">Plus</a>
+        <a href="https://github.com/fanshouheng/makeup-match-prototype" rel="noreferrer" target="_blank">源代码</a>
+      </nav>
+    </header>
+
+    <main class="info-main">
+      <section class="info-intro">
+        <p class="info-eyebrow">METHOD &amp; PRIVACY / 最后更新：2026-08-14</p>
+        <h1>MAKE UP</h1>
+        <p class="info-lede">一个隐私优先的妆容参考工具：从面部结构出发，帮你缩小值得参考的美妆创作者与教程范围。</p>
+        <div class="info-actions">
+          <a href="/#start">开始免费匹配</a>
+          <a href="/#privacy">查看完整隐私说明</a>
+        </div>
+      </section>
+
+      <figure class="info-product-view">
+        <img alt="MAKE UP 网站首页，提供本地面部结构分析与美妆博主参考" src="/og-cover.png" />
+        <figcaption>公开页面当前专注女生妆容参考；默认匹配在浏览器本地完成。</figcaption>
+      </figure>
+
+      <section class="info-section" aria-labelledby="purpose-title">
+        <h2 id="purpose-title">它解决什么问题</h2>
+        <div class="info-section-copy">
+          <p>收藏一套妆容，不等于它能直接迁移到自己的脸上。MAKE UP 尝试先从面部结构缩小参考范围，再让你进入创作者主页或代表内容继续判断。</p>
+          <p>它找的是“结构上更值得参考的人”，不是“和你长得一样的人”，也不会给出颜值、医学或专业化妆结论。</p>
+        </div>
+      </section>
+
+      <section class="info-section" aria-labelledby="method-title">
+        <h2 id="method-title">匹配如何工作</h2>
+        <div class="info-flow">
+          <article><span>01</span><h3>选择正面照片</h3><p>使用自然表情、无遮挡、光线均匀且只有一张清晰人脸的照片。</p></article>
+          <article><span>02</span><h3>本地质量检查</h3><p>浏览器检查人脸数量、角度和亮度，并计算九项面部结构比例。</p></article>
+          <article><span>03</span><h3>比较授权资料</h3><p>浏览器将比例与已审核、已授权的公开创作者资料进行比较。</p></article>
+          <article><span>04</span><h3>继续查看教程</h3><p>结果提供创作者主页或代表内容入口，由你决定哪些妆容值得参考。</p></article>
+        </div>
+      </section>
+
+      <section class="info-section" aria-labelledby="privacy-title">
+        <h2 id="privacy-title">数据什么时候离开设备</h2>
+        <div class="info-section-copy">
+          <p><strong>默认匹配：</strong>普通用户照片、面部比例和本地排名不会上传。最近一次有效分析可以保存在当前浏览器，不会跨设备同步。</p>
+          <p><strong>可选 AI 博主发现：</strong>登录并拥有次数后，只有阅读说明、单独同意并完成安全验证，浏览器才会发送去除元数据的压缩照片副本；照片副本和返回名字不会写入 MAKE UP 数据库。</p>
+          <p><strong>Plus 报告：</strong>激活用户单独同意后，九项精确比例、场景和妆造方向会用于生成报告。后台任务最长保留不超过 24 小时，精确比例在生成结束时立即清除，报告保存到本机后删除服务端任务。</p>
+          <p class="info-note">AI 返回的公开博主名字是未核验线索，不代表主页归属、合作或照片授权已经确认，也不会自动进入已授权创作者库。</p>
+        </div>
+      </section>
+
+      <section class="info-section" aria-labelledby="access-title">
+        <h2 id="access-title">免费使用与 Plus</h2>
+        <div class="info-section-copy">
+          <p>当前浏览器前 3 次女生成功匹配免费；失败和同一张已加载照片重试不计次数。之后的基础匹配只能通过有效邀请获得，不出售匹配次数。</p>
+          <p>Plus 当前是 9.9 元邀请制内测：包含 1 份正式报告和 2 次内测重试，共 3 次报告额度，激活后 180 天内有效。网站不自动收款，付款、名额和邀请码由运营者人工确认。</p>
+        </div>
+      </section>
+
+      <section class="info-section" aria-labelledby="faq-title">
+        <h2 id="faq-title">常见问题</h2>
+        <div class="info-faq">
+          <details open>
+            <summary>MAKE UP 是人脸识别吗？</summary>
+            <p>不是。MAKE UP 只比较照片中的部分面部结构比例，不确认人物身份，也不评价长相好坏。</p>
+          </details>
+          <details>
+            <summary>默认匹配会上传照片吗？</summary>
+            <p>不会。默认匹配中的照片、面部比例和排名只在当前浏览器处理。可选 AI 功能会在单独说明并取得同意后发送明确披露的数据。</p>
+          </details>
+          <details>
+            <summary>公开创作者都获得授权了吗？</summary>
+            <p>默认匹配库只使用经申请、核验并批准的授权资料。可选 AI 返回的名字属于未核验公开线索，不会自动进入授权库。</p>
+          </details>
+          <details>
+            <summary>匹配结果代表专业化妆结论吗？</summary>
+            <p>不代表。结果只用于缩小妆容参考范围，会受到创作者库规模、照片角度、光线和表情影响。</p>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="info-footer">
+      <p>MAKE UP · 隐私优先的妆容参考原型</p>
+      <nav aria-label="页脚导航">
+        <a href="/">首页</a>
+        <a href="/#privacy">完整隐私说明</a>
+        <a href="https://github.com/fanshouheng/makeup-match-prototype" rel="noreferrer" target="_blank">GitHub</a>
+      </nav>
+    </footer>
+  </body>
+</html>

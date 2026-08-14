@@ -16,6 +16,16 @@ const AdminApp = lazy(() => import("./admin/AdminApp"));
 const PlusApp = lazy(() => import("./plus/PlusApp"));
 const SimilarityLabelerApp = lazy(() => import("./admin/SimilarityLabelerApp"));
 
+if (isAdminRoute || isSimilarityLabelerRoute) {
+  document.title = isAdminRoute ? "MAKE UP 管理台" : "MAKE UP 相似度标注器";
+  const robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]') ?? document.createElement("meta");
+  robots.name = "robots";
+  robots.content = "noindex, nofollow, noarchive";
+  if (!robots.parentNode) document.head.append(robots);
+} else if (isPlusRoute) {
+  document.title = "MAKE UP Plus｜9.9 元邀请制内测";
+}
+
 if (!isAdminRoute && !isSimilarityLabelerRoute) {
   // Initialize the shared public session so email confirmations work on return.
   void accountClient?.auth.getSession();
