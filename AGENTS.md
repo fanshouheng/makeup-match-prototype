@@ -4,8 +4,8 @@
 
 MAKE UP is a privacy-first makeup-reference prototype with three browser-local
 free successful matches, referral-earned match access, credit-gated AI creator
-discovery, and a 9.9 yuan
-invitation-only Plus beta. A user selects a front-facing photo,
+discovery, and a 9.9 yuan invitation-only Plus beta that includes unlimited
+ordinary matching while the membership is active. A user selects a front-facing photo,
 and the browser measures face-structure proportions locally.
 The women flow returns authorized creators and tutorial links. Activated Plus
 users can separately consent to send nine disclosed exact ratios and scene/style
@@ -56,7 +56,9 @@ npm run build
   invocation logs; request provider-side conversation storage to be off.
 - The first three successful women matches are counted only in the current
   browser; failed analysis and rerunning the same loaded photo do not count.
-  Later women matches require referral-earned credits and cannot be purchased.
+  Later women matches require referral-earned credits unless the user has an
+  active Plus membership. Ordinary match credits cannot be purchased separately;
+  active Plus members receive unlimited ordinary matching until membership expiry.
   A qualified referral means the invited account confirmed its email and
   completed one successful women match. Reward tables may store the two account
   IDs, balances, reason, idempotency UUID, and time, but never photos, face data,
@@ -90,9 +92,10 @@ npm run build
 - Do not scrape creators, copy photos, or import third-party lists unless the user
   has explicitly authorized that specific operation and confirmed the required
   creator permissions.
-- Keep the three browser-local successful matches and referral-only continuation
-  free of charge. Plus is limited to the current 9.9 yuan
-  manual-payment, invitation-only beta. Do not add automatic payments,
+- Keep the three browser-local successful matches and referral-earned continuation
+  free of charge. Do not sell ordinary match-credit packs. Plus is limited to the
+  current 9.9 yuan manual-payment, invitation-only beta and includes unlimited
+  ordinary matching only while the membership is active. Do not add automatic payments,
   subscriptions, paid ranking, ads, or broader monetization without explicit
   user approval.
 - Production audits are read-only by default. Approval, rejection, deletion, or
@@ -107,7 +110,8 @@ Supabase for consent-backed creator intake, Cloudflare
 Turnstile for submission protection, and manual review before publication.
 The result page supports login-free yes/no feedback, local share-poster
 generation, separately consented AI names-only discovery using invite-earned or
-manually purchased credits, and the 9.9 yuan invitation-only Plus beta. Feedback,
+manually purchased credits, and the 9.9 yuan invitation-only Plus beta with
+unlimited ordinary matching during its 180-day active period. Feedback,
 share, and AI telemetry must remain aggregate and must not include user photos,
 face proportions, match scores, creator names, AI results, rankings, or account
 identifiers.

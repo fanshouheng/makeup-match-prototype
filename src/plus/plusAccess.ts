@@ -14,6 +14,14 @@ interface MembershipResponse {
   membership: PlusMembership | null;
 }
 
+export function isActivePlusMembership(
+  membership: PlusMembership | null,
+  now = Date.now(),
+): membership is PlusMembership {
+  return membership?.status === "active" &&
+    new Date(membership.benefitExpiresAt).getTime() > now;
+}
+
 async function invokePlus<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await plusClient.functions.invoke("plus-access", { body });
   if (!error) return data as T;

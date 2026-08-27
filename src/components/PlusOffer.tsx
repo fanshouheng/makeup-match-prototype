@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   FileText,
+  Infinity,
   Palette,
   Search,
   Sparkles,
@@ -22,6 +23,7 @@ export function PlusOffer() {
           <span><FileText size={14} />详细面容报告</span>
           <span><Palette size={14} />3 套妆造方案</span>
           <span><Search size={14} />公开博主线索</span>
+          <span><Infinity size={14} />有效期内普通匹配不限次</span>
         </p>
       </div>
       <div className="plus-spotlight-action">

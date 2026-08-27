@@ -20,6 +20,13 @@ export interface RewardStatus {
   pendingReferral: boolean;
 }
 
+export type WomenMatchAccessMode = "local" | "referral" | "plus" | "blocked";
+
+export interface WomenMatchAccess {
+  mode: WomenMatchAccessMode;
+  consumeBonus: boolean;
+}
+
 interface RewardResponse {
   rewards: RewardStatus;
 }
@@ -37,6 +44,20 @@ export function recordLocalSuccessfulMatch(storage: StorageLike): number {
 
 export function freeSuccessfulMatchesRemaining(used: number): number {
   return Math.max(FREE_SUCCESSFUL_MATCH_LIMIT - used, 0);
+}
+
+export function resolveWomenMatchAccess(
+  localSuccessfulMatches: number,
+  hasActivePlus: boolean,
+  rewards?: Pick<RewardStatus, "matchCredits" | "pendingReferral">,
+): WomenMatchAccess {
+  if (hasActivePlus) return { mode: "plus", consumeBonus: false };
+  if (localSuccessfulMatches < FREE_SUCCESSFUL_MATCH_LIMIT) {
+    return { mode: "local", consumeBonus: false };
+  }
+  if (rewards?.pendingReferral) return { mode: "referral", consumeBonus: false };
+  if (rewards && rewards.matchCredits > 0) return { mode: "referral", consumeBonus: true };
+  return { mode: "blocked", consumeBonus: false };
 }
 
 export function normalizeReferralCode(value: string | null | undefined): string | undefined {

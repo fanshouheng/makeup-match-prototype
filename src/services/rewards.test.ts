@@ -6,6 +6,7 @@ import {
   normalizeReferralCode,
   readLocalSuccessfulMatches,
   recordLocalSuccessfulMatch,
+  resolveWomenMatchAccess,
 } from "./rewards";
 
 function memoryStorage() {
@@ -26,6 +27,24 @@ describe("local successful match quota", () => {
     expect(recordLocalSuccessfulMatch(storage)).toBe(3);
     expect(recordLocalSuccessfulMatch(storage)).toBe(3);
     expect(freeSuccessfulMatchesRemaining(3)).toBe(0);
+  });
+
+  it("keeps local and referral balances untouched while Plus is active", () => {
+    expect(resolveWomenMatchAccess(0, true, { matchCredits: 4, pendingReferral: false }))
+      .toEqual({ mode: "plus", consumeBonus: false });
+    expect(resolveWomenMatchAccess(3, true, { matchCredits: 0, pendingReferral: false }))
+      .toEqual({ mode: "plus", consumeBonus: false });
+  });
+
+  it("falls back to local and referral access without active Plus", () => {
+    expect(resolveWomenMatchAccess(2, false))
+      .toEqual({ mode: "local", consumeBonus: false });
+    expect(resolveWomenMatchAccess(3, false, { matchCredits: 2, pendingReferral: false }))
+      .toEqual({ mode: "referral", consumeBonus: true });
+    expect(resolveWomenMatchAccess(3, false, { matchCredits: 0, pendingReferral: true }))
+      .toEqual({ mode: "referral", consumeBonus: false });
+    expect(resolveWomenMatchAccess(3, false, { matchCredits: 0, pendingReferral: false }))
+      .toEqual({ mode: "blocked", consumeBonus: false });
   });
 });
 

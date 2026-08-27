@@ -195,7 +195,7 @@ export function RewardsPanel({ embedded = false, urgent = false, onRewardsChange
         <div>
           <p className="eyebrow">INVITE / 邀请权益</p>
           <h2 id="rewards-title">邀请朋友，继续免费匹配</h2>
-          <p>好友确认邮箱并成功完成一次匹配后，你获得 3 次匹配和 1 次 AI 推荐，好友获得 1 次 AI 推荐。</p>
+          <p>好友确认邮箱并成功完成一次匹配后，你获得 3 次匹配和 1 次 AI 推荐，好友获得 1 次 AI 推荐。有效 Plus 账号在 180 天内普通匹配不限次。</p>
         </div>
         <Gift size={24} />
       </div>
@@ -250,7 +250,7 @@ export function RewardsPanel({ embedded = false, urgent = false, onRewardsChange
               <div className="reward-purchase">
                 <div>
                   <Sparkles size={18} />
-                  <p><strong>¥9.9 获得 10 次 AI 推荐</strong><span>微信确认后，由运营者发放到当前邮箱账号。基础匹配次数不出售。</span></p>
+                  <p><strong>¥9.9 获得 10 次 AI 推荐</strong><span>微信确认后，由运营者发放到当前邮箱账号。普通匹配次数不单独出售，有效 Plus 期间不限次。</span></p>
                 </div>
                 <img alt="MAKE UP 微信联系二维码" src={contactWechatQrUrl} />
               </div>

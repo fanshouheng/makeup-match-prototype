@@ -70,6 +70,9 @@ import {
   readLocalSuccessfulMatches,
   recordLocalSuccessfulMatch,
   recordRewardMatchSuccess,
+  resolveWomenMatchAccess,
+  type RewardStatus,
+  type WomenMatchAccessMode,
 } from "./services/rewards";
 
 const SHOW_MEN_FLOW = false;
@@ -83,9 +86,9 @@ interface LoadedPhoto {
 }
 
 interface PendingMatchQuota {
+  accessMode: WomenMatchAccessMode;
   accessError?: string;
   consumeBonus: boolean;
-  localQuotaExhausted: boolean;
   photoId: string;
   rewardSession: boolean;
   successId: string;
@@ -120,6 +123,13 @@ function loadImage(file: File): Promise<LoadedPhoto> {
 async function currentPlusUserId(): Promise<string | undefined> {
   const { getPlusSession } = await import("./plus/plusAccess");
   return (await getPlusSession())?.user.id;
+}
+
+async function hasActivePlusMatchAccess(): Promise<boolean> {
+  const { getPlusMembership, isActivePlusMembership } = await import(
+    "./plus/plusAccess"
+  );
+  return isActivePlusMembership(await getPlusMembership());
 }
 
 function matchMetricProperties(
@@ -354,7 +364,13 @@ function App() {
     let active = true;
     setMatching(true);
     void (async () => {
-      if (pendingQuota.localQuotaExhausted) {
+      if (pendingQuota.accessMode === "plus") {
+        if (pendingQuota.rewardSession) {
+          void recordRewardMatchSuccess(pendingQuota.successId, false).catch((rewardError) => {
+            console.warn("无法同步 Plus 用户匹配记录", rewardError);
+          });
+        }
+      } else if (pendingQuota.accessMode === "referral") {
         await recordRewardMatchSuccess(pendingQuota.successId, pendingQuota.consumeBonus);
       } else {
         const fallbackCount = Math.min(localSuccessfulMatches + 1, FREE_SUCCESSFUL_MATCH_LIMIT);
@@ -610,26 +626,42 @@ function App() {
 
     pendingMatchQuotaRef.current = undefined;
     const countsAsNewMatch = referenceAudience === "women" && countedPhotoRef.current !== photo.id;
-    const localQuotaExhausted = countsAsNewMatch && localSuccessfulMatches >= FREE_SUCCESSFUL_MATCH_LIMIT;
     const rewardSession = accountClient
       ? (await accountClient.auth.getSession()).data.session
       : null;
+    let accessMode: WomenMatchAccessMode = "local";
     let consumeBonus = false;
     let accessError: string | undefined;
 
-    if (localQuotaExhausted) {
-      if (!rewardSession) {
-        accessError = "3 次免费匹配已用完。登录并邀请一位朋友完成匹配，即可继续免费使用。";
-      } else {
+    if (countsAsNewMatch) {
+      let hasActivePlus = false;
+      let plusAccessUnavailable = false;
+      if (rewardSession) {
         try {
-          const rewards = await getRewardStatus();
-          consumeBonus = !rewards.pendingReferral;
-          if (consumeBonus && rewards.matchCredits <= 0) {
-            accessError = "匹配次数已用完。每成功邀请一位朋友，可获得 3 次新匹配。";
-          }
+          hasActivePlus = await hasActivePlusMatchAccess();
+        } catch {
+          plusAccessUnavailable = true;
+        }
+      }
+
+      let rewards: RewardStatus | undefined;
+      if (!hasActivePlus && localSuccessfulMatches >= FREE_SUCCESSFUL_MATCH_LIMIT && rewardSession) {
+        try {
+          rewards = await getRewardStatus();
         } catch (rewardError) {
           accessError = rewardError instanceof Error ? rewardError.message : "匹配权益读取失败，请稍后重试。";
         }
+      }
+
+      const access = resolveWomenMatchAccess(localSuccessfulMatches, hasActivePlus, rewards);
+      accessMode = access.mode;
+      consumeBonus = access.consumeBonus;
+      if (accessMode === "blocked" && !accessError) {
+        accessError = !rewardSession
+          ? "3 次免费匹配已用完。登录后可邀请朋友，或激活 Plus 继续匹配。"
+          : plusAccessUnavailable
+            ? "暂时无法确认 Plus 权益，请稍后重试。"
+            : "匹配次数已用完。邀请朋友可获得新次数，Plus 有效期内不限次。";
       }
     }
 
@@ -671,9 +703,9 @@ function App() {
       if (analysis && issues.length === 0) {
         if (countsAsNewMatch) {
           pendingMatchQuotaRef.current = {
+            accessMode,
             accessError,
             consumeBonus,
-            localQuotaExhausted,
             photoId: photo.id,
             rewardSession: Boolean(rewardSession),
             successId: crypto.randomUUID(),
@@ -877,7 +909,7 @@ function App() {
                     <span>
                       {freeSuccessfulMatchesRemaining(localSuccessfulMatches) > 0
                         ? `还可免费成功匹配 ${freeSuccessfulMatchesRemaining(localSuccessfulMatches)} 次，失败不计次数`
-                        : "免费次数已用完，邀请朋友后继续免费匹配"}
+                        : "免费次数已用完，可邀请朋友或使用 Plus 继续匹配"}
                     </span>
                     <button className="button button-ghost" onClick={() => setShowRewardsPanel((current) => !current)} type="button">
                       <Gift size={16} />邀请赚次数

@@ -43,6 +43,7 @@ import {
 import {
   getPlusMembership,
   getPlusSession,
+  isActivePlusMembership,
   registerPlusAccount,
   redeemPlusInvite,
   signInPlusAccount,
@@ -117,8 +118,7 @@ export default function PlusApp() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const authenticatingRef = useRef(false);
-  const activeMembership = membership?.status === "active" &&
-    new Date(membership.benefitExpiresAt).getTime() > Date.now();
+  const activeMembership = isActivePlusMembership(membership);
 
   const loadMembership = useCallback(async () => {
     setLoadingMembership(true);
@@ -391,6 +391,7 @@ export default function PlusApp() {
                 <dl>
                   <div><dt>会员状态</dt><dd>已激活</dd></div>
                   <div><dt>权益有效期</dt><dd>{formatDate(membership.benefitExpiresAt)}</dd></div>
+                  <div><dt>普通匹配</dt><dd>有效期内不限次</dd></div>
                 </dl>
               </section>
 
@@ -583,9 +584,9 @@ export default function PlusApp() {
           <div>
             <p className="eyebrow">PLUS / 邀请制内测</p>
             <h1 id="plus-account-title">准备购买后，先添加微信</h1>
-            <p>¥9.9 包含 1 份正式报告和 2 次内测重试。付款前会在微信确认本期名额、交付时间和退款方式。</p>
+            <p>¥9.9 包含有效期内不限次普通匹配、1 份正式报告和 2 次内测重试。付款前会在微信确认本期名额、交付时间和退款方式。</p>
           </div>
-          <div className="plus-beta-price" aria-label="付费内测价格 9.9 元，包含三次报告额度">
+          <div className="plus-beta-price" aria-label="付费内测价格 9.9 元，包含 180 天不限次普通匹配和三次报告额度">
             <span>限量付费内测</span>
             <strong>¥9.9</strong>
             <small>/ 早期内测</small>
@@ -605,14 +606,14 @@ export default function PlusApp() {
               <span>02</span>
               <div>
                 <h2>确认后付款并领取邀请码</h2>
-                <p>支付 ¥9.9 后获得 1 份正式报告和 2 次内测重试。运营者确认付款后发送邀请码。</p>
+                <p>支付 ¥9.9 后获得有效期内不限次普通匹配、1 份正式报告和 2 次内测重试。运营者确认付款后发送邀请码。</p>
               </div>
             </div>
             <div className="plus-flow-step">
               <span>03</span>
               <div>
                 <h2>确认邮箱后激活 Plus</h2>
-                <p>新用户先注册并确认邮箱，再登录兑换邀请码。女生流程前 3 次成功匹配无需登录，后续匹配通过邀请获得。</p>
+                <p>新用户先注册并确认邮箱，再登录兑换邀请码。Plus 有效期内普通匹配不限次，不消耗本机免费次数或邀请次数。</p>
               </div>
             </div>
           </div>
@@ -630,7 +631,7 @@ export default function PlusApp() {
             <div className="plus-benefits">
               <p><Sparkles size={17} /><span><strong>早期用户资格</strong>后续 Plus 功能优先体验</span></p>
               <p><CheckCircle2 size={17} /><span><strong>共 3 次报告额度</strong>1 份正式报告 + 2 次内测重试，180 天内有效</span></p>
-              <p><ShieldCheck size={17} /><span><strong>免费功能不变</strong>不登录也能继续匹配</span></p>
+              <p><ShieldCheck size={17} /><span><strong>普通匹配不限次</strong>Plus 有效期内不消耗本机免费次数或邀请次数</span></p>
             </div>
           </div>
 

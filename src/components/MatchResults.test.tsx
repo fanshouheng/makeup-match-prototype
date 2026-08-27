@@ -126,6 +126,7 @@ describe("MatchResults", () => {
     expect(html).toContain("把面部分析，变成可执行的妆造方案");
     expect(html).toContain("获取 Plus 报告");
     expect(html).toContain("1 份正式报告 + 2 次内测重试");
+    expect(html).toContain("有效期内普通匹配不限次");
     expect(html).toContain("¥9.9");
     expect(html).toContain('href="/plus"');
     expect(html).not.toContain("仅测试购买意向");
