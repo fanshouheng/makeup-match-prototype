@@ -3,4 +3,7 @@ dist/
 public/mediapipe/
 .playwright-cli/
 output/
+outputs/
+supabase/.temp/
+剪辑素材/
 *.local
