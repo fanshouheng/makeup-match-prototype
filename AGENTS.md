@@ -125,14 +125,14 @@ The result page supports login-free yes/no feedback, local share-poster
 generation, and the one-time legacy Plus to monthly-plan conversion. The
 standalone 3-point AI creator-discovery flow is retired; reports still include
 unverified public creator-name leads. The report/monthly/annual catalog is
-implemented locally with the prices and entitlements above. The subscription and admin-management
-migrations are not deployed and production checkout remains disabled until the
-payment, recurring-cycle, cancellation, idempotency, and refund acceptance gates
-pass. The local `ai-creator-discovery` retirement handler is not deployed yet;
-do not claim that production rejects old discovery requests until it is deployed
-and verified. As of 2026-09-16, the production root and `/admin` respond, but `/report`
-and `/subscription` return 404; do not describe this working-tree frontend as
-deployed until the production routes are published and live-verified. Feedback,
+live with the prices and entitlements above. On 2026-09-18 the subscription,
+catalog, legacy-conversion, and admin-commerce migrations and related Edge
+Functions were deployed; 12 active legacy Plus memberships were converted to
+monthly plans with 1000 points each. The production root, `/report`,
+`/subscription`, `/account`, and `/admin` were live-verified. The
+`ai-creator-discovery` retirement handler is deployed, but production checkout
+remains source-locked off until Stripe and Alipay payment, recurring-cycle,
+cancellation, idempotency, and refund acceptance gates pass. Feedback,
 share, and AI telemetry must remain aggregate and must not include user photos,
 face proportions, match scores, creator names, AI results, rankings, or account
 identifiers.

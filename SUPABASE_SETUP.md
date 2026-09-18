@@ -77,7 +77,7 @@ ZPAY_TYPE=wxpay
 
 支付函数为 `create-payment-checkout`、`payment-status`、`payment-webhook` 和 `refund-payment`。正式目录为：100 积分单次报告（¥19.9 / US$2.99）、1000 积分月卡（¥59 / US$8.99，每天 50 次普通匹配）和年卡（¥599 / US$89.99，普通匹配不限次并连续 12 个月每月发 2000 积分）。客户端只提交供应商与商品代码；服务端读取金额、币种、积分和匹配权益。Stripe 根据月卡或年卡周期创建订阅 Checkout，只在确认付款后幂等发分；ZPAY 使用 `submit.php` POST 表单并在回调核对商户号、签名、金额和 `TRADE_SUCCESS`。年卡首月支付确认后发首月积分，后续由 `grant-due-annual-subscription-cycles` 定时任务按月发放，禁止一次性预发。管理员可按内部订单 ID 发起全额退款；积分已使用时自动退款会被阻止。不要把商户密钥、回调原文或付款凭证写入仓库、日志或数据库。
 
-当前生产只部署了统一钱包和旧一次性支付底座。部署 `20260913120000_membership_subscriptions.sql`、`20260913121000_membership_product_events.sql`、`20260916100000_admin_membership_management.sql` 及订阅版 Edge Functions 后，服务端目录会统一为上述唯一方案，并提供带审计和幂等保护的人工会员管理；在支付验收完成前保持 `VITE_ENABLE_ONLINE_CHECKOUT=false`。
+截至 2026-09-18，生产已部署统一钱包、会员订阅、正式目录、旧 Plus 转换、人工会员管理与商业概览迁移，以及对应订阅和支付 Edge Functions。`ZPAY_TYPE` 已明确设置为 `alipay`；Stripe Secrets 和真实支付验收尚未完成。支付验收完成前保持源码支付硬门槛和 `VITE_ENABLE_ONLINE_CHECKOUT=false`。
 
 ## 5. 部署并验证 Edge Function
 
