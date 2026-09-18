@@ -29,12 +29,16 @@ import {
   ThumbsUp,
   Trash2,
   UserRound,
+  WalletCards,
   X,
 } from "lucide-react";
 import { adminClient } from "./adminClient";
 import { CREATOR_PLATFORM_LABELS } from "../domain/creator";
 import { AdminCreateSubmissionDialog } from "./AdminCreateSubmissionDialog";
+import { AdminCommercePanel } from "./AdminCommercePanel";
+import { AdminMembershipPanel } from "./AdminMembershipPanel";
 import { AdminOutreachPanel } from "./AdminOutreachPanel";
+import { AdminPaymentRefundPanel } from "./AdminPaymentRefundPanel";
 import { AdminPlusInvitesPanel } from "./AdminPlusInvitesPanel";
 import { AdminWorkbench } from "./AdminWorkbench";
 import { CreatorSimilarityLabeler } from "./CreatorSimilarityLabeler";
@@ -47,6 +51,7 @@ import {
   type AdminAiDiscoveryData,
   type AdminAiDiscoveryLog,
   type AdminListResponse,
+  type AdminPaymentSummary,
   type AdminOutreachInput,
   type AdminPlusVariant,
   type AdminProductMetrics,
@@ -54,7 +59,7 @@ import {
 } from "./adminApi";
 import "./admin.css";
 
-type View = "workbench" | "pending" | "creators" | "similarity" | "outreach" | "metrics" | "ai" | "plus";
+type View = "commerce" | "workbench" | "pending" | "creators" | "similarity" | "outreach" | "metrics" | "ai" | "membership" | "plus";
 interface MetricsDateRange {
   startDate: string;
   endDate: string;
@@ -323,6 +328,31 @@ function aiModeLabel(log: AdminAiDiscoveryLog): string {
   return `男生·${filters[log.content_filter]}`;
 }
 
+function formatPaidAmounts(amounts: Record<string, number> | undefined): string {
+  const entries = Object.entries(amounts ?? {}).filter(([, amount]) => amount > 0);
+  if (!entries.length) return "暂无成交金额";
+  return entries.map(([currency, amountMinor]) => {
+    const formatter = new Intl.NumberFormat(currency === "CNY" ? "zh-CN" : "en-US", {
+      currency,
+      style: "currency",
+    });
+    const digits = formatter.resolvedOptions().maximumFractionDigits ?? 2;
+    return formatter.format(amountMinor / 10 ** digits);
+  }).join(" · ");
+}
+
+function aiGlobalPreferenceLabel(log: AdminAiDiscoveryLog): string {
+  const market = AI_DIMENSION_LABELS.country_code[log.country_code ?? "global"];
+  const platform = AI_DIMENSION_LABELS.platform[log.platform ?? "all"];
+  return `${market} · ${platform}`;
+}
+
+const AI_DIMENSION_LABELS = {
+  locale: { "zh-CN": "中文", "en-US": "英文（美国）", "en-GB": "英文（英国）", "ja-JP": "日文", "ko-KR": "韩文" },
+  country_code: { global: "全球", CN: "中国大陆", JP: "日本", KR: "韩国", US: "美国及加拿大", GB: "英国及澳大利亚" },
+  platform: { all: "不限平台", youtube: "YouTube", instagram: "Instagram", tiktok: "TikTok", xiaohongshu: "小红书", douyin: "抖音" },
+} as const;
+
 function AiDiscoveryPanel({ data }: { data: AdminAiDiscoveryData }) {
   const averageDuration = data.recent.length === 0
     ? 0
@@ -331,7 +361,7 @@ function AiDiscoveryPanel({ data }: { data: AdminAiDiscoveryData }) {
     <section className="admin-ai" aria-labelledby="admin-ai-title">
       <div className="admin-metrics-heading">
         <div>
-          <p className="admin-kicker">LAST 7 DAYS</p>
+          <p className="admin-kicker">SELECTED DATE RANGE</p>
           <h2 id="admin-ai-title">AI 调用</h2>
         </div>
         <p>只记录调用状态和性能数据，不保存照片、面部数据、AI 返回名字、排名或原始 IP。</p>
@@ -362,6 +392,25 @@ function AiDiscoveryPanel({ data }: { data: AdminAiDiscoveryData }) {
           <p>固定错误分类，不保存原始异常文本</p>
         </article>
       </div>
+      <section className="admin-ai-dimensions" aria-labelledby="admin-ai-dimensions-title">
+        <div className="admin-ai-heading">
+          <div>
+            <span>GLOBAL PREFERENCES</span>
+            <h3 id="admin-ai-dimensions-title">历史独立 AI 推荐偏好</h3>
+          </div>
+          <p>{data.dimensions_available ? "固定枚举聚合" : "全球维度迁移尚未部署"}</p>
+        </div>
+        {data.dimensions_available ? (
+          <div className="admin-ai-dimension-grid">
+            {(Object.keys(AI_DIMENSION_LABELS) as Array<keyof typeof AI_DIMENSION_LABELS>).map((dimension) => (
+              <div key={dimension}>
+                <strong>{dimension === "locale" ? "语言" : dimension === "country_code" ? "市场" : "平台"}</strong>
+                <p>{Object.entries(data.dimensions[dimension]).map(([key, count]) => `${AI_DIMENSION_LABELS[dimension][key as keyof typeof AI_DIMENSION_LABELS[typeof dimension]]} ${count}`).join(" · ")}</p>
+              </div>
+            ))}
+          </div>
+        ) : <p className="admin-metrics-note">迁移完成后会显示语言、市场和平台的固定枚举分布；不会保存博主姓名、主页或用户标识。</p>}
+      </section>
       <div className="admin-ai-heading">
         <div>
           <span>RECENT INVOCATIONS</span>
@@ -374,7 +423,7 @@ function AiDiscoveryPanel({ data }: { data: AdminAiDiscoveryData }) {
       ) : (
         <div className="admin-ai-table-wrap">
           <table className="admin-ai-table">
-            <thead><tr><th>时间</th><th>状态</th><th>耗时</th><th>参考模式</th><th>结果</th></tr></thead>
+            <thead><tr><th>时间</th><th>状态</th><th>耗时</th><th>参考模式</th><th>全球偏好</th><th>结果</th></tr></thead>
             <tbody>
               {data.recent.map((log) => (
                 <tr key={log.id}>
@@ -382,6 +431,7 @@ function AiDiscoveryPanel({ data }: { data: AdminAiDiscoveryData }) {
                   <td data-label="状态"><span className={log.status === "succeeded" ? "admin-status admin-status-ok" : "admin-status admin-status-error"}>{log.status === "succeeded" ? "成功" : "失败"}</span></td>
                   <td data-label="耗时">{formatDuration(log.duration_ms)}</td>
                   <td data-label="参考模式">{aiModeLabel(log)}</td>
+                  <td data-label="全球偏好">{aiGlobalPreferenceLabel(log)}</td>
                   <td data-label="结果">{log.error_code ? `${AI_ERROR_LABELS[log.error_code] ?? log.error_code}${log.provider_status ? ` · HTTP ${log.provider_status}` : ""}` : "正常返回"}</td>
                 </tr>
               ))}
@@ -396,17 +446,25 @@ function AiDiscoveryPanel({ data }: { data: AdminAiDiscoveryData }) {
 
 function MetricsPanel({
   metrics,
+  paymentSummary,
   dateRange,
   onDateRangeChange,
+  onPaymentChanged,
 }: {
   metrics: AdminProductMetrics;
+  paymentSummary: AdminPaymentSummary;
   dateRange: MetricsDateRange;
   onDateRangeChange: (range: MetricsDateRange) => void;
+  onPaymentChanged: () => Promise<void>;
 }) {
   const [startDate, setStartDate] = useState(dateRange.startDate);
   const [endDate, setEndDate] = useState(dateRange.endDate);
   const [dateError, setDateError] = useState("");
   const feedbackTotal = metrics.feedback_yes + metrics.feedback_no;
+  const pointActivity = paymentSummary.point_activity;
+  const emptyPointUsage = { reserved: 0, consumed: 0, refunded: 0 };
+  const reportPointUsage = pointActivity?.by_purpose.makeup_report ?? emptyPointUsage;
+  const aiPointUsage = pointActivity?.by_purpose.ai_discovery ?? emptyPointUsage;
   const failureReasons = [
     ["未检测到人脸", metrics.analysis_failures.no_face],
     ["检测到多张人脸", metrics.analysis_failures.multiple_faces],
@@ -480,7 +538,7 @@ function MetricsPanel({
       <div className="admin-metrics-heading">
         <div>
           <p className="admin-kicker">BEIJING DATE RANGE</p>
-          <h2 id="admin-metrics-title">产品数据</h2>
+          <h2 id="admin-metrics-title">商业化与用户行为数据</h2>
         </div>
         <p>按匿名浏览器标签页会话去重，不代表可识别的真实用户人数。</p>
       </div>
@@ -514,18 +572,6 @@ function MetricsPanel({
           <p>{metrics.photo_selected} 次选择 · {metrics.landing_view} 次访问</p>
         </article>
         <article className="admin-metric">
-          <Sparkles size={19} />
-          <span>女生模式选图会话</span>
-          <strong>{metrics.women_photo_selected}</strong>
-          <p>{formatRate(metrics.women_photo_selected, metrics.photo_selected)} 的选图会话使用过女生模式</p>
-        </article>
-        <article className="admin-metric">
-          <UserRound size={19} />
-          <span>男生模式选图会话</span>
-          <strong>{metrics.men_photo_selected}</strong>
-          <p>{formatRate(metrics.men_photo_selected, metrics.photo_selected)} 的选图会话使用过男生模式</p>
-        </article>
-        <article className="admin-metric">
           <CheckCircle2 size={19} />
           <span>分析完成率</span>
           <strong>{formatRate(metrics.analysis_succeeded, metrics.photo_selected)}</strong>
@@ -538,16 +584,10 @@ function MetricsPanel({
           <p>{metrics.match_result_view} 次结果展示</p>
         </article>
         <article className="admin-metric">
-          <MessageCircle size={19} />
-          <span>反馈率</span>
-          <strong>{formatRate(feedbackTotal, metrics.match_result_view)}</strong>
-          <p>{feedbackTotal} 次反馈 · {metrics.match_result_view} 次结果展示</p>
-        </article>
-        <article className="admin-metric">
           <ThumbsUp size={19} />
-          <span>结果符合率</span>
-          <strong>{formatRate(metrics.feedback_yes, feedbackTotal)}</strong>
-          <p>{metrics.feedback_yes} 次符合 · {metrics.feedback_no} 次不符合</p>
+          <span>主动反馈覆盖</span>
+          <strong>{formatRate(feedbackTotal, metrics.match_result_view)}</strong>
+          <p>{feedbackTotal} 次主动反馈；仅用于诊断，不外推整体满意度</p>
         </article>
         <article className="admin-metric">
           <MousePointerClick size={19} />
@@ -586,13 +626,56 @@ function MetricsPanel({
           多选原因分别计数；满 50 条有效负反馈前不调整算法、不增加风格偏好，也不据此扩充博主库。
         </p>
       </section>
-      <section className="admin-plus-breakdown" aria-labelledby="admin-plus-title">
+      <section className="admin-evidence-grid" aria-label="商业化行为摘要">
+        <div><KeyRound size={18} /><span>完整报告成功</span><strong>{metrics.plus_job_succeeded ?? 0}</strong><p>创建 {metrics.plus_job_created ?? 0} · 失败 {metrics.plus_job_failed ?? 0}</p></div>
+        <div><CheckCircle2 size={18} /><span>报告保存到本机</span><strong>{metrics.plus_report_saved_local ?? 0}</strong><p>本机保存信号 · 失败退分 {metrics.plus_credit_refunded ?? 0}</p></div>
+        <div><WalletCards size={18} /><span>会员结算入口</span><strong>{metrics.membership_checkout_started ?? 0}</strong><p>会员页 {metrics.membership_page_viewed ?? 0} · 账期发分 {paymentSummary.subscription_cycles_granted ?? 0}</p></div>
+        <div><Sparkles size={18} /><span>历史独立推荐成功</span><strong>{metrics.ai_discovery_succeeded ?? 0}</strong><p>退役前请求 {metrics.ai_discovery_requested ?? 0} · 同意 {metrics.ai_discovery_consent ?? 0}</p></div>
+        <div><UserRound size={18} /><span>AI 名字点击</span><strong>{metrics.ai_creator_name_clicked ?? 0}</strong><p>成功推荐后的行动信号</p></div>
+        <div><ThumbsUp size={18} /><span>历史推荐反馈</span><strong>{metrics.ai_discovery_feedback ?? 0}</strong><p>仅作历史诊断，不代表授权或转化</p></div>
+      </section>
+      <section className="admin-payment-summary" aria-labelledby="admin-payment-summary-title">
+        <div className="admin-failure-heading">
+          <div>
+            <span>PAYMENT LEDGER</span>
+            <h3 id="admin-payment-summary-title">支付与权益状态</h3>
+          </div>
+          <p>{paymentSummary.available ? "受保护订单的聚合结果" : "迁移尚未部署"}</p>
+        </div>
+        {paymentSummary.available ? (
+          <>
+            <div className="admin-payment-summary-grid">
+              <div><span>订单数</span><strong>{paymentSummary.order_count ?? 0}</strong></div>
+              <div><span>已支付</span><strong>{paymentSummary.by_status?.paid ?? 0}</strong></div>
+              <div><span>待支付</span><strong>{paymentSummary.by_status?.pending ?? 0}</strong></div>
+              <div><span>已退款</span><strong>{paymentSummary.by_status?.refunded ?? 0}</strong></div>
+              <div><span>Stripe 订单</span><strong>{paymentSummary.by_provider?.stripe ?? 0}</strong></div>
+              <div><span>支付宝订单</span><strong>{paymentSummary.by_provider?.zpay ?? 0}</strong></div>
+              <div><span>已到账积分</span><strong>{paymentSummary.paid_points ?? 0}</strong></div>
+              <div><span>月度会员</span><strong>{paymentSummary.subscription_count ?? 0}</strong></div>
+              <div><span>本期发分</span><strong>{paymentSummary.subscription_points_granted ?? 0}</strong></div>
+            </div>
+            <p className="admin-metrics-note">成交金额：{formatPaidAmounts(paymentSummary.paid_amounts_minor)} · 历史一次性包：轻量 {paymentSummary.by_package?.light ?? 0} · 常用 {paymentSummary.by_package?.standard ?? 0} · 充足 {paymentSummary.by_package?.value ?? 0} · 会员方案代码：历史 starter {paymentSummary.subscriptions_by_plan?.starter ?? 0} · 历史 standard {paymentSummary.subscriptions_by_plan?.standard ?? 0} · Pro {paymentSummary.subscriptions_by_plan?.pro ?? 0}</p>
+            {pointActivity?.available ? (
+              <div className="admin-point-activity" aria-label="积分使用聚合">
+                <div><span>报告消费</span><strong>{reportPointUsage.consumed} 次</strong><small>处理中 {reportPointUsage.reserved} · 已退回 {reportPointUsage.refunded}</small></div>
+                <div><span>历史独立推荐消费</span><strong>{aiPointUsage.consumed} 次</strong><small>处理中 {aiPointUsage.reserved} · 已退回 {aiPointUsage.refunded}</small></div>
+                <div><span>本期已消费</span><strong>{pointActivity.consumed_points} 积分</strong><small>失败或过期退回 {pointActivity.refunded_points} 积分</small></div>
+              </div>
+            ) : <p className="admin-metrics-note">积分预占迁移尚未部署，暂时不能统计报告与 AI 的消费和退回。</p>}
+            <AdminPaymentRefundPanel onCompleted={onPaymentChanged} />
+          </>
+        ) : <p className="admin-metrics-note">支付订单迁移完成后，这里才会显示真实订单状态；不会把入口点击或邀请码兑换当成付款。</p>}
+      </section>
+      <details className="admin-plus-breakdown admin-history-collapsed">
+        <summary>查看历史 Plus 价格意向实验（已停止）</summary>
+        <section aria-labelledby="admin-plus-title">
         <div className="admin-ai-heading">
           <div>
             <span>PLUS INTENT ARCHIVE</span>
             <h3 id="admin-plus-title">Plus 历史意向数据</h3>
           </div>
-          <p>三档随机价格实验已结束；当前结果页统一导向 ¥9.9 邀请制内测包。</p>
+            <p>三档随机价格实验已结束；当前数据仅供回看，不进入积分套餐判断。</p>
         </div>
         <div className="admin-ai-table-wrap">
           <table className="admin-ai-table admin-plus-table">
@@ -630,7 +713,8 @@ function MetricsPanel({
         <p className="admin-metrics-note">
           表格只保留切换前的历史价格分组与固定动作；当前结果页不再发送 Plus 实验事件。历史数据不包含场景、妆造方向、照片、面部数据、联系方式或支付信息。
         </p>
-      </section>
+        </section>
+      </details>
       <section className="admin-failure-breakdown" aria-labelledby="admin-failure-title">
         <div className="admin-failure-heading">
           <div>
@@ -729,7 +813,7 @@ export default function AdminApp() {
   const initialRange = useMemo(initialMetricsDateRange, []);
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
-  const [view, setView] = useState<View>("workbench");
+  const [view, setView] = useState<View>("commerce");
   const [data, setData] = useState<AdminListResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -845,11 +929,13 @@ export default function AdminApp() {
         <div className="admin-topbar-actions"><span className="admin-user-email">{session.user.email}</span><button className="admin-icon-button" type="button" onClick={() => void loadDashboard()} aria-label="刷新数据" title="刷新数据"><RefreshCw size={17} /></button><button className="admin-icon-button" type="button" onClick={() => void adminClient.auth.signOut({ scope: "local" })} aria-label="退出当前设备" title="退出当前设备"><LogOut size={17} /></button></div>
       </header>
       <section className="admin-content" aria-label="产品数据、创作者审核与库管理">
-        <div className="admin-page-intro"><div><p className="admin-kicker">{view === "workbench" ? "CURRENT PRIORITIES" : view === "similarity" ? "MATCH CALIBRATION" : "PRODUCTION DATA"}</p><h2>{view === "workbench" ? "把证据变成下一步" : view === "similarity" ? "校准相似度" : "先核验，再公开"}</h2><p>{view === "workbench" ? "分别验证核心匹配、邀请次数和 Plus 交付三个真实闭环。" : view === "similarity" ? "用成对判断训练下一版权重与拒绝阈值。" : "申请资料只在管理台可见；产品数据与 AI 调用记录不包含照片或推荐结果。"}</p></div>{view === "workbench" ? <div className="admin-data-badge"><Target size={18} /><span>三个真实闭环<br /><small>以当前证据推进</small></span></div> : view === "similarity" ? <div className="admin-data-badge"><ScanFace size={18} /><span>本机标注<br /><small>不上传标签和特征</small></span></div> : <div className="admin-intro-actions"><button className="admin-primary-button" type="button" onClick={() => setShowCreate(true)}><Plus size={16} />新建待审申请</button><div className="admin-data-badge"><Database size={18} /><span>{pending.length} 条待审核<br /><small>{creators.length} 条库内记录</small></span></div></div>}</div>
-        <nav className="admin-tabs" aria-label="管理台视图"><button className={view === "workbench" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("workbench")}><LayoutDashboard size={16} />工作台</button><button className={view === "pending" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("pending")}><Clock3 size={16} />待审核 <span>{pending.length}</span></button><button className={view === "creators" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("creators")}><Database size={16} />创作者库 <span>{creators.length}</span></button><button className={view === "similarity" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("similarity")}><ScanFace size={16} />相似标注</button><button className={view === "outreach" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("outreach")}><MessageCircle size={16} />博主跟进 <span>{outreach.length}</span></button><button className={view === "metrics" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("metrics")}><BarChart3 size={16} />产品数据</button><button className={view === "ai" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("ai")}><Sparkles size={16} />AI 调用 <span>{data?.ai_discovery.total ?? 0}</span></button><button className={view === "plus" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("plus")}><KeyRound size={16} />Plus 邀请</button></nav>
+        <div className="admin-page-intro"><div><p className="admin-kicker">{view === "commerce" ? "BUSINESS OPERATIONS" : view === "workbench" ? "CURRENT PRIORITIES" : view === "similarity" ? "MATCH CALIBRATION" : view === "membership" ? "MEMBERSHIP OPERATIONS" : "PRODUCTION DATA"}</p><h2>{view === "commerce" ? "看清注册、付款和会员" : view === "workbench" ? "把证据变成下一步" : view === "similarity" ? "校准相似度" : view === "membership" ? "管理会员和正式套餐" : "先核验，再公开"}</h2><p>{view === "commerce" ? "从账号注册到订单付款，再到会员生效，在一个页面完成日常运营核对。" : view === "workbench" ? "分别验证核心匹配、邀请传播和积分交付三个真实闭环。" : view === "similarity" ? "用成对判断训练下一版权重与拒绝阈值。" : view === "membership" ? "按邮箱开通或停止会员，并维护支付宝与 Stripe 的月卡目录。" : "申请资料只在管理台可见；产品数据与 AI 调用记录不包含照片或推荐结果。"}</p></div>{view === "commerce" ? <div className="admin-data-badge"><UserRound size={18} /><span>{data?.commerce_overview.registrations?.total ?? 0} 个注册账号<br /><small>{data?.commerce_overview.memberships?.active ?? 0} 个有效会员</small></span></div> : view === "workbench" ? <div className="admin-data-badge"><Target size={18} /><span>三个真实闭环<br /><small>以当前证据推进</small></span></div> : view === "similarity" ? <div className="admin-data-badge"><ScanFace size={18} /><span>本机标注<br /><small>不上传标签和特征</small></span></div> : view === "membership" ? <div className="admin-data-badge"><WalletCards size={18} /><span>会员人工管理<br /><small>开通操作留审计记录</small></span></div> : <div className="admin-intro-actions"><button className="admin-primary-button" type="button" onClick={() => setShowCreate(true)}><Plus size={16} />新建待审申请</button><div className="admin-data-badge"><Database size={18} /><span>{pending.length} 条待审核<br /><small>{creators.length} 条库内记录</small></span></div></div>}</div>
+        <nav className="admin-tabs" aria-label="管理台视图"><button className={view === "commerce" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("commerce")}><UserRound size={16} />用户与订单</button><button className={view === "membership" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("membership")}><WalletCards size={16} />增加会员</button><button className={view === "workbench" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("workbench")}><LayoutDashboard size={16} />工作台</button><button className={view === "pending" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("pending")}><Clock3 size={16} />待审核 <span>{pending.length}</span></button><button className={view === "creators" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("creators")}><Database size={16} />创作者库 <span>{creators.length}</span></button><button className={view === "similarity" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("similarity")}><ScanFace size={16} />相似标注</button><button className={view === "outreach" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("outreach")}><MessageCircle size={16} />博主跟进 <span>{outreach.length}</span></button><button className={view === "metrics" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("metrics")}><BarChart3 size={16} />产品数据</button><button className={view === "ai" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("ai")}><Sparkles size={16} />历史 AI 调用 <span>{data?.ai_discovery.total ?? 0}</span></button><button className={view === "plus" ? "admin-tab admin-tab-active" : "admin-tab"} type="button" onClick={() => setView("plus")}><KeyRound size={16} />积分与旧 Plus</button></nav>
         {error && <div className="admin-alert" role="alert"><X size={17} />{error}</div>}
-        {loading ? <div className="admin-loading admin-loading-inline"><LoaderCircle className="admin-spin" size={22} />正在读取受保护数据…</div> : view === "workbench" && data?.product_metrics ? (
-          <AdminWorkbench metrics={data.product_metrics} outreach={outreach} pendingCount={pending.length} activeCreatorCount={activeCreatorCount} dateRangeLabel={`${formatCalendarDate(metricsDateRange.startDate)}至 ${formatCalendarDate(metricsDateRange.endDate)}`} onNavigate={setView} />
+        {loading ? <div className="admin-loading admin-loading-inline"><LoaderCircle className="admin-spin" size={22} />正在读取受保护数据…</div> : view === "commerce" && data?.commerce_overview ? (
+          <AdminCommercePanel data={data.commerce_overview} onAddMembership={() => setView("membership")} />
+        ) : view === "workbench" && data?.product_metrics ? (
+          <AdminWorkbench metrics={data.product_metrics} dateRangeLabel={`${formatCalendarDate(metricsDateRange.startDate)}至 ${formatCalendarDate(metricsDateRange.endDate)}`} paymentSummary={data.payment_summary ?? { available: false }} onNavigate={setView} />
         ) : view === "pending" ? (
           <div className="admin-list">{pending.length === 0 ? <div className="admin-empty"><CheckCircle2 size={28} /><h3>当前没有待审核申请</h3><p>新的投稿会先停留在这里，不会自动公开。</p></div> : pending.map((submission) => <PendingRow key={submission.id} submission={submission} onAction={openAction} />)}</div>
         ) : view === "creators" ? (
@@ -861,9 +947,13 @@ export default function AdminApp() {
         ) : view === "metrics" && data?.product_metrics ? (
           <MetricsPanel
             metrics={data.product_metrics}
+            paymentSummary={data.payment_summary ?? { available: false }}
             dateRange={metricsDateRange}
             onDateRangeChange={(range) => void loadDashboard(range)}
+            onPaymentChanged={() => loadDashboard()}
           />
+        ) : view === "membership" ? (
+          <AdminMembershipPanel />
         ) : view === "plus" ? (
           <AdminPlusInvitesPanel />
         ) : data?.ai_discovery ? <AiDiscoveryPanel data={data.ai_discovery} /> : null}

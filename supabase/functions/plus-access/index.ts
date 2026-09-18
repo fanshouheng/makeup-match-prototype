@@ -85,12 +85,13 @@ function secretKey(): string | undefined {
     keyFromCollection("SUPABASE_SECRET_KEYS");
 }
 
-function membershipResponse(row: PlusMembershipRow): Record<string, unknown> {
+function membershipResponse(row: PlusMembershipRow, points: number): Record<string, unknown> {
   return {
     userId: row.user_id,
     tier: row.tier,
     status: row.status,
-    trialCredits: row.trial_credits,
+    // Temporary compatibility for the deployed pre-points frontend.
+    trialCredits: Math.floor(points / 100),
     activatedAt: row.activated_at,
     benefitExpiresAt: row.benefit_expires_at,
   };
@@ -138,6 +139,12 @@ async function status(admin: SupabaseClient, userId: string): Promise<PlusMember
   return result.data as PlusMembershipRow | null;
 }
 
+async function pointBalance(admin: SupabaseClient, userId: string): Promise<number> {
+  const result = await admin.rpc("get_point_balance", { p_user_id: userId });
+  if (result.error) throw result.error;
+  return Number(result.data);
+}
+
 Deno.serve(async (request) => {
   const origin = resolveOrigin(request);
   if (!origin) {
@@ -166,7 +173,9 @@ Deno.serve(async (request) => {
       }
       const membership = await status(identity.admin, identity.user.id);
       return reply(origin, 200, {
-        membership: membership ? membershipResponse(membership) : null,
+        membership: membership
+          ? membershipResponse(membership, await pointBalance(identity.admin, identity.user.id))
+          : null,
       });
     }
 
@@ -194,7 +203,12 @@ Deno.serve(async (request) => {
       }
       const membership = (result.data?.[0] ?? null) as PlusMembershipRow | null;
       if (!membership) throw new Error("membership_missing_after_redeem");
-      return reply(origin, 200, { membership: membershipResponse(membership) });
+      return reply(origin, 200, {
+        membership: membershipResponse(
+          membership,
+          await pointBalance(identity.admin, identity.user.id),
+        ),
+      });
     }
 
     if (body.action === "issue") {

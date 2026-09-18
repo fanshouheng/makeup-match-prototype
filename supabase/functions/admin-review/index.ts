@@ -20,8 +20,10 @@ const MAX_OUTREACH_REASON_LENGTH = 200;
 const MAX_OUTREACH_NOTES_LENGTH = 1000;
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const CONSENT_VERSION = "2026-07-21";
-const PRODUCT_METRICS_DAYS = 7;
 const AI_DISCOVERY_LOG_LIMIT = 50;
+const AI_LOCALES = ["zh-CN", "en-US", "en-GB", "ja-JP", "ko-KR"] as const;
+const AI_COUNTRIES = ["global", "CN", "JP", "KR", "US", "GB"] as const;
+const AI_PLATFORMS = ["all", "youtube", "instagram", "tiktok", "xiaohongshu", "douyin"] as const;
 const PRODUCT_EVENT_NAMES = [
   "landing_view",
   "photo_selected",
@@ -40,6 +42,28 @@ const PRODUCT_EVENT_NAMES = [
   "plus_intent_yes",
   "plus_intent_price_high",
   "plus_intent_not_needed",
+  "plus_page_viewed",
+  "plus_checkout_started",
+  "points_page_viewed",
+  "points_checkout_started",
+  "membership_page_viewed",
+  "membership_checkout_started",
+  "membership_cycle_granted",
+  "membership_payment_failed",
+  "plus_invite_redeemed",
+  "plus_job_created",
+  "plus_job_succeeded",
+  "plus_job_failed",
+  "plus_credit_refunded",
+  "plus_report_saved_local",
+  "plus_usage_feedback",
+  "ai_discovery_viewed",
+  "ai_discovery_consent",
+  "ai_discovery_requested",
+  "ai_discovery_succeeded",
+  "ai_discovery_failed",
+  "ai_creator_name_clicked",
+  "ai_discovery_feedback",
 ] as const;
 const PLUS_EVENT_NAMES = [
   "plus_offer_viewed",
@@ -68,7 +92,7 @@ const OUTREACH_STATUSES = new Set([
   "approved", "active", "declined", "no_reply",
 ]);
 const TERMINAL_OUTREACH_STATUSES = new Set(["declined", "no_reply"]);
-type Action = "list" | "create" | "verify" | "approve" | "reject" | "cleanup" | "set_active" | "delete_creator" | "save_outreach" | "delete_outreach";
+type Action = "list" | "create" | "verify" | "approve" | "reject" | "cleanup" | "set_active" | "delete_creator" | "save_outreach" | "delete_outreach" | "get_membership_catalog" | "lookup_membership" | "grant_membership_month" | "cancel_membership" | "update_membership_plan";
 interface RequestBody {
   action?: Action;
   metricsStartDate?: string;
@@ -86,6 +110,13 @@ interface RequestBody {
   nextFollowUpAt?: string | null;
   lossReason?: string;
   notes?: string;
+  email?: string;
+  idempotencyKey?: string;
+  planName?: string;
+  monthlyPoints?: number;
+  zpayAmountMinor?: number;
+  stripeAmountMinor?: number;
+  planActive?: boolean;
 }
 
 function configuredOrigins(): string[] {
@@ -320,31 +351,172 @@ async function productMetrics(
   };
 }
 
-async function aiDiscoveryData(admin: SupabaseClient): Promise<Record<string, unknown>> {
-  const periodStart = new Date(Date.now() - PRODUCT_METRICS_DAYS * 24 * 60 * 60 * 1000).toISOString();
+async function aiDiscoveryData(
+  admin: SupabaseClient,
+  range: AdminMetricsRange,
+): Promise<Record<string, unknown>> {
+  const periodStart = range.startAt;
+  const periodEnd = range.endBefore;
   const baseCount = () => admin.from("ai_creator_discovery_logs")
     .select("id", { count: "exact", head: true })
-    .gte("created_at", periodStart);
-  const [totalResult, succeededResult, failedResult, recentResult] = await Promise.all([
+    .gte("created_at", periodStart)
+    .lt("created_at", periodEnd);
+  const [totalResult, succeededResult, failedResult, recentResult, dimensionsResult] = await Promise.all([
     baseCount(),
     baseCount().eq("status", "succeeded"),
     baseCount().eq("status", "failed"),
     admin.from("ai_creator_discovery_logs")
-      .select("id,status,error_code,duration_ms,provider_status,reference_audience,content_filter,created_at")
+      .select("id,status,error_code,duration_ms,provider_status,reference_audience,content_filter,locale,country_code,platform,created_at")
       .gte("created_at", periodStart)
+      .lt("created_at", periodEnd)
       .order("created_at", { ascending: false })
       .limit(AI_DISCOVERY_LOG_LIMIT),
+    admin.from("ai_creator_discovery_logs")
+      .select("locale,country_code,platform")
+      .gte("created_at", periodStart)
+      .lt("created_at", periodEnd),
   ]);
   if (totalResult.error) throw totalResult.error;
   if (succeededResult.error) throw succeededResult.error;
   if (failedResult.error) throw failedResult.error;
-  if (recentResult.error) throw recentResult.error;
+  let recentRows: Array<Record<string, unknown>> | null = recentResult.data;
+  if (recentResult.error && ["PGRST204", "PGRST205", "42703"].includes(recentResult.error.code)) {
+    const fallback = await admin.from("ai_creator_discovery_logs")
+      .select("id,status,error_code,duration_ms,provider_status,reference_audience,content_filter,created_at")
+      .gte("created_at", periodStart)
+      .lt("created_at", periodEnd)
+      .order("created_at", { ascending: false })
+      .limit(AI_DISCOVERY_LOG_LIMIT);
+    if (fallback.error) throw fallback.error;
+    recentRows = fallback.data;
+  } else if (recentResult.error) {
+    throw recentResult.error;
+  }
+  const dimensionsAvailable = !dimensionsResult.error;
+  if (dimensionsResult.error && !["PGRST204", "PGRST205", "42703"].includes(dimensionsResult.error.code)) {
+    throw dimensionsResult.error;
+  }
+  const dimensionCounts = {
+    locale: Object.fromEntries(AI_LOCALES.map((key) => [key, 0])),
+    country_code: Object.fromEntries(AI_COUNTRIES.map((key) => [key, 0])),
+    platform: Object.fromEntries(AI_PLATFORMS.map((key) => [key, 0])),
+  } as Record<string, Record<string, number>>;
+  for (const row of dimensionsResult.data ?? []) {
+    if (typeof row.locale === "string" && AI_LOCALES.includes(row.locale as typeof AI_LOCALES[number])) {
+      dimensionCounts.locale[row.locale] += 1;
+    }
+    const country = typeof row.country_code === "string" ? row.country_code : "global";
+    if (AI_COUNTRIES.includes(country as typeof AI_COUNTRIES[number])) dimensionCounts.country_code[country] += 1;
+    if (typeof row.platform === "string" && AI_PLATFORMS.includes(row.platform as typeof AI_PLATFORMS[number])) {
+      dimensionCounts.platform[row.platform] += 1;
+    }
+  }
   return {
     period_start: periodStart,
     total: totalResult.count ?? 0,
     succeeded: succeededResult.count ?? 0,
     failed: failedResult.count ?? 0,
-    recent: recentResult.data ?? [],
+    dimensions_available: dimensionsAvailable,
+    dimensions: dimensionCounts,
+    recent: recentRows ?? [],
+  };
+}
+
+async function paymentSummary(
+  admin: SupabaseClient,
+  range: AdminMetricsRange,
+): Promise<Record<string, unknown>> {
+  const [result, pointResult, subscriptionResult, cycleResult] = await Promise.all([
+    admin.from("payment_orders")
+      .select("provider,product_code,package_code,points_granted,status,amount_minor,currency")
+      .gte("created_at", range.startAt)
+      .lt("created_at", range.endBefore),
+    admin.from("point_reservations")
+      .select("purpose,status,points")
+      .gte("created_at", range.startAt)
+      .lt("created_at", range.endBefore),
+    admin.from("subscriptions")
+      .select("provider,plan_code,status")
+      .gte("created_at", range.startAt)
+      .lt("created_at", range.endBefore),
+    admin.from("subscription_cycles")
+      .select("points_granted,status")
+      .gte("created_at", range.startAt)
+      .lt("created_at", range.endBefore),
+  ]);
+  if (result.error) {
+    if (result.error.code === "42P01" || result.error.code === "PGRST205") return { available: false };
+    throw result.error;
+  }
+  if (pointResult.error && pointResult.error.code !== "42P01" && pointResult.error.code !== "PGRST205") {
+    throw pointResult.error;
+  }
+  const subscriptionsAvailable = !subscriptionResult.error;
+  if (subscriptionResult.error && !["42P01", "PGRST205"].includes(subscriptionResult.error.code)) throw subscriptionResult.error;
+  const cyclesAvailable = !cycleResult.error;
+  if (cycleResult.error && !["42P01", "PGRST205"].includes(cycleResult.error.code)) throw cycleResult.error;
+  const byStatus: Record<string, number> = {};
+  const byProvider: Record<string, number> = {};
+  const byProduct: Record<string, number> = {};
+  const byPackage: Record<string, number> = {};
+  const subscriptionsByStatus: Record<string, number> = {};
+  const subscriptionsByPlan: Record<string, number> = {};
+  const paidAmounts: Record<string, number> = {};
+  let paidPoints = 0;
+  let subscriptionCyclesGranted = 0;
+  let subscriptionPointsGranted = 0;
+  for (const row of result.data ?? []) {
+    if (typeof row.status === "string") byStatus[row.status] = (byStatus[row.status] ?? 0) + 1;
+    if (typeof row.provider === "string") byProvider[row.provider] = (byProvider[row.provider] ?? 0) + 1;
+    if (typeof row.product_code === "string") byProduct[row.product_code] = (byProduct[row.product_code] ?? 0) + 1;
+    if (typeof row.package_code === "string") byPackage[row.package_code] = (byPackage[row.package_code] ?? 0) + 1;
+    if (row.status === "paid" && typeof row.currency === "string" && typeof row.amount_minor === "number") {
+      paidAmounts[row.currency] = (paidAmounts[row.currency] ?? 0) + row.amount_minor;
+      if (typeof row.points_granted === "number") paidPoints += row.points_granted;
+    }
+  }
+  for (const row of subscriptionResult.data ?? []) {
+    if (typeof row.status === "string") subscriptionsByStatus[row.status] = (subscriptionsByStatus[row.status] ?? 0) + 1;
+    if (typeof row.plan_code === "string") subscriptionsByPlan[row.plan_code] = (subscriptionsByPlan[row.plan_code] ?? 0) + 1;
+  }
+  for (const row of cycleResult.data ?? []) {
+    if (row.status === "granted") {
+      subscriptionCyclesGranted += 1;
+      if (typeof row.points_granted === "number") subscriptionPointsGranted += row.points_granted;
+    }
+  }
+  const pointActivity = {
+    available: !pointResult.error,
+    consumed_points: 0,
+    refunded_points: 0,
+    by_purpose: {
+      ai_discovery: { reserved: 0, consumed: 0, refunded: 0 },
+      makeup_report: { reserved: 0, consumed: 0, refunded: 0 },
+    },
+  };
+  for (const row of pointResult.data ?? []) {
+    if (row.purpose !== "ai_discovery" && row.purpose !== "makeup_report") continue;
+    if (row.status !== "reserved" && row.status !== "consumed" && row.status !== "refunded") continue;
+    pointActivity.by_purpose[row.purpose][row.status] += 1;
+    if (row.status === "consumed") pointActivity.consumed_points += row.points;
+    if (row.status === "refunded") pointActivity.refunded_points += row.points;
+  }
+  return {
+    available: true,
+    period_start: range.startAt,
+    order_count: result.data?.length ?? 0,
+    by_status: byStatus,
+    by_provider: byProvider,
+    by_product: byProduct,
+    by_package: byPackage,
+    paid_amounts_minor: paidAmounts,
+    paid_points: paidPoints,
+    point_activity: pointActivity,
+    subscription_count: subscriptionsAvailable ? (subscriptionResult.data?.length ?? 0) : undefined,
+    subscriptions_by_status: subscriptionsAvailable ? subscriptionsByStatus : undefined,
+    subscriptions_by_plan: subscriptionsAvailable ? subscriptionsByPlan : undefined,
+    subscription_cycles_granted: cyclesAvailable ? subscriptionCyclesGranted : undefined,
+    subscription_points_granted: cyclesAvailable ? subscriptionPointsGranted : undefined,
   };
 }
 
@@ -352,7 +524,7 @@ async function listData(
   admin: SupabaseClient,
   metricsRange: AdminMetricsRange,
 ): Promise<Record<string, unknown>> {
-  const [submissionsResult, creatorsResult, outreachResult, metrics, aiDiscovery] = await Promise.all([
+  const [submissionsResult, creatorsResult, outreachResult, metrics, aiDiscovery, payments, commerceResult] = await Promise.all([
     admin.from("creator_submissions")
       .select("id,name,contact_email,platform,profile_url,douyin_url,tutorial_url,reference_audience,content_types,reference_photo_path,quality_metrics,status,submitted_at,ownership_verified_at,reviewed_at,review_note")
       .eq("status", "pending")
@@ -364,11 +536,15 @@ async function listData(
       .select("id,candidate_no,display_name,profile_url,first_contacted_at,status,next_follow_up_at,loss_reason,notes,created_at,updated_at")
       .order("updated_at", { ascending: false }),
     productMetrics(admin, metricsRange),
-    aiDiscoveryData(admin),
+    aiDiscoveryData(admin, metricsRange),
+    paymentSummary(admin, metricsRange),
+    admin.rpc("admin_commerce_overview"),
   ]);
   if (submissionsResult.error) throw submissionsResult.error;
   if (creatorsResult.error) throw creatorsResult.error;
   if (outreachResult.error) throw outreachResult.error;
+  const commerceUnavailable = ["42883", "PGRST202"].includes(commerceResult.error?.code ?? "");
+  if (commerceResult.error && !commerceUnavailable) throw commerceResult.error;
   const submissions = submissionsResult.data ?? [];
   const creators = creatorsResult.data ?? [];
   const photos = await signedPhotoMap(admin, [...submissions, ...creators].map((row) => row.reference_photo_path));
@@ -386,6 +562,10 @@ async function listData(
     outreach: outreachResult.data ?? [],
     product_metrics: metrics,
     ai_discovery: aiDiscovery,
+    payment_summary: payments,
+    commerce_overview: commerceUnavailable
+      ? { available: false }
+      : { available: true, ...(commerceResult.data as Record<string, unknown>) },
   };
 }
 
@@ -505,6 +685,78 @@ Deno.serve(async (request) => {
       const metricsRange = resolveAdminMetricsRange(body.metricsStartDate, body.metricsEndDate);
       if (!metricsRange) return reply(origin, 400, { code: "invalid_metrics_range" });
       return new Response(JSON.stringify(await listData(identity.admin, metricsRange)), { status: 200, headers: headers(origin) });
+    }
+
+    if (action === "get_membership_catalog") {
+      stage = "get_membership_catalog";
+      const result = await identity.admin.from("membership_plans")
+        .select("code,provider,name,monthly_amount_minor,currency,monthly_points,stripe_price_id,is_active")
+        .eq("code", "pro_monthly")
+        .order("provider");
+      if (result.error) throw result.error;
+      return reply(origin, 200, {
+        plans: (result.data ?? []).map((plan) => ({
+          code: plan.code,
+          provider: plan.provider,
+          name: plan.name,
+          monthlyAmountMinor: plan.monthly_amount_minor,
+          currency: plan.currency,
+          monthlyPoints: plan.monthly_points,
+          stripePriceIdConfigured: Boolean(plan.stripe_price_id),
+          isActive: plan.is_active,
+        })),
+      });
+    }
+
+    if (action === "lookup_membership") {
+      stage = "lookup_membership";
+      if (typeof body.email !== "string" || !body.email.trim()) {
+        return reply(origin, 400, { code: "invalid_email" });
+      }
+      const result = await identity.admin.rpc("admin_membership_status_by_email", {
+        p_email: body.email.trim().toLowerCase(),
+      });
+      if (result.error) throw result.error;
+      return reply(origin, 200, { membership: result.data });
+    }
+
+    if (action === "grant_membership_month" || action === "cancel_membership") {
+      stage = action;
+      if (typeof body.email !== "string" || !body.email.trim() ||
+        typeof body.idempotencyKey !== "string" || !isUuid(body.idempotencyKey)) {
+        return reply(origin, 400, { code: "invalid_membership_action" });
+      }
+      const rpcName = action === "grant_membership_month"
+        ? "admin_grant_membership_month"
+        : "admin_cancel_membership";
+      const result = await identity.admin.rpc(rpcName, {
+        p_email: body.email.trim().toLowerCase(),
+        p_admin_id: identity.user.id,
+        p_idempotency_key: body.idempotencyKey,
+      });
+      if (result.error) throw result.error;
+      return reply(origin, 200, { membership: result.data });
+    }
+
+    if (action === "update_membership_plan") {
+      stage = "update_membership_plan";
+      if (typeof body.idempotencyKey !== "string" || !isUuid(body.idempotencyKey) ||
+        typeof body.planName !== "string" || typeof body.monthlyPoints !== "number" ||
+        typeof body.zpayAmountMinor !== "number" || typeof body.stripeAmountMinor !== "number" ||
+        typeof body.planActive !== "boolean") {
+        return reply(origin, 400, { code: "invalid_membership_plan" });
+      }
+      const result = await identity.admin.rpc("admin_update_membership_plan", {
+        p_admin_id: identity.user.id,
+        p_idempotency_key: body.idempotencyKey,
+        p_name: body.planName.trim(),
+        p_monthly_points: body.monthlyPoints,
+        p_zpay_amount_minor: body.zpayAmountMinor,
+        p_stripe_amount_minor: body.stripeAmountMinor,
+        p_is_active: body.planActive,
+      });
+      if (result.error) throw result.error;
+      return reply(origin, 200, { plans: result.data });
     }
 
     if (action === "set_active") {
@@ -686,6 +938,26 @@ Deno.serve(async (request) => {
     }
     if (stage === "save_outreach" && code === "23514") {
       return reply(origin, 400, { code: "invalid_outreach" });
+    }
+    const message = typeof error === "object" && error !== null && "message" in error
+      ? String(error.message)
+      : error instanceof Error ? error.message : "";
+    const membershipCode = [
+      "account_not_found",
+      "email_not_confirmed",
+      "membership_not_found",
+      "membership_plan_not_found",
+      "external_subscription_requires_provider",
+      "invalid_membership_action",
+      "invalid_membership_plan",
+      "idempotency_key_reused",
+    ].find((value) => message.includes(value));
+    if (membershipCode) {
+      const status = membershipCode === "account_not_found" || membershipCode === "membership_not_found" ? 404 : 400;
+      return reply(origin, status, { code: membershipCode });
+    }
+    if (["42P01", "PGRST205", "42883"].includes(code ?? "")) {
+      return reply(origin, 503, { code: "membership_not_ready" });
     }
     return reply(origin, 500, { code: "unexpected_error" });
   }

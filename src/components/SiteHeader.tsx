@@ -1,4 +1,5 @@
 import type { ReferenceAudience } from "../domain/creator";
+import { ProductHeader } from "./ProductHeader";
 
 export type SiteView = "home" | "analysis" | "creators" | "privacy";
 
@@ -14,37 +15,16 @@ export function SiteHeader({
   onNavigate,
 }: SiteHeaderProps) {
   return (
-    <header className="site-header">
-      <button
-        aria-label="MAKE UP 首页"
-        className="wordmark"
-        onClick={() => onNavigate("home")}
-        type="button"
-      >
-        <span className="wordmark-name">MAKE UP</span>
-        <span className="wordmark-product">
-          {currentView === "analysis" && referenceAudience === "men"
-            ? "MEN'S REPORT"
-            : "MAKEUP REFERENCE"}
-        </span>
-      </button>
-      <nav className="site-nav" aria-label="站点导航">
-        <a href="/plus">Plus</a>
-        <button
-          aria-current={currentView === "creators" ? "page" : undefined}
-          onClick={() => onNavigate("creators")}
-          type="button"
-        >
-          博主入驻
-        </button>
-        <button
-          aria-current={currentView === "privacy" ? "page" : undefined}
-          onClick={() => onNavigate("privacy")}
-          type="button"
-        >
-          隐私
-        </button>
-      </nav>
-    </header>
+    <ProductHeader
+      current={currentView === "home" || currentView === "analysis" ? "match" : undefined}
+      navLabel="站点导航"
+      onHomeClick={(event) => {
+        event.preventDefault();
+        onNavigate("home");
+      }}
+      productLabel={currentView === "analysis" && referenceAudience === "men"
+        ? "MEN'S REPORT"
+        : "MAKEUP REFERENCE"}
+    />
   );
 }

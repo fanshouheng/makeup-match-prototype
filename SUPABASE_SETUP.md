@@ -26,6 +26,8 @@ VITE_TURNSTILE_SITE_KEY=your-turnstile-site-key
 VITE_PRIVACY_CONTACT_EMAIL=privacy@example.com
 VITE_CONTACT_WECHAT_QR_URL=/wechat-contact.jpg
 VITE_CONTACT_DOUYIN_URL=https://www.douyin.com/user/your-profile
+# 只有完成供应商测试、webhook、退款和小额验收后才设为 true
+VITE_ENABLE_ONLINE_CHECKOUT=false
 ```
 
 前端只能使用 anon key 或现代 publishable key。不要把 service role key、secret key 或 Turnstile secret 放入 Vite 环境变量。
@@ -49,6 +51,14 @@ ARK_MODEL=支持图片理解与联网搜索的模型或推理接入点 ID
 DEEPSEEK_API_KEY=DeepSeek 开放平台 API Key
 ADMIN_USER_IDS=允许签发邀请码和访问管理台的已确认 Auth 用户 UUID，多个值用英文逗号分隔
 ENABLE_MALE_FACE_REPORT=false
+# 商业化支付：MAKE UP Pro 价格和积分在 membership_plans 表中维护
+STRIPE_SECRET_KEY=仅写入 Edge Function Secrets
+STRIPE_WEBHOOK_SECRET=仅写入 Edge Function Secrets
+ZPAY_PID=仅写入 Edge Function Secrets
+ZPAY_KEY=仅写入 Edge Function Secrets
+ZPAY_NOTIFY_URL=https://你的域名/functions/v1/payment-webhook
+ZPAY_RETURN_URL=https://你的域名/report
+ZPAY_TYPE=wxpay
 ```
 
 多个允许域名使用英文逗号分隔。不要在 `ALLOWED_ORIGINS` 中使用 `*`。
@@ -57,13 +67,17 @@ ENABLE_MALE_FACE_REPORT=false
 
 本地联调时可以临时增加 `ALLOW_LOCAL_ORIGINS=true`，完成测试后应删除或改回 `false`。正式 Turnstile 站点也必须允许相应的本地域名。
 
-`ARK_API_KEY` 和 `ARK_MODEL` 供 `ai-creator-discovery` 和 `plus-makeup-report` 使用。Supabase 托管的 Edge Function 会自动提供 `SUPABASE_URL`、`SUPABASE_SECRET_KEYS` 等项目级变量，不要把这些值提交到 Git，也不要在日志中输出任何完整密钥。
+`ARK_API_KEY` 和 `ARK_MODEL` 供 `plus-makeup-report` 使用。Supabase 托管的 Edge Function 会自动提供 `SUPABASE_URL`、`SUPABASE_SECRET_KEYS` 等项目级变量，不要把这些值提交到 Git，也不要在日志中输出任何完整密钥。
 
 `DEEPSEEK_API_KEY` 供 `male-face-report` 和 `plus-makeup-report` 使用，函数固定调用 DeepSeek 对话 API 的 `deepseek-v4-pro`。密钥只能写入 Edge Function Secrets；已经粘贴到聊天、Issue、日志或前端环境变量中的密钥必须先撤销并轮换，不能继续部署使用。
 
 对应火山引擎账号必须先开通方舟联网搜索插件；未开通时接口会返回 `ToolNotOpen`，前端显示“AI 联网搜索尚未完成配置”。不要在插件未开通、未完成一次真实联网请求前发布 AI 入口。
 
 在 Supabase Dashboard -> Authentication -> URL Configuration 中，把正式站点设为 Site URL，并把账号确认邮件使用的 `https://你的域名/` 和管理员邮箱链接使用的 `https://你的域名/admin` 加入 Redirect URLs；需要本地联调时再临时加入对应本地地址。普通账号与 Plus 复用 `make-up-plus-auth` 本地存储键，已有账号可直接兑换 Plus 邀请码；`/admin` 使用独立登录态，不会被覆盖。保持 `sessions_single_per_user=false` 以允许多设备分别登录；退出管理台时只退出当前设备。
+
+支付函数为 `create-payment-checkout`、`payment-status`、`payment-webhook` 和 `refund-payment`。正式目录为：100 积分单次报告（¥19.9 / US$2.99）、1000 积分月卡（¥59 / US$8.99，每天 50 次普通匹配）和年卡（¥599 / US$89.99，普通匹配不限次并连续 12 个月每月发 2000 积分）。客户端只提交供应商与商品代码；服务端读取金额、币种、积分和匹配权益。Stripe 根据月卡或年卡周期创建订阅 Checkout，只在确认付款后幂等发分；ZPAY 使用 `submit.php` POST 表单并在回调核对商户号、签名、金额和 `TRADE_SUCCESS`。年卡首月支付确认后发首月积分，后续由 `grant-due-annual-subscription-cycles` 定时任务按月发放，禁止一次性预发。管理员可按内部订单 ID 发起全额退款；积分已使用时自动退款会被阻止。不要把商户密钥、回调原文或付款凭证写入仓库、日志或数据库。
+
+当前生产只部署了统一钱包和旧一次性支付底座。部署 `20260913120000_membership_subscriptions.sql`、`20260913121000_membership_product_events.sql`、`20260916100000_admin_membership_management.sql` 及订阅版 Edge Functions 后，服务端目录会统一为上述唯一方案，并提供带审计和幂等保护的人工会员管理；在支付验收完成前保持 `VITE_ENABLE_ONLINE_CHECKOUT=false`。
 
 ## 5. 部署并验证 Edge Function
 
@@ -92,31 +106,20 @@ ENABLE_MALE_FACE_REPORT=false
 - 浏览器直接上传 `creator-photos/submissions/` 被拒绝。
 - 通过 `submit-creator` Edge Function 仍能正常提交。
 
-## 7. 部署并验证 AI 推荐
+## 7. 退役独立 AI 推荐
 
-部署 `supabase/functions/ai-creator-discovery/index.ts`，并设置 `verify_jwt = true`。该函数由网关和函数内部共同校验登录态，同时验证允许来源、Turnstile、同意版本、JPEG 文件头、请求大小和每 IP 每小时 3 次的限流。
-
-上线前验证：
-
-1. 未登录时不能调用；未展开、未勾选同意或未完成 Turnstile 时，前端不会发送照片。
-2. 浏览器只发送最长边不超过 1024 像素、大小不超过 1.5 MB 的 JPEG 副本。
-3. 非允许来源、无效图片、错误同意版本或第 4 次请求会被拒绝。
-4. AI 响应只接受 1 至 5 个名字，不接受链接、换行或额外字段。
-5. `store: false` 生效，MAKE UP 数据库和 Storage 中没有照片副本、AI 结果或名字。
-6. 候选博主照片不会被下载或分析，AI 名字不会自动进入公开创作者库。
-7. 缺少 `ARK_API_KEY` 或 `ARK_MODEL` 时返回 `service_not_configured`；联网搜索插件未开通时返回 `web_search_not_configured`。
-8. 真正发送到 AI 服务的请求会记录固定运行元数据；日志不包含照片、面部比例、提示词、返回名字、推荐结果、原始 IP 或用户 ID。
+原结果页的 3 积分独立 AI 博主推荐已经退役。部署当前 `supabase/functions/ai-creator-discovery/index.ts` 作为兼容处理器，并保持 `verify_jwt = true`；允许来源的旧客户端请求应返回 HTTP 410 和 `feature_retired`，不得校验照片、预占积分、调用第三方 AI 或写入新的推荐日志。历史账本用途、事件和聚合表继续保留，只用于解释旧记录。
 
 ## 8. 部署并验证男生 DeepSeek 报告
 
-男生报告没有公开入口时保持 `ENABLE_MALE_FACE_REPORT=false` 或不设置。需要重新开放时，部署 `supabase/functions/male-face-report/index.ts`，设置 `verify_jwt = false` 和 `ENABLE_MALE_FACE_REPORT=true`；函数会验证允许来源、Turnstile、同意版本、固定九项比例、数值范围、报告模式、文风，并与 AI 联网推荐共享原子 IP 限流。
+男生报告没有公开入口时保持 `ENABLE_MALE_FACE_REPORT=false` 或不设置。需要重新开放时，部署 `supabase/functions/male-face-report/index.ts`，设置 `verify_jwt = false` 和 `ENABLE_MALE_FACE_REPORT=true`；函数会验证允许来源、Turnstile、同意版本、固定九项比例、数值范围、报告模式、文风和原子 IP 限流。
 
 上线前验证：
 
 1. 未勾选同意或未完成 Turnstile 时，前端不会调用 Edge Function。
 2. 请求只包含九项精确比例、固定模式、固定文风、同意版本和 Turnstile token；不包含照片、关键点、姓名、设备标识、创作者信息或会话 ID。
 3. 非允许来源、额外字段、缺失比例、超出范围的数值和错误同意版本会被拒绝。
-4. 男生报告与 AI 联网推荐共享每 IP 每小时 3 次的限流，只保存加盐单向哈希，不保存原始 IP 或面部比例。
+4. 男生报告每 IP 每小时最多 3 次，只保存加盐单向哈希，不保存原始 IP 或面部比例。
 5. DeepSeek 只接受服务端 Secret，浏览器产物和网络响应中不出现 `DEEPSEEK_API_KEY`。
 6. DeepSeek 输出必须是 3 至 5 项结构化 JSON；未知或重复特征、过长内容和禁用羞辱词会被拒绝。
 7. MAKE UP 数据库、Storage 和函数日志中没有精确比例、完整提示词或生成报告。
@@ -138,15 +141,15 @@ ENABLE_MALE_FACE_REPORT=false
 8. 结构化负反馈只接受 `analysis_incorrect`、`creator_mismatch`、`style_mismatch`、`problem_not_solved`、`other`，并拒绝重复博主 ID、未知算法版本、空原因和超长文本。
 9. 结构化负反馈表中没有照片、面部比例、匹配分数、博主名称、链接或推荐顺序；管理台只汇总原因数量，满 50 条前显示继续收集。
 
-管理台的“AI 调用”页签显示最近 7 天的调用数、成功率、最近记录平均耗时和最多 50 条调用记录。只有真正发送到第三方 AI 服务的请求会计入；安全验证失败、限流和无效图片不会计入。
+管理台的“AI 调用”页签按产品数据页选择的日期范围显示调用数、成功率、最近记录平均耗时、固定语言/市场/平台分布和最多 50 条调用记录。只有真正发送到第三方 AI 服务的请求会计入；安全验证失败、限流和无效图片不会计入。
 
 ## 10. 审核与维护
 
 申请默认进入 `pending`，不会自动公开。身份核验、批准、拒绝、撤回和删除步骤见 `docs/ADMIN_REVIEW.md`。
 
-普通用户的默认匹配照片只在浏览器本地处理；最近一次有效分析可写入当前浏览器 IndexedDB，供同一设备的 Plus 会员页恢复，不进入 Supabase 数据库或 Storage，也不跨设备同步。可选 AI 推荐仅在登录后转发用户单独同意的压缩副本，不写入 Supabase 数据库或 Storage，也不在调用日志保存用户 ID；只有博主申请时主动提交的授权照片会进入服务端持久化存储。
+普通用户的默认匹配照片只在浏览器本地处理；最近一次有效分析可写入当前浏览器 IndexedDB，供同一设备的报告页恢复，不进入 Supabase 数据库或 Storage，也不跨设备同步。只有博主申请时主动提交的授权照片会进入服务端持久化存储。
 
-## 11. 部署并验证 Plus 邀请账号
+## 11. 部署并验证账号与旧 Plus 兼容
 
 执行 Plus 与安全硬化迁移后，部署 `supabase/functions/plus-access/index.ts`，并保持 `verify_jwt = false`。新账号只通过 Supabase Auth 标准注册和确认邮件创建；`status`、`redeem` 和 `issue` 在函数内部验证 JWT，`redeem` 要求邮箱已确认，`issue` 还要求用户 UUID 存在于 `ADMIN_USER_IDS`。浏览器端不得接触 `service_role` 或 secret key。上线前验证：
 
@@ -156,32 +159,32 @@ ENABLE_MALE_FACE_REPORT=false
 4. 邮箱与管理员邮箱相同但 UUID 未授权的账号调用管理接口和 `issue` 均返回 `not_admin`；管理员签发后只收到一次邀请码明文，数据库只有 64 位哈希。
 5. 无效、过期或已被其他账号兑换的邀请码分别被拒绝。
 6. 两个已确认账号同时兑换同一邀请码时只有一个成功；成功账号能读取自己的权益，不能读取其他账号或邀请码表。
-7. 激活后显示 3 次报告额度、180 天有效期和有效期内不限次普通匹配；当前 9.9 元内测包将报告额度表述为 1 份正式报告和 2 次内测重试。会员页能从当前浏览器 IndexedDB 恢复最近一次有效分析和真实生成成功的报告。网站数据库和 Storage 中没有密码明文、普通用户照片、付款凭证或微信聊天；Plus 任务可按第 12 节边界临时保存比例、配置和报告。
-8. `/plus` 不展示收款码、不声明自动确认付款，并要求用户付款前在微信确认名额、交付内容、时间和退款方式。
+7. 执行上线迁移后，仍有效的旧 Plus 状态变为 `revoked`，创建 1 个月 `pro_monthly` 订阅并只发一次 1000 积分；原剩余期限不折算，重复执行不得重复发分。
+8. `/report` 直接展示照片与报告生成流程，并在顶部和摘要显示登录账号的积分余额；`/account` 独立处理登录、注册和旧 Plus 兼容兑换，`/plus` 自动转到 `/report`，线上开关关闭时不得创建订单。
 
-## 12. 部署并验证 Plus 妆造报告
+## 12. 部署并验证积分妆造报告
 
-执行 `20260731092923_plus_makeup_background_jobs.sql` 后，部署 `supabase/functions/plus-makeup-report/index.ts`，并保持 `verify_jwt = true`。网关和函数内部都会验证登录态；函数还会检查 Plus 权益、剩余额度、允许来源、同意版本、场景数量、妆造方向、九项比例键和值域。Plus 登录生成不要求 Turnstile；男生报告、AI 联网推荐和博主申请的 Turnstile 保持不变。函数支持 `start`、`status`、`ack` 三个动作，并通过 `EdgeRuntime.waitUntil()` 在首次请求返回后继续处理。上线前验证：
+执行 `20260913090000_unified_points_wallet.sql` 和 `20260918100000_launch_membership_catalog.sql` 后，部署 `plus-makeup-report` 并保持 `verify_jwt = true`。函数检查登录态、至少 100 积分、允许来源、同意版本、场景、方向和九项比例值域。报告生成不要求 Turnstile。上线前验证：
 
-1. 未登录、权益失效、额度为 0 或未同意时不能创建任务；有效登录用户不再被 Turnstile 阻塞。
+1. 未登录、积分少于 10 或未同意时不能创建任务；有效登录用户不被 Turnstile 阻塞。
 2. `start` 请求只包含九项精确比例、1 至 3 个场景、一个妆造方向和同意版本；不包含照片、关键点、姓名、设备标识、本地排名或博主库数据。
 3. DeepSeek 输出只接受严格 JSON：一份结构报告、正好 3 套方案、每套 5 至 7 个步骤，以及边界说明；肤色、肤质、眼皮形态等未提供信息必须列为限制，不能虚构。
 4. 豆包只接收场景、妆造方向和由服务端允许列表提取的妆容关键词，不接收照片、九项精确比例或 DeepSeek 自由文本；只返回 1 至 5 个无链接的公开博主名字，并设置 `store: false`。
-5. `start` 原子预占 1 次额度并立即返回任务 ID；同一账号只能有一个处理中任务。失败、第二次恢复仍失败或过期时只退款一次，额度不能扣成负数或重复退回。
-6. 额度更新只使用 Edge Function 内的服务端密钥；`anon` 和 `authenticated` 仍不能直接修改 `plus_memberships`。
+5. `start` 原子预占 100 积分并立即返回任务 ID；同一账号只能有一个处理中任务。失败、第二次恢复仍失败或过期时只退分一次，余额不能扣成负数或重复退回。
+6. 积分更新只使用 Edge Function 内的服务端密钥；`anon` 和 `authenticated` 不能直接修改钱包或预占表。
 7. 私有任务表暂存账号 ID、九项比例、场景、妆造方向和生成结果，不保存照片、关键点、完整提示词、设备标识或本地排名。生成成功或失败时立即清除精确比例；失败时同时清除配置和报告；成功报告写入当前浏览器 IndexedDB 后，前端调用 `ack` 删除整个任务。
 8. 博主名字明确标为未核验线索，不自动进入公开创作者库，也不能据此下载或分析候选照片。
 9. `status` 在用户刷新、切出或重新进入后返回同一任务；处理超过 3 分钟时最多恢复一次，第二次仍未完成则失败并退款。
 10. `pg_cron` 中存在 `cleanup-plus-makeup-jobs`，每小时执行一次；任务有效期为 23 小时，过期处理任务会退款，所有过期任务会在 24 小时内删除。检查 `cron.job_run_details` 确认清理成功。
 11. `plus_makeup_jobs` 已启用 RLS，`public`、`anon`、`authenticated` 对表和三个 `SECURITY DEFINER` 函数均无权限，只有 `service_role` 可调用；上线后运行数据库安全和性能 Advisors。
 
-## 13. 部署并验证邀请与 AI 次数
+## 13. 部署并验证邀请与积分
 
-执行 `20260806150000_referral_reward_wallets.sql` 后，部署 `supabase/functions/rewards-access/index.ts` 并设置 `verify_jwt = true`，再重新部署 `ai-creator-discovery`。验证：
+执行统一积分迁移后，部署 `rewards-access` 并设置 `verify_jwt = true`。验证：
 
 1. 邀请链接只携带 10 位随机代码，不包含用户 ID；受邀账号必须确认邮箱并成功完成一次女生匹配才算有效。
-2. 每个有效邀请给邀请人 3 次匹配和 1 次 AI 推荐，受邀人 1 次 AI 推荐；邀请人 30 天最多获得 5 位奖励。
-3. 普通匹配次数不能由管理台单独出售或发放；有效 Plus 通过现有会员状态获得不限次普通匹配。管理员只能在人工确认 ¥9.9 后按已确认邮箱发放固定 10 次 AI 推荐。
-4. AI 推荐在所有输入、安全验证和 IP 限流通过后预扣 1 次；上游失败或无效响应退回，成功后提交扣次。
-5. 超过 10 分钟未提交的 AI 预扣由 `cleanup-reward-ai-reservations` 每 15 分钟退回；检查 `cron.job_run_details`。
+2. 每个有效邀请给邀请人 3 次匹配和 3 积分，受邀人 3 积分；邀请人 30 天最多获得 5 位奖励。
+3. 普通匹配次数不能由管理台单独出售或发放；管理员只可按已确认邮箱发放正整数积分。
+4. 旧 `ai_discovery` 预占与流水只做历史兼容；新前端和退役接口都不得创建新的 3 积分预占。
+5. 历史遗留且超过 10 分钟未提交的预占仍由 `cleanup-point-reservations` 每 15 分钟退回；检查 `cron.job_run_details`。
 6. `reward_*` 表均启用 RLS，`anon` 和 `authenticated` 无权直读或修改。记录中没有照片、面部比例、匹配结果、创作者名字、AI 内容、设备身份或付款凭证。

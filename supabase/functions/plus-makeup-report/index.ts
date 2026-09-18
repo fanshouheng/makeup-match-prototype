@@ -66,12 +66,6 @@ interface PlusMakeupRequest {
   scenes: PlusMakeupScene[];
 }
 
-interface MembershipRow {
-  benefit_expires_at: string;
-  status: "active" | "revoked";
-  trial_credits: number;
-}
-
 interface PlusMakeupJobRow {
   id: string;
   user_id: string;
@@ -92,7 +86,7 @@ interface PlusMakeupJobRow {
 interface CreatedJobRow {
   job_id: string;
   job_status: "processing";
-  remaining_credits: number;
+  remaining_points: number;
   job_expires_at: string;
   reused: boolean;
 }
@@ -436,19 +430,6 @@ async function discoverCreatorNames(
   return parseProviderCreatorNames(await response.json());
 }
 
-async function membershipFor(
-  admin: SupabaseClient,
-  userId: string,
-): Promise<MembershipRow | null> {
-  const result = await admin
-    .from("plus_memberships")
-    .select("status,trial_credits,benefit_expires_at")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (result.error) throw result.error;
-  return result.data as MembershipRow | null;
-}
-
 const JOB_COLUMNS = [
   "id",
   "user_id",
@@ -480,7 +461,7 @@ function providerErrorCode(error: unknown): string {
 
 function databaseErrorCode(error: { message?: string } | null): string | undefined {
   if (!error?.message) return undefined;
-  return ["invalid_request", "membership_inactive", "no_credits"]
+  return ["invalid_request", "no_points"]
     .find((code) => error.message?.includes(code));
 }
 
@@ -556,21 +537,12 @@ async function processJob(
       coreReport,
     );
     const report: PlusMakeupReport = { ...coreReport, creatorNames };
-    const update = await admin
-      .from("plus_makeup_jobs")
-      .update({
-        status: "succeeded",
-        features: null,
-        report,
-        error_code: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", job.id)
-      .eq("user_id", job.user_id)
-      .eq("status", "processing")
-      .select("id")
-      .maybeSingle();
-    if (update.error) throw update.error;
+    const completed = await admin.rpc("complete_plus_makeup_job", {
+      p_job_id: job.id,
+      p_report: report,
+      p_user_id: job.user_id,
+    });
+    if (completed.error) throw completed.error;
   } catch (error) {
     const code = error instanceof Error && error.message === "service_not_configured"
       ? error.message
@@ -624,13 +596,13 @@ async function resumeIfStale(
   return (await latestJob(admin, job.user_id)) ?? job;
 }
 
-async function membershipCredits(
+async function pointBalance(
   admin: SupabaseClient,
   userId: string,
 ): Promise<number> {
-  const membership = await membershipFor(admin, userId);
-  if (!membership) throw new Error("membership_inactive");
-  return membership.trial_credits;
+  const result = await admin.rpc("get_point_balance", { p_user_id: userId });
+  if (result.error) throw result.error;
+  return Number(result.data);
 }
 
 Deno.serve(async (request) => {
@@ -681,7 +653,8 @@ Deno.serve(async (request) => {
         const resumed = await resumeIfStale(identity.admin, existing);
         return reply(origin, 202, {
           job: publicJob(resumed),
-          remainingCredits: row.remaining_credits,
+          remainingPoints: row.remaining_points,
+          remainingCredits: Math.floor(row.remaining_points / 100),
         });
       }
 
@@ -704,16 +677,19 @@ Deno.serve(async (request) => {
       runInBackground(identity.admin, job);
       return reply(origin, 202, {
         job: publicJob(job),
-        remainingCredits: row.remaining_credits,
+        remainingPoints: row.remaining_points,
+        remainingCredits: Math.floor(row.remaining_points / 100),
       });
     }
 
     if (action === "status" && Object.keys(body).length === 1) {
       const job = await latestJob(identity.admin, identity.userId);
       const current = job ? await resumeIfStale(identity.admin, job) : null;
+      const remainingPoints = await pointBalance(identity.admin, identity.userId);
       return reply(origin, 200, {
         job: current ? publicJob(current) : null,
-        remainingCredits: await membershipCredits(identity.admin, identity.userId),
+        remainingPoints,
+        remainingCredits: Math.floor(remainingPoints / 100),
       });
     }
 
@@ -746,10 +722,7 @@ Deno.serve(async (request) => {
     ) {
       return reply(origin, 400, { code: "invalid_request" });
     }
-    if (error instanceof Error && error.message === "membership_inactive") {
-      return reply(origin, 403, { code: error.message });
-    }
-    if (error instanceof Error && error.message === "no_credits") {
+    if (error instanceof Error && error.message === "no_points") {
       return reply(origin, 409, { code: error.message });
     }
     console.error("plus_makeup_report_unexpected_error");

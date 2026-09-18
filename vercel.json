@@ -40,6 +40,12 @@
     { "source": "/admin/:path*", "destination": "/index.html" },
     { "source": "/plus", "destination": "/plus.html" },
     { "source": "/plus/:path*", "destination": "/plus.html" },
+    { "source": "/report", "destination": "/plus.html" },
+    { "source": "/report/:path*", "destination": "/plus.html" },
+    { "source": "/account", "destination": "/plus.html" },
+    { "source": "/account/:path*", "destination": "/plus.html" },
+    { "source": "/subscription", "destination": "/plus.html" },
+    { "source": "/subscription/:path*", "destination": "/plus.html" },
     { "source": "/about", "destination": "/about.html" }
   ]
 }

@@ -28,7 +28,6 @@ import type {
   MatchNegativeFeedbackDetails,
   MatchNegativeFeedbackReason,
 } from "../services/productMetrics";
-import { AiCreatorDiscovery } from "./AiCreatorDiscovery";
 import { CreatorPhoto } from "./CreatorPhoto";
 import { PlusOffer } from "./PlusOffer";
 
@@ -75,7 +74,6 @@ interface MatchResultsProps {
   onShare: () => void;
   onViewCreators: () => void;
   showPlus?: boolean;
-  userPhoto?: HTMLImageElement;
 }
 
 export function MatchResults({
@@ -95,7 +93,6 @@ export function MatchResults({
   onShare,
   onViewCreators,
   showPlus = false,
-  userPhoto,
 }: MatchResultsProps) {
   const [negativeReasons, setNegativeReasons] = useState<MatchNegativeFeedbackReason[]>([]);
   const [otherReason, setOtherReason] = useState("");
@@ -551,14 +548,6 @@ export function MatchResults({
             ))}
           </div>}
         </>
-      )}
-      {showPrimary && userPhoto && (
-        <AiCreatorDiscovery
-          key={`${referenceAudience}:${contentFilter}`}
-          contentFilter={contentFilter}
-          referenceAudience={referenceAudience}
-          userPhoto={userPhoto}
-        />
       )}
     </section>
   );

@@ -99,14 +99,14 @@ describe("Plus makeup report request", () => {
           direction: "clean",
           scenes: ["graduation"],
         },
-        remainingCredits: 2,
+        remainingPoints: 20,
       },
       error: null,
     });
 
     await expect(startPlusMakeupReport(input)).resolves.toMatchObject({
       job: { id: "job-1", status: "processing" },
-      remainingCredits: 2,
+      remainingPoints: 20,
     });
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke).toHaveBeenCalledWith("plus-makeup-report", {
@@ -134,14 +134,14 @@ describe("Plus makeup report request", () => {
           scenes: ["graduation"],
           report,
         },
-        remainingCredits: 2,
+        remainingPoints: 20,
       },
       error: null,
     });
 
     await expect(getPlusMakeupReportJob()).resolves.toMatchObject({
       job: { id: "job-1", status: "succeeded", report },
-      remainingCredits: 2,
+      remainingPoints: 20,
     });
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke).toHaveBeenCalledWith("plus-makeup-report", {
@@ -156,6 +156,6 @@ describe("Plus makeup report request", () => {
     expect(invoke).toHaveBeenCalledWith("plus-makeup-report", {
       body: { action: "ack", jobId: "job-1" },
     });
-    expect(plusMakeupJobFailureMessage("timeout")).toContain("额度已退回");
+    expect(plusMakeupJobFailureMessage("timeout")).toContain("积分已退回");
   });
 });

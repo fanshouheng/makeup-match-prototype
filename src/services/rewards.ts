@@ -15,16 +15,20 @@ export interface RewardStatus {
   referralCode: string;
   matchCredits: number;
   aiCredits: number;
+  points: number;
   successfulMatchCount: number;
   successfulInvites: number;
   pendingReferral: boolean;
+  membershipMatchMode: "daily" | "unlimited" | null;
+  membershipMatchesRemaining: number | null;
 }
 
-export type WomenMatchAccessMode = "local" | "referral" | "plus" | "blocked";
+export type WomenMatchAccessMode = "local" | "referral" | "plus" | "membership_daily" | "membership_unlimited" | "blocked";
 
 export interface WomenMatchAccess {
   mode: WomenMatchAccessMode;
   consumeBonus: boolean;
+  consumeMembership: boolean;
 }
 
 interface RewardResponse {
@@ -49,15 +53,22 @@ export function freeSuccessfulMatchesRemaining(used: number): number {
 export function resolveWomenMatchAccess(
   localSuccessfulMatches: number,
   hasActivePlus: boolean,
-  rewards?: Pick<RewardStatus, "matchCredits" | "pendingReferral">,
+  rewards?: Pick<RewardStatus, "matchCredits" | "pendingReferral"> &
+    Partial<Pick<RewardStatus, "membershipMatchMode" | "membershipMatchesRemaining">>,
 ): WomenMatchAccess {
-  if (hasActivePlus) return { mode: "plus", consumeBonus: false };
-  if (localSuccessfulMatches < FREE_SUCCESSFUL_MATCH_LIMIT) {
-    return { mode: "local", consumeBonus: false };
+  if (hasActivePlus) return { mode: "plus", consumeBonus: false, consumeMembership: false };
+  if (rewards?.membershipMatchMode === "unlimited") {
+    return { mode: "membership_unlimited", consumeBonus: false, consumeMembership: true };
   }
-  if (rewards?.pendingReferral) return { mode: "referral", consumeBonus: false };
-  if (rewards && rewards.matchCredits > 0) return { mode: "referral", consumeBonus: true };
-  return { mode: "blocked", consumeBonus: false };
+  if (rewards?.membershipMatchMode === "daily" && (rewards.membershipMatchesRemaining ?? 0) > 0) {
+    return { mode: "membership_daily", consumeBonus: false, consumeMembership: true };
+  }
+  if (localSuccessfulMatches < FREE_SUCCESSFUL_MATCH_LIMIT) {
+    return { mode: "local", consumeBonus: false, consumeMembership: false };
+  }
+  if (rewards?.pendingReferral) return { mode: "referral", consumeBonus: false, consumeMembership: false };
+  if (rewards && rewards.matchCredits > 0) return { mode: "referral", consumeBonus: true, consumeMembership: false };
+  return { mode: "blocked", consumeBonus: false, consumeMembership: false };
 }
 
 export function normalizeReferralCode(value: string | null | undefined): string | undefined {
@@ -102,7 +113,9 @@ async function invokeRewards(body: Record<string, unknown>): Promise<RewardStatu
   if (code === "self_referral") throw new Error("不能使用自己的邀请链接。");
   if (code === "referral_already_claimed") throw new Error("这个账号已经接受过其他邀请。");
   if (code === "no_match_credits") throw new Error("匹配次数已用完，请先邀请一位朋友完成匹配。");
+  if (code === "daily_match_limit_reached") throw new Error("今天的 50 次会员匹配已用完，明天会自动刷新。");
   if (code === "account_not_found") throw new Error("没有找到这个已确认邮箱账号。");
+  if (code === "invalid_point_amount") throw new Error("积分数量必须是 1 到 100000 的整数。");
   throw new Error("权益服务暂时不可用，请稍后重试。");
 }
 
@@ -117,6 +130,7 @@ export function claimReferral(referralCode: string): Promise<RewardStatus> {
 export function recordRewardMatchSuccess(
   successId: string,
   consumeBonus: boolean,
+  membershipAccess = false,
 ): Promise<RewardStatus> {
-  return invokeRewards({ action: "recordMatchSuccess", successId, consumeBonus });
+  return invokeRewards({ action: "recordMatchSuccess", successId, consumeBonus, membershipAccess });
 }

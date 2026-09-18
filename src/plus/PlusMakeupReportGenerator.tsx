@@ -1,11 +1,7 @@
 import {
   AlertCircle,
   Check,
-  FileText,
   LoaderCircle,
-  Palette,
-  RefreshCw,
-  Search,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
@@ -25,51 +21,74 @@ import {
 } from "../services/plusMakeupReport";
 import {
   PLUS_MAKEUP_DIRECTIONS,
-  PLUS_MAKEUP_SCENES,
 } from "../../supabase/functions/_shared/plusMakeupReport";
+import { recordProductEvent } from "../services/productMetrics";
+
+const REPORT_DIRECTIONS = PLUS_MAKEUP_DIRECTIONS.filter((option) =>
+  ["auto", "clean", "soft", "camera_ready"].includes(option.value),
+);
 
 interface PlusMakeupReportGeneratorProps {
-  faceFeatures: FaceFeatureVector;
-  remainingCredits: number;
+  faceFeatures?: FaceFeatureVector;
+  isAuthenticated: boolean;
+  loginHref: string;
+  remainingPoints: number;
   onGenerated: (value: {
     createdAt: string;
     customScene: string;
     direction: PlusMakeupDirection;
     id: string;
-    remainingCredits: number;
+    remainingPoints: number;
     report: PlusMakeupReport;
     scenes: PlusMakeupScene[];
   }) => Promise<void> | void;
-  onCreditsChanged: (remainingCredits: number) => void;
+  onPointsChanged: (remainingPoints: number) => void;
+  onViewReports: () => void;
+  photoStatus: "loading" | "missing" | "ready";
 }
 
 export function PlusMakeupReportGenerator({
   faceFeatures,
+  isAuthenticated,
+  loginHref,
   onGenerated,
-  onCreditsChanged,
-  remainingCredits,
+  onPointsChanged,
+  onViewReports,
+  photoStatus,
+  remainingPoints,
 }: PlusMakeupReportGeneratorProps) {
-  const [scenes, setScenes] = useState<PlusMakeupScene[]>([]);
   const [customScene, setCustomScene] = useState("");
   const [direction, setDirection] = useState<PlusMakeupDirection>("auto");
   const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [jobStatus, setJobStatus] = useState<PlusMakeupJobStatus | null>(null);
   const [error, setError] = useState("");
-  const [result, setResult] = useState<PlusMakeupReport>();
+  const [completedReportTitle, setCompletedReportTitle] = useState("");
   const onGeneratedRef = useRef(onGenerated);
-  const onCreditsChangedRef = useRef(onCreditsChanged);
+  const onPointsChangedRef = useRef(onPointsChanged);
   const deliveringJobRef = useRef<string | undefined>(undefined);
   const customSceneText = customScene.trim();
-  const selectedSceneCount = scenes.length + (customSceneText ? 1 : 0);
+  const generationBlocker = !isAuthenticated
+    ? "登录后才能生成报告。"
+    : photoStatus === "loading"
+      ? "正在分析照片，请稍候。"
+      : !faceFeatures
+        ? "请先上传一张通过本机分析的正脸照片。"
+        : !customSceneText
+          ? "请填写这次化妆的使用场景。"
+          : !consent
+            ? "请确认并同意发送报告所需数据。"
+            : remainingPoints < 100
+              ? "当前积分不足，生成完整报告需要 100 积分。"
+              : "";
 
   useEffect(() => {
     onGeneratedRef.current = onGenerated;
-    onCreditsChangedRef.current = onCreditsChanged;
+    onPointsChangedRef.current = onPointsChanged;
   });
 
   const handleJobResponse = useCallback(async (response: PlusMakeupJobResponse) => {
-    onCreditsChangedRef.current(response.remainingCredits);
+    onPointsChangedRef.current(response.remainingPoints);
     const job = response.job;
     if (!job) {
       setJobStatus(null);
@@ -77,11 +96,14 @@ export function PlusMakeupReportGenerator({
     }
     if (job.status === "processing") {
       setJobStatus(job.status);
+      void recordProductEvent("plus_job_created");
       return;
     }
     if (job.status === "failed") {
       setJobStatus(null);
       setError(plusMakeupJobFailureMessage(job.errorCode));
+      void recordProductEvent("plus_job_failed");
+      void recordProductEvent("plus_credit_refunded");
       await acknowledgePlusMakeupReportJob(job.id).catch(() => undefined);
       return;
     }
@@ -90,17 +112,19 @@ export function PlusMakeupReportGenerator({
     deliveringJobRef.current = job.id;
     setJobStatus(job.status);
     try {
-      setResult(job.report);
+      void recordProductEvent("plus_job_succeeded");
       await onGeneratedRef.current({
         createdAt: job.createdAt,
         customScene: job.customScene,
         direction: job.direction,
         id: job.id,
-        remainingCredits: response.remainingCredits,
+        remainingPoints: response.remainingPoints,
         report: job.report,
         scenes: job.scenes,
       });
       await acknowledgePlusMakeupReportJob(job.id);
+      void recordProductEvent("plus_report_saved_local");
+      setCompletedReportTitle(job.report.title);
       setJobStatus(null);
     } catch (deliveryError) {
       setError(deliveryError instanceof Error
@@ -120,8 +144,9 @@ export function PlusMakeupReportGenerator({
   }, [handleJobResponse]);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     void refreshJob();
-  }, [refreshJob]);
+  }, [isAuthenticated, refreshJob]);
 
   useEffect(() => {
     if (jobStatus !== "processing") return;
@@ -129,31 +154,25 @@ export function PlusMakeupReportGenerator({
     return () => window.clearInterval(interval);
   }, [jobStatus, refreshJob]);
 
-  function toggleScene(scene: PlusMakeupScene) {
-    setResult(undefined);
-    setScenes((current) => current.includes(scene)
-      ? current.filter((value) => value !== scene)
-      : selectedSceneCount < 3
-        ? [...current, scene]
-        : current);
-  }
-
   async function handleGenerate() {
+    if (!faceFeatures) return;
     setError("");
+    setCompletedReportTitle("");
     setLoading(true);
+    void recordProductEvent("plus_job_created");
     try {
       const response = await startPlusMakeupReport({
         consent,
         customScene,
         direction,
         features: faceFeatures,
-        scenes,
+        scenes: [],
       });
       await handleJobResponse(response);
     } catch (reportError) {
       setError(reportError instanceof Error
         ? reportError.message
-        : "报告暂时不可用，本次不会扣减额度。");
+        : "报告暂时不可用，本次不会扣减积分。");
     } finally {
       setLoading(false);
     }
@@ -161,48 +180,26 @@ export function PlusMakeupReportGenerator({
 
   return (
     <section className="plus-makeup-generator" id="plus-makeup-generator" aria-labelledby="plus-makeup-generator-title">
-      <div className="plus-member-section-heading plus-makeup-generator-heading">
+      <div className="report-step-heading">
+        <span>02</span>
         <div>
-          <p className="eyebrow">PLUS / 专属妆造</p>
-          <h2 id="plus-makeup-generator-title">生成面容报告和 3 套妆造方案</h2>
-          <p>选择场景和方向。生成可在后台继续，完成后报告保存在这台设备。</p>
+          <h2 id="plus-makeup-generator-title">设置使用场景</h2>
+          <p>简单说清楚去哪、见谁或希望呈现的感觉。</p>
         </div>
-      </div>
-
-      <div className="plus-makeup-value-strip" aria-label="本次生成内容">
-        <span><FileText size={17} />详细结构报告</span>
-        <span><Palette size={17} />3 套可执行方案</span>
-        <span><Search size={17} />公开博主名字</span>
       </div>
 
       <div className="plus-makeup-config">
         <fieldset>
-          <legend>1. 选择使用场景 <small>已选 {selectedSceneCount} / 3</small></legend>
-          <p>可以多选，也可以直接写下具体安排。</p>
-          <div className="plus-makeup-options plus-makeup-options--scenes">
-            {PLUS_MAKEUP_SCENES.map((scene) => (
-              <label key={scene.value}>
-                <input
-                  checked={scenes.includes(scene.value)}
-                  disabled={!scenes.includes(scene.value) && selectedSceneCount >= 3}
-                  onChange={() => toggleScene(scene.value)}
-                  type="checkbox"
-                />
-                <span><Check size={14} />{scene.label}</span>
-              </label>
-            ))}
-          </div>
           <label className="plus-makeup-custom-scene">
-            <span>直接描述场景</span>
+            <span>化妆应用场景</span>
             <textarea
-              disabled={!customSceneText && scenes.length >= 3}
               maxLength={80}
               onChange={(event) => {
                 setCustomScene(event.target.value);
-                setResult(undefined);
+                setCompletedReportTitle("");
               }}
-              placeholder="例如：我要参加毕业典礼，希望白天仪式和晚间聚餐都能用"
-              rows={3}
+              placeholder="例如：周末参加朋友婚礼，白天户外拍照，希望自然又上镜"
+              rows={4}
               value={customScene}
             />
             <small>{customScene.length} / 80</small>
@@ -210,21 +207,21 @@ export function PlusMakeupReportGenerator({
         </fieldset>
 
         <fieldset>
-          <legend>2. 选择妆造方向</legend>
-          <p>不确定就选“帮我选择”。</p>
+          <legend>妆容偏好 <small>单选</small></legend>
+          <p>没有明确偏好时，保持“让 AI 建议”即可。</p>
           <div className="plus-makeup-options plus-makeup-options--directions">
-            {PLUS_MAKEUP_DIRECTIONS.map((option) => (
+            {REPORT_DIRECTIONS.map((option) => (
               <label key={option.value}>
                 <input
                   checked={direction === option.value}
                   name="plus-makeup-direction"
                   onChange={() => {
                     setDirection(option.value);
-                    setResult(undefined);
+                    setCompletedReportTitle("");
                   }}
                   type="radio"
                 />
-                <span>{option.value === "auto" ? "帮我选择" : option.label}</span>
+                <span><Check size={14} />{option.label}</span>
               </label>
             ))}
           </div>
@@ -232,109 +229,99 @@ export function PlusMakeupReportGenerator({
       </div>
 
       <div className="plus-makeup-consent">
-        <div className="plus-makeup-data-note">
-          <ShieldCheck size={20} />
-          <div>
-            <h3>发送前由你决定</h3>
-            <p>生成报告时会发送九项面部比例、场景和妆造方向；查找博主时只发送场景、方向和服务端提取的固定妆容关键词，不转发报告自由文本。不会发送照片、姓名或本地匹配结果。任务数据最多临时保存 24 小时，报告保存到本机后立即删除服务端副本。</p>
-          </div>
-        </div>
-        <details>
-          <summary>查看将发送的九项面部比例</summary>
-          <dl>
-            {Object.entries(faceFeatures).map(([key, value]) => (
-              <div key={key}>
-                <dt>{FEATURE_LABELS[key as keyof typeof FEATURE_LABELS]}</dt>
-                <dd>{value.toFixed(6)}</dd>
-              </div>
-            ))}
-          </dl>
-        </details>
-        <label className="plus-makeup-consent-field">
+        <label className="plus-makeup-consent-field plus-makeup-consent-field--compact">
           <input
             checked={consent}
+            disabled={!faceFeatures}
             onChange={(event) => setConsent(event.target.checked)}
             type="checkbox"
           />
-          <span>我同意发送并临时保存上述信息，用于在后台生成本次报告和查找公开博主。</span>
+          <ShieldCheck size={19} />
+          <div>
+            <strong>我同意发送报告所需数据</strong>
+            <span>照片不会发送；仅发送九项比例、场景和妆容方向。任务最多临时保存 24 小时，报告保存到本机后删除服务端副本。</span>
+          </div>
         </label>
+        {faceFeatures && (
+          <details>
+            <summary>查看将发送的九项面部比例</summary>
+            <dl>
+              {Object.entries(faceFeatures).map(([key, value]) => (
+                <div key={key}>
+                  <dt>{FEATURE_LABELS[key as keyof typeof FEATURE_LABELS]}</dt>
+                  <dd>{value.toFixed(6)}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
+        )}
         <p className="plus-makeup-credit-note">
-          点击生成后预占 1 次额度；失败会自动退回。当前剩余 <strong>{remainingCredits}</strong> 次。
+          {!isAuthenticated
+            ? "登录后生成，每次消耗 100 积分。"
+            : <>点击生成后预占 100 积分；失败会自动退回。当前余额 <strong>{remainingPoints}</strong> 积分。</>}
         </p>
 
-        {jobStatus === "processing" && (
-          <div className="notice notice-info compact" role="status">
-            <LoaderCircle className="spin" size={17} />
-            <p>报告正在后台生成。现在可以离开页面，回来后会自动继续显示进度和结果。</p>
+        {(loading || jobStatus === "processing") && (
+          <div className="report-job-status" role="status">
+            <p><LoaderCircle className="spin" size={17} /><strong>{loading ? "正在创建报告任务" : "报告正在后台生成"}</strong></p>
+            <ol className="report-job-progress" aria-label="报告生成进度">
+              <li className="is-complete"><Check size={14} /><span>输入与授权已确认</span></li>
+              <li className="is-active"><LoaderCircle className="spin" size={14} /><span>{loading ? "创建任务并预占积分" : "等待后台生成完成"}</span></li>
+              <li><span>3</span><span>完成后保存到当前设备</span></li>
+            </ol>
+            <small>任务创建后可以离开页面；返回时会继续读取真实状态。失败或过期会自动退回预占积分。</small>
           </div>
         )}
 
-        {remainingCredits <= 0 && (
+        {completedReportTitle && (
+          <div className="report-complete-notice" role="status">
+            <div><Check size={18} /><p><strong>报告已生成并保存到本机</strong><span>{completedReportTitle}</span></p></div>
+            <button className="button button-secondary" onClick={onViewReports} type="button">阅读下方报告</button>
+          </div>
+        )}
+
+        {isAuthenticated && remainingPoints < 100 && (
           <div className="notice notice-warning compact">
-            <AlertCircle size={16} /><p>体验额度已经用完，请在微信中联系运营者。</p>
+            <AlertCircle size={16} /><p>积分不足。生成完整报告需要 100 积分。<a href="/subscription">查看购买方案</a></p>
           </div>
         )}
         {error && (
           <div className="notice notice-error compact" role="alert">
-            <AlertCircle size={16} /><p>{error}</p>
+            <AlertCircle size={16} /><p>{error} 如任务已经预占积分，失败或过期后会自动退回。</p>
           </div>
         )}
-        <button
-          className="button button-primary plus-makeup-submit"
-          disabled={
-            loading ||
-            jobStatus === "processing" ||
-            remainingCredits <= 0 ||
-            selectedSceneCount === 0 ||
-            !consent
-          }
-          onClick={() => void handleGenerate()}
-          type="button"
-        >
-          {loading || jobStatus === "processing" ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
-          {loading ? "正在创建任务" : jobStatus === "processing" ? "报告正在后台生成" : "生成我的 Plus 报告"}
-        </button>
+        {generationBlocker && isAuthenticated && remainingPoints >= 100 && !loading && jobStatus !== "processing" && (
+          <p className="report-generation-requirement" role="status"><AlertCircle size={15} />{generationBlocker}</p>
+        )}
+        {!isAuthenticated ? (
+          <a className="button button-primary plus-makeup-submit" href={loginHref}><Sparkles size={18} />登录后生成报告</a>
+        ) : (
+          <button
+            className="button button-primary plus-makeup-submit"
+            disabled={
+              loading ||
+              jobStatus === "processing" ||
+              remainingPoints < 100 ||
+              !faceFeatures ||
+              !customSceneText ||
+              !consent
+            }
+            onClick={() => void handleGenerate()}
+            type="button"
+          >
+            {loading || jobStatus === "processing" ? <LoaderCircle className="spin" size={18} /> : <Sparkles size={18} />}
+            {photoStatus === "loading"
+                ? "正在分析照片"
+                : !faceFeatures
+                  ? "请先上传照片"
+                  : loading
+                    ? "正在创建任务"
+                    : jobStatus === "processing"
+                      ? "报告正在后台生成"
+                      : "生成美妆报告"}
+          </button>
+        )}
       </div>
-
-      {result && (
-        <div className="plus-makeup-result" aria-live="polite">
-          <div className="plus-makeup-result-heading">
-            <div><p className="eyebrow">REPORT / 妆造报告</p><h3>{result.title}</h3></div>
-            <button className="button button-ghost" onClick={() => setResult(undefined)} type="button">
-              <RefreshCw size={16} />调整配置
-            </button>
-          </div>
-
-          <section className="plus-makeup-face-profile">
-            <h4>面容结构报告</h4>
-            <p>{result.faceProfile.summary}</p>
-            <div>
-              <div><strong>妆容重点</strong><ul>{result.faceProfile.focusAreas.map((item) => <li key={item}>{item}</li>)}</ul></div>
-              <div><strong>需要现场确认</strong><ul>{result.faceProfile.limitations.map((item) => <li key={item}>{item}</li>)}</ul></div>
-            </div>
-          </section>
-
-          <div className="plus-makeup-plans">
-            {result.plans.map((plan, index) => (
-              <article key={plan.name}>
-                <header><span>方案 {index + 1}</span><h4>{plan.name}</h4><p>{plan.sceneFit}</p></header>
-                <p className="plus-makeup-plan-effect">{plan.effect}</p>
-                <ol>{plan.steps.map((step) => <li key={`${step.area}-${step.instruction}`}><strong>{step.area}</strong><span>{step.instruction}</span></li>)}</ol>
-                <div className="plus-makeup-plan-notes">
-                  <p><strong>建议准备</strong>{plan.products.join("、")}</p>
-                  <p><strong>尽量避免</strong>{plan.avoid.join("、")}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-
-          <section className="plus-makeup-creators">
-            <div><Search size={20} /><div><h4>按方案发现的公开美妆博主</h4><p>联网查找，仅作为待核验线索，不代表主页归属、合作或照片授权已确认。</p></div></div>
-            <ol>{result.creatorNames.map((name) => <li key={name}>{name}</li>)}</ol>
-          </section>
-          <p className="plus-makeup-disclaimer">{result.disclaimer}</p>
-        </div>
-      )}
     </section>
   );
 }

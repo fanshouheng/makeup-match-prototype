@@ -21,3 +21,15 @@ verify_jwt = false
 
 [functions.plus-makeup-report]
 verify_jwt = true
+
+[functions.create-payment-checkout]
+verify_jwt = false
+
+[functions.payment-webhook]
+verify_jwt = false
+
+[functions.payment-status]
+verify_jwt = false
+
+[functions.refund-payment]
+verify_jwt = true

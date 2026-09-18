@@ -45,28 +45,26 @@ describe("AdminWorkbench", () => {
     const html = renderToStaticMarkup(
       <AdminWorkbench
         metrics={metrics}
-        outreach={[]}
-        pendingCount={2}
-        activeCreatorCount={110}
         dateRangeLabel="7 月 21 日至 7 月 27 日"
+        paymentSummary={{ available: true, order_count: 3, by_status: { paid: 2, refunded: 1 } }}
         onNavigate={() => undefined}
       />,
     );
 
-    expect(html).toContain("先弄清用户为什么说“不符合”");
+    expect(html).toContain("先把会员、账期、消费和交付跑成一条线");
     expect(html).toContain("今天先做");
-    expect(html).toContain("三个真实闭环");
-    expect(html).toContain("证明用户价值");
-    expect(html).toContain("跑通邀请与次数");
-    expect(html).toContain("完成 Plus 交付");
+    expect(html).toContain("三个商业化闭环");
+    expect(html).toContain("跑通会员与账期");
+    expect(html).toContain("验证报告付费价值");
+    expect(html).toContain("验证邀请增长");
     expect(html).toContain("获客内容约束");
     expect(html).toContain("完成匹配并提交真实反馈");
     expect(html).toContain("开发复盘、Vibe Coding、开源进展单独记录");
-    expect(html).toContain("0 条");
-    expect(html).toContain("42 / 50");
-    expect(html).toContain("暂停收费 AI 功能开发");
-    expect(html).toContain("当前只运行 ¥9.9 邀请制人工内测");
-    expect(html).toContain("10.0%");
+    expect(html).toContain("真实支付订单");
+    expect(html).toContain("已支付 2 · 已退款 1");
+    expect(html).toContain("暂停新增积分玩法");
+    expect(html).toContain("付款不会改变普通匹配排序");
+    expect(html).toContain("50.0%");
     expect(html).toContain("暂缓事项");
     expect(html).not.toContain("xhs_01");
   });

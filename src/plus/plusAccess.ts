@@ -43,8 +43,8 @@ async function invokePlus<T>(body: Record<string, unknown>): Promise<T> {
   if (code === "invalid_password") throw new Error("密码需要为 8 至 72 位。");
   if (code === "auth_required") throw new Error("登录状态已失效，请重新登录。");
   if (code === "email_not_verified") throw new Error("请先完成邮箱确认，再兑换邀请码。");
-  if (code === "service_not_configured") throw new Error("Plus 账号服务尚未完成配置。");
-  throw new Error("Plus 账号请求失败，请稍后重试。");
+  if (code === "service_not_configured") throw new Error("账号服务尚未完成配置。");
+  throw new Error("账号请求失败，请稍后重试。");
 }
 
 export async function getPlusSession(): Promise<Session | null> {
@@ -61,7 +61,7 @@ export async function registerPlusAccount(
     email,
     password,
     options: {
-      emailRedirectTo: new URL("/plus", window.location.origin).toString(),
+      emailRedirectTo: new URL("/report", window.location.origin).toString(),
     },
   });
   if (error) throw error;

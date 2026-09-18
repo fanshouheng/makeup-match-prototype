@@ -24,7 +24,35 @@ const PLUS_EVENT_KEYS = [
   "plus_intent_price_high",
   "plus_intent_not_needed",
 ];
-const EVENT_KEYS = [...LEGACY_EVENT_KEYS, ...PLUS_EVENT_KEYS];
+const COMMERCIAL_EVENT_KEYS = [
+  "plus_page_viewed",
+  "plus_checkout_started",
+  "points_page_viewed",
+  "points_checkout_started",
+  "plus_invite_redeemed",
+  "plus_job_created",
+  "plus_job_succeeded",
+  "plus_job_failed",
+  "plus_credit_refunded",
+  "plus_report_saved_local",
+  "plus_usage_feedback",
+];
+const AI_EVENT_KEYS = [
+  "ai_discovery_viewed",
+  "ai_discovery_consent",
+  "ai_discovery_requested",
+  "ai_discovery_succeeded",
+  "ai_discovery_failed",
+  "ai_creator_name_clicked",
+  "ai_discovery_feedback",
+];
+const PRE_POINTS_EVENT_KEYS = [
+  ...LEGACY_EVENT_KEYS,
+  ...PLUS_EVENT_KEYS,
+  ...COMMERCIAL_EVENT_KEYS.filter((key) => !key.startsWith("points_")),
+  ...AI_EVENT_KEYS,
+];
+const EVENT_KEYS = [...LEGACY_EVENT_KEYS, ...PLUS_EVENT_KEYS, ...COMMERCIAL_EVENT_KEYS, ...AI_EVENT_KEYS];
 const PLUS_VARIANTS = ["price_9_9", "price_19_9", "price_29_9"];
 const ANALYSIS_FAILURE_KEYS = [
   "no_face",
@@ -53,6 +81,17 @@ const OUTREACH_KEYS = [
   "no_reply",
   "overdue_follow_ups",
 ];
+const AI_DIMENSION_KEYS = {
+  locale: ["zh-CN", "en-US", "en-GB", "ja-JP", "ko-KR"],
+  country_code: ["global", "CN", "JP", "KR", "US", "GB"],
+  platform: ["all", "youtube", "instagram", "tiktok", "xiaohongshu", "douyin"],
+};
+const PAYMENT_STATUS_KEYS = ["created", "pending", "paid", "failed", "refunded", "cancelled"];
+const PAYMENT_PROVIDER_KEYS = ["stripe", "zpay", "manual"];
+const PAYMENT_PRODUCT_KEYS = ["plus", "ai_credits", "points"];
+const PAYMENT_PACKAGE_KEYS = ["light", "standard", "value"];
+const POINT_PURPOSE_KEYS = ["ai_discovery", "makeup_report"];
+const POINT_STATUS_KEYS = ["reserved", "consumed", "refunded"];
 
 function parseArgs(argv) {
   const values = {};
@@ -86,9 +125,10 @@ function normalizeSnapshot(raw) {
   const hasOutreach = Object.prototype.hasOwnProperty.call(raw, "outreach");
   const hasAnalysisFailures = Object.prototype.hasOwnProperty.call(raw, "analysis_failures");
   const hasPlusByVariant = Object.prototype.hasOwnProperty.call(raw, "plus_by_variant");
-  const hasPlusMetrics = PLUS_EVENT_KEYS.every((key) =>
-    Object.prototype.hasOwnProperty.call(raw.metrics ?? {}, key)
-  );
+  const hasCurrentMetrics = EVENT_KEYS.every((key) => Object.prototype.hasOwnProperty.call(raw.metrics ?? {}, key));
+  const hasAiDimensions = Object.prototype.hasOwnProperty.call(raw, "ai_dimensions");
+  const hasPaymentSummary = Object.prototype.hasOwnProperty.call(raw, "payment_summary");
+  const hasPointActivity = Object.prototype.hasOwnProperty.call(raw, "point_activity");
   assertExactKeys(
     raw,
     [
@@ -98,12 +138,18 @@ function normalizeSnapshot(raw) {
       "metrics",
       ...(hasAnalysisFailures ? ["analysis_failures"] : []),
       ...(hasPlusByVariant ? ["plus_by_variant"] : []),
+      ...(hasAiDimensions ? ["ai_dimensions"] : []),
+      ...(hasPaymentSummary ? ["payment_summary"] : []),
+      ...(hasPointActivity ? ["point_activity"] : []),
       "submissions",
       ...(hasOutreach ? ["outreach"] : []),
     ],
     "snapshot",
   );
-  assertExactKeys(raw.metrics, hasPlusMetrics ? EVENT_KEYS : LEGACY_EVENT_KEYS, "metrics");
+  const hasHistoricalPlusMetrics = PLUS_EVENT_KEYS.every((key) => Object.prototype.hasOwnProperty.call(raw.metrics ?? {}, key));
+  const hasPrePointsMetrics = PRE_POINTS_EVENT_KEYS.every((key) => Object.prototype.hasOwnProperty.call(raw.metrics ?? {}, key));
+  const acceptedMetricKeys = hasCurrentMetrics ? EVENT_KEYS : hasPrePointsMetrics ? PRE_POINTS_EVENT_KEYS : hasHistoricalPlusMetrics ? [...LEGACY_EVENT_KEYS, ...PLUS_EVENT_KEYS] : LEGACY_EVENT_KEYS;
+  assertExactKeys(raw.metrics, acceptedMetricKeys, "metrics");
   if (hasAnalysisFailures) {
     assertExactKeys(raw.analysis_failures, ANALYSIS_FAILURE_KEYS, "analysis_failures");
   }
@@ -113,6 +159,38 @@ function normalizeSnapshot(raw) {
     assertExactKeys(raw.plus_by_variant, PLUS_VARIANTS, "plus_by_variant");
     for (const variant of PLUS_VARIANTS) {
       assertExactKeys(raw.plus_by_variant[variant], PLUS_EVENT_KEYS, `plus_by_variant.${variant}`);
+    }
+  }
+  if (hasAiDimensions) {
+    assertExactKeys(raw.ai_dimensions, ["available", "locale", "country_code", "platform"], "ai_dimensions");
+    if (typeof raw.ai_dimensions.available !== "boolean") throw new Error("ai_dimensions.available must be boolean");
+    for (const [dimension, keys] of Object.entries(AI_DIMENSION_KEYS)) {
+      assertExactKeys(raw.ai_dimensions[dimension], keys, `ai_dimensions.${dimension}`);
+    }
+  }
+  if (hasPaymentSummary) {
+    const hasPointPaymentSummary = Object.prototype.hasOwnProperty.call(raw.payment_summary, "paid_points");
+    assertExactKeys(raw.payment_summary, ["available", "order_count", "by_status", "by_provider", "by_product", ...(hasPointPaymentSummary ? ["by_package", "paid_points"] : []), "paid_amounts_minor"], "payment_summary");
+    if (typeof raw.payment_summary.available !== "boolean") throw new Error("payment_summary.available must be boolean");
+    if (!Number.isInteger(raw.payment_summary.order_count) || raw.payment_summary.order_count < 0) throw new Error("payment_summary.order_count must be a non-negative integer");
+    assertExactKeys(raw.payment_summary.by_status, PAYMENT_STATUS_KEYS, "payment_summary.by_status");
+    assertExactKeys(raw.payment_summary.by_provider, PAYMENT_PROVIDER_KEYS, "payment_summary.by_provider");
+    assertExactKeys(raw.payment_summary.by_product, hasPointPaymentSummary ? PAYMENT_PRODUCT_KEYS : PAYMENT_PRODUCT_KEYS.slice(0, 2), "payment_summary.by_product");
+    if (hasPointPaymentSummary) {
+      assertExactKeys(raw.payment_summary.by_package, PAYMENT_PACKAGE_KEYS, "payment_summary.by_package");
+      if (!Number.isInteger(raw.payment_summary.paid_points) || raw.payment_summary.paid_points < 0) throw new Error("payment_summary.paid_points must be a non-negative integer");
+    }
+    assertExactKeys(raw.payment_summary.paid_amounts_minor, ["CNY", "USD", "EUR", "JPY", "KRW", "GBP"], "payment_summary.paid_amounts_minor");
+  }
+  if (hasPointActivity) {
+    assertExactKeys(raw.point_activity, ["available", "consumed_points", "refunded_points", "by_purpose"], "point_activity");
+    if (typeof raw.point_activity.available !== "boolean") throw new Error("point_activity.available must be boolean");
+    for (const key of ["consumed_points", "refunded_points"]) {
+      if (!Number.isInteger(raw.point_activity[key]) || raw.point_activity[key] < 0) throw new Error(`point_activity.${key} must be a non-negative integer`);
+    }
+    assertExactKeys(raw.point_activity.by_purpose, POINT_PURPOSE_KEYS, "point_activity.by_purpose");
+    for (const purpose of POINT_PURPOSE_KEYS) {
+      assertExactKeys(raw.point_activity.by_purpose[purpose], POINT_STATUS_KEYS, `point_activity.by_purpose.${purpose}`);
     }
   }
 
@@ -129,7 +207,28 @@ function normalizeSnapshot(raw) {
     return [key, count];
   }));
 
+  const emptyMetrics = () => Object.fromEntries(EVENT_KEYS.map((key) => [key, 0]));
   const emptyPlusMetrics = () => Object.fromEntries(PLUS_EVENT_KEYS.map((key) => [key, 0]));
+  const emptyDimensionCounts = () => Object.fromEntries(Object.entries(AI_DIMENSION_KEYS).map(([dimension, keys]) => [dimension, Object.fromEntries(keys.map((key) => [key, 0]))]));
+  const emptyPaymentSummary = () => ({
+    available: false,
+    order_count: 0,
+    by_status: Object.fromEntries(PAYMENT_STATUS_KEYS.map((key) => [key, 0])),
+    by_provider: Object.fromEntries(PAYMENT_PROVIDER_KEYS.map((key) => [key, 0])),
+    by_product: Object.fromEntries(PAYMENT_PRODUCT_KEYS.map((key) => [key, 0])),
+    by_package: Object.fromEntries(PAYMENT_PACKAGE_KEYS.map((key) => [key, 0])),
+    paid_points: 0,
+    paid_amounts_minor: Object.fromEntries(["CNY", "USD", "EUR", "JPY", "KRW", "GBP"].map((key) => [key, 0])),
+  });
+  const emptyPointActivity = () => ({
+    available: false,
+    consumed_points: 0,
+    refunded_points: 0,
+    by_purpose: Object.fromEntries(POINT_PURPOSE_KEYS.map((purpose) => [
+      purpose,
+      Object.fromEntries(POINT_STATUS_KEYS.map((key) => [key, 0])),
+    ])),
+  });
   const plusByVariant = Object.fromEntries(PLUS_VARIANTS.map((variant) => [
     variant,
     hasPlusByVariant
@@ -142,7 +241,7 @@ function normalizeSnapshot(raw) {
     captured_at: capturedAt.toISOString(),
     period_start: periodStart.toISOString(),
     metrics: normalizeCounts(
-      { ...emptyPlusMetrics(), ...raw.metrics },
+      { ...emptyMetrics(), ...raw.metrics },
       EVENT_KEYS,
       "metrics",
     ),
@@ -154,6 +253,37 @@ function normalizeSnapshot(raw) {
       ),
     } : {}),
     plus_by_variant: plusByVariant,
+    ai_dimensions: hasAiDimensions
+      ? {
+          available: raw.ai_dimensions.available,
+          locale: normalizeCounts(raw.ai_dimensions.locale, AI_DIMENSION_KEYS.locale, "ai_dimensions.locale"),
+          country_code: normalizeCounts(raw.ai_dimensions.country_code, AI_DIMENSION_KEYS.country_code, "ai_dimensions.country_code"),
+          platform: normalizeCounts(raw.ai_dimensions.platform, AI_DIMENSION_KEYS.platform, "ai_dimensions.platform"),
+        }
+      : { available: false, ...emptyDimensionCounts() },
+    payment_summary: hasPaymentSummary
+      ? {
+          available: raw.payment_summary.available,
+          order_count: raw.payment_summary.order_count,
+          by_status: normalizeCounts(raw.payment_summary.by_status, PAYMENT_STATUS_KEYS, "payment_summary.by_status"),
+          by_provider: normalizeCounts(raw.payment_summary.by_provider, PAYMENT_PROVIDER_KEYS, "payment_summary.by_provider"),
+          by_product: normalizeCounts({ ...Object.fromEntries(PAYMENT_PRODUCT_KEYS.map((key) => [key, 0])), ...raw.payment_summary.by_product }, PAYMENT_PRODUCT_KEYS, "payment_summary.by_product"),
+          by_package: normalizeCounts({ ...Object.fromEntries(PAYMENT_PACKAGE_KEYS.map((key) => [key, 0])), ...(raw.payment_summary.by_package ?? {}) }, PAYMENT_PACKAGE_KEYS, "payment_summary.by_package"),
+          paid_points: raw.payment_summary.paid_points ?? 0,
+          paid_amounts_minor: normalizeCounts(raw.payment_summary.paid_amounts_minor, ["CNY", "USD", "EUR", "JPY", "KRW", "GBP"], "payment_summary.paid_amounts_minor"),
+        }
+      : emptyPaymentSummary(),
+    point_activity: hasPointActivity
+      ? {
+          available: raw.point_activity.available,
+          consumed_points: raw.point_activity.consumed_points,
+          refunded_points: raw.point_activity.refunded_points,
+          by_purpose: Object.fromEntries(POINT_PURPOSE_KEYS.map((purpose) => [
+            purpose,
+            normalizeCounts(raw.point_activity.by_purpose[purpose], POINT_STATUS_KEYS, `point_activity.by_purpose.${purpose}`),
+          ])),
+        }
+      : emptyPointActivity(),
     submissions: normalizeCounts(raw.submissions, SUBMISSION_KEYS, "submissions"),
     ...(hasOutreach ? { outreach: normalizeCounts(raw.outreach, OUTREACH_KEYS, "outreach") } : {}),
   };
@@ -186,26 +316,26 @@ function rateStatus(numerator, denominator, threshold, minimumSample) {
   return numerator / denominator >= threshold ? "达到观察线" : "低于观察线";
 }
 
-function plusDecision(yes, viewed) {
-  if (viewed < 300) return `积累中，还差 ${300 - viewed} 次曝光`;
-  const rate = yes / viewed;
-  if (rate < 0.01) return "停止真实开发";
-  if (rate <= 0.03) return "重新检查价值表达";
-  if (rate <= 0.05) return "进入 Plus MVP";
-  return "准备真实支付";
-}
-
 function createReport(current, previous) {
+  const currentWindowMs = new Date(current.captured_at).valueOf() - new Date(current.period_start).valueOf();
+  const previousWindowMs = previous
+    ? new Date(previous.captured_at).valueOf() - new Date(previous.period_start).valueOf()
+    : undefined;
+  const comparablePrevious = previous && previousWindowMs !== undefined && Math.abs(currentWindowMs - previousWindowMs) < 2 * 24 * 60 * 60 * 1000
+    ? previous
+    : undefined;
   const metrics = current.metrics;
   const analysisFailures = current.analysis_failures;
   const submissions = current.submissions;
   const outreach = current.outreach;
   const plusByVariant = current.plus_by_variant;
-  const feedbackTotal = metrics.feedback_yes + metrics.feedback_no;
-  const previousMetrics = previous?.metrics;
-  const previousAnalysisFailures = previous?.analysis_failures;
-  const previousSubmissions = previous?.submissions;
-  const previousOutreach = previous?.outreach;
+  const aiDimensions = current.ai_dimensions;
+  const paymentSummary = current.payment_summary;
+  const pointActivity = current.point_activity;
+  const previousMetrics = comparablePrevious?.metrics;
+  const previousAnalysisFailures = comparablePrevious?.analysis_failures;
+  const previousSubmissions = comparablePrevious?.submissions;
+  const previousOutreach = comparablePrevious?.outreach;
   const plusPrices = {
     price_9_9: "¥9.9",
     price_19_9: "¥19.9",
@@ -214,13 +344,9 @@ function createReport(current, previous) {
   const metricRows = [
     ["全部匿名访问", "landing_view"],
     ["选择照片", "photo_selected"],
-    ["使用女生模式选图", "women_photo_selected"],
-    ["使用男生模式选图", "men_photo_selected"],
     ["分析成功", "analysis_succeeded"],
     ["分析失败", "analysis_failed"],
     ["结果展示", "match_result_view"],
-    ["反馈符合", "feedback_yes"],
-    ["反馈不符合", "feedback_no"],
     ["点击创作者链接", "creator_link_clicked"],
     ["成功分享", "share_succeeded"],
   ];
@@ -228,8 +354,6 @@ function createReport(current, previous) {
     ["选择照片率", metrics.photo_selected, metrics.landing_view, 0.3, 20],
     ["分析完成率", metrics.analysis_succeeded, metrics.photo_selected, 0.7, 20],
     ["结果到达率", metrics.match_result_view, metrics.analysis_succeeded, 0.9, 20],
-    ["反馈率", feedbackTotal, metrics.match_result_view, 0.15, 20],
-    ["主观符合率", metrics.feedback_yes, feedbackTotal, 0.6, 50],
     ["创作者点击率", metrics.creator_link_clicked, metrics.match_result_view, 0.15, 20],
     ["分享率", metrics.share_succeeded, metrics.match_result_view, 0.03, 20],
   ];
@@ -252,51 +376,82 @@ function createReport(current, previous) {
     : undefined;
 
   const lines = [
-    "# MAKE UP 30 天验证进度",
+    "# MAKE UP 每周商业化复核",
     "",
     `更新时间：${formatDate(current.captured_at)}（Asia/Shanghai）`,
-    `完整埋点统计起点：${formatDate(current.period_start)}（Asia/Shanghai）`,
+    `本次复核窗口起点：${formatDate(current.period_start)}（Asia/Shanghai）`,
     "",
     "> 本报告由定时任务生成，只包含匿名聚合计数。普通用户照片、面部比例、匹配分数、博主姓名、主页、联系方式和跟进备注不会写入本文件。",
     "",
     "## 产品漏斗",
     "",
-    "| 指标 | 当前累计 | 较上次 |",
+    "| 指标 | 本周期 | 较上次 |",
     "| --- | ---: | ---: |",
     ...metricRows.map(([label, key]) => `| ${label} | ${metrics[key]} | ${delta(metrics[key], previousMetrics?.[key])} |`),
     "",
     ...(analysisFailures ? [
       "## 分析失败原因",
       "",
-      "| 原因 | 当前累计 | 较上次 |",
+    "| 原因 | 本周期 | 较上次 |",
       "| --- | ---: | ---: |",
       ...failureRows.map(([label, key]) => `| ${label} | ${analysisFailures[key]} | ${delta(analysisFailures[key], previousAnalysisFailures?.[key])} |`),
       `| 旧版本未分类 | ${unclassifiedFailures} | ${delta(unclassifiedFailures, previousUnclassifiedFailures)} |`,
       "",
     ] : []),
-    "## 转化判断",
+    "## 漏斗观察",
     "",
-    "| 指标 | 当前值 | 30 天计划观察线 | 判断 |",
+    "| 指标 | 当前值 | 观察线 | 判断 |",
     "| --- | ---: | ---: | --- |",
     ...rateRows.map(([label, numerator, denominator, threshold, minimumSample]) => {
       const status = rateStatus(numerator, denominator, threshold, minimumSample);
       return `| ${label} | ${percentage(numerator, denominator)} | ${(threshold * 100).toFixed(0)}% | ${status} |`;
     }),
     "",
-    "## Plus 付费意向实验",
+    "## 商业化行动信号",
     "",
-    "| 价格 | 曝光 | 展开 | 配置完成 | 愿意购买 | 价格偏高 | 暂不需要 | 意向率 | 判断 |",
-    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+    "| 信号 | 本周期 | 较上次 |",
+    "| --- | ---: | ---: |",
+    ...["points_page_viewed", "points_checkout_started", "plus_job_created", "plus_job_succeeded", "plus_job_failed", "plus_credit_refunded", "plus_report_saved_local", "plus_usage_feedback", "ai_discovery_viewed", "ai_discovery_consent", "ai_discovery_requested", "ai_discovery_succeeded", "ai_discovery_failed", "ai_creator_name_clicked", "ai_discovery_feedback"].map((key) => `| ${key} | ${metrics[key]} | ${delta(metrics[key], previousMetrics?.[key])} |`),
+    "",
+    `完整报告成功率：${percentage(metrics.plus_job_succeeded, metrics.plus_job_created)}；AI 推荐成功率：${percentage(metrics.ai_discovery_succeeded, metrics.ai_discovery_requested)}。主动反馈保留用于故障诊断，不在商业化主漏斗展示，也不外推整体满意度或符合率。`,
+    "",
+    "## AI 全球行动信号",
+    "",
+    aiDimensions.available ? "固定枚举分布（不含博主姓名、链接或用户标识）：" : "全球维度迁移尚未部署，本周只记录 AI 行为总量。",
+    ...(aiDimensions.available ? [
+      `- 语言：${Object.entries(aiDimensions.locale).map(([key, value]) => `${key} ${value}`).join("；")}`,
+      `- 市场：${Object.entries(aiDimensions.country_code).map(([key, value]) => `${key} ${value}`).join("；")}`,
+      `- 平台：${Object.entries(aiDimensions.platform).map(([key, value]) => `${key} ${value}`).join("；")}`,
+    ] : []),
+    "",
+    "## 支付状态",
+    "",
+    paymentSummary.available
+      ? `订单 ${paymentSummary.order_count}；状态 ${Object.entries(paymentSummary.by_status).map(([key, value]) => `${key} ${value}`).join("、")}；供应商 ${Object.entries(paymentSummary.by_provider).map(([key, value]) => `${key} ${value}`).join("、")}；套餐 ${Object.entries(paymentSummary.by_package).map(([key, value]) => `${key} ${value}`).join("、")}；已到账积分 ${paymentSummary.paid_points}；已支付金额（最小货币单位）${Object.entries(paymentSummary.paid_amounts_minor).filter(([, value]) => value > 0).map(([key, value]) => `${key} ${value}`).join("、") || "暂无"}。`
+      : "支付订单迁移尚未部署，线上支付仍未纳入本周统计。",
+    "",
+    "## 积分使用",
+    "",
+    pointActivity.available
+      ? `报告：消费 ${pointActivity.by_purpose.makeup_report.consumed} 次、处理中 ${pointActivity.by_purpose.makeup_report.reserved} 次、退回 ${pointActivity.by_purpose.makeup_report.refunded} 次；AI 推荐：消费 ${pointActivity.by_purpose.ai_discovery.consumed} 次、处理中 ${pointActivity.by_purpose.ai_discovery.reserved} 次、退回 ${pointActivity.by_purpose.ai_discovery.refunded} 次；本周期消费 ${pointActivity.consumed_points} 积分、退回 ${pointActivity.refunded_points} 积分。`
+      : "积分预占迁移尚未部署，本周无法统计消费与退回。",
+    "",
+    "<details>",
+    "<summary>历史价格意向实验（仅兼容旧数据，不作为当前决策依据）</summary>",
+    "",
+    "| 价格 | 曝光 | 展开 | 配置完成 | 愿意购买 | 价格偏高 | 暂不需要 |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ...PLUS_VARIANTS.map((variant) => {
       const data = plusByVariant[variant];
-      return `| ${plusPrices[variant]} | ${data.plus_offer_viewed} | ${data.plus_offer_opened} | ${data.plus_offer_configured} | ${data.plus_intent_yes} | ${data.plus_intent_price_high} | ${data.plus_intent_not_needed} | ${percentage(data.plus_intent_yes, data.plus_offer_viewed)} | ${plusDecision(data.plus_intent_yes, data.plus_offer_viewed)} |`;
+      return `| ${plusPrices[variant]} | ${data.plus_offer_viewed} | ${data.plus_offer_opened} | ${data.plus_offer_configured} | ${data.plus_intent_yes} | ${data.plus_intent_price_high} | ${data.plus_intent_not_needed} |`;
     }),
     "",
-    "> 本实验不收费、不调用 Plus AI；价格分组之外不保存场景、妆造方向、照片、面部数据、联系方式或支付资料。",
+    "</details>",
+    "",
     "",
     "## 创作者供给",
     "",
-    "| 指标 | 当前累计 | 较上次 |",
+    "| 指标 | 当前状态/本周期 | 较上次 |",
     "| --- | ---: | ---: |",
     `| 本轮新增申请 | ${submissions.new_total} | ${delta(submissions.new_total, previousSubmissions?.new_total)} |`,
     `| 待审核 | ${submissions.pending} | ${delta(submissions.pending, previousSubmissions?.pending)} |`,
@@ -309,7 +464,7 @@ function createReport(current, previous) {
     ...(outreach ? [
       "## 博主触达",
       "",
-      "| 指标 | 当前累计 | 较上次 |",
+      "| 指标 | 当前状态 | 较上次 |",
       "| --- | ---: | ---: |",
       `| 已联系 | ${outreach.total} | ${delta(outreach.total, previousOutreach?.total)} |`,
       `| 已回复 | ${outreach.replied} | ${delta(outreach.replied, previousOutreach?.replied)} |`,
@@ -322,18 +477,19 @@ function createReport(current, previous) {
       `| 逾期待跟进 | ${outreach.overdue_follow_ups} | ${delta(outreach.overdue_follow_ups, previousOutreach?.overdue_follow_ups)} |`,
       "",
     ] : []),
-    "## 需要人工补录",
+    "## 事实、假设与未知",
     "",
-    "- 女性受众渠道访问数：Supabase 事件没有保存渠道维度，不能把全部访问当成女性访客或目标渠道访问。",
-    "- 品牌触达、正式报价和到账金额：这些数据来自商业台账，数据库无法自动判断。",
+    "- 事实：本报告只汇总固定事件、固定 AI 市场/语言/平台枚举和支付状态聚合。",
+    "- 假设：AI 名字点击代表用户愿意继续查看，不代表授权、合作或转化。",
+    "- 未知：女性目标受众渠道访问、真实支付原因、退款原因、交付后的长期使用仍需人工记录。",
     "",
     "## 口径说明",
     "",
     "- 同一会话的同一事件只计一次。",
-    "- Plus 三种意向反馈合计每个会话最多记录一次；主指标是愿意购买次数除以对应价格曝光次数。",
+    "- Plus 历史价格意向只为兼容旧快照，不再新增采集，也不作为当前商业化判断。",
     "- 分析失败原因只记录固定分类代码；不会记录照片、面部参数、异常文本或设备身份。",
     "- `使用女生模式选图` 只表示用户选择了女生模式，不代表系统识别或推断了用户性别。",
-    "- 所有转化率都从统计起点累计计算；样本较小时只记录，不据此频繁改产品。",
+    "- 所有转化率都按本次复核窗口计算；样本较小时只记录，不据此频繁改产品。",
     "",
   ];
   return lines.join("\n");

@@ -176,7 +176,7 @@ export function RewardsPanel({ embedded = false, urgent = false, onRewardsChange
       if (canShare) {
         await navigator.share({
           title: "MAKE UP 妆容参考",
-          text: "我在用 MAKE UP 找妆容参考，完成一次匹配后我们都能获得 AI 推荐次数。",
+          text: "我在用 MAKE UP 找妆容参考，完成一次匹配后我们都能获得积分。",
           url: referralUrl,
         });
       } else {
@@ -195,7 +195,7 @@ export function RewardsPanel({ embedded = false, urgent = false, onRewardsChange
         <div>
           <p className="eyebrow">INVITE / 邀请权益</p>
           <h2 id="rewards-title">邀请朋友，继续免费匹配</h2>
-          <p>好友确认邮箱并成功完成一次匹配后，你获得 3 次匹配和 1 次 AI 推荐，好友获得 1 次 AI 推荐。有效 Plus 账号在 180 天内普通匹配不限次。</p>
+          <p>好友确认邮箱并成功完成一次匹配后，你获得 3 次匹配和 3 积分，好友获得 3 积分。月卡每天刷新 50 次普通匹配，年卡有效期内普通匹配不限次。</p>
         </div>
         <Gift size={24} />
       </div>
@@ -236,7 +236,7 @@ export function RewardsPanel({ embedded = false, urgent = false, onRewardsChange
             <>
               <div className="reward-balances" aria-label="当前权益">
                 <div><span>匹配次数</span><strong>{rewards.matchCredits}</strong></div>
-                <div><span>AI 推荐次数</span><strong>{rewards.aiCredits}</strong></div>
+                <div><span>积分余额</span><strong>{rewards.points}</strong></div>
                 <div><span>成功邀请</span><strong>{rewards.successfulInvites}</strong></div>
               </div>
               {rewards.pendingReferral && <p className="reward-pending">完成下一次成功匹配后，邀请奖励自动到账。</p>}
@@ -250,10 +250,13 @@ export function RewardsPanel({ embedded = false, urgent = false, onRewardsChange
               <div className="reward-purchase">
                 <div>
                   <Sparkles size={18} />
-                  <p><strong>¥9.9 获得 10 次 AI 推荐</strong><span>微信确认后，由运营者发放到当前邮箱账号。普通匹配次数不单独出售，有效 Plus 期间不限次。</span></p>
+                  <p><strong>积分用于完整报告</strong><span>每份报告消耗 100 积分，包含结构分析、3 套妆造方案和公开博主线索。普通匹配次数不单独出售。</span></p>
                 </div>
                 <img alt="MAKE UP 微信联系二维码" src={contactWechatQrUrl} />
               </div>
+              <a className="button button-secondary reward-points-link" href="/subscription">
+                积分与会员
+              </a>
             </>
           )}
         </>

@@ -12,16 +12,14 @@ import {
   Target,
   UsersRound,
 } from "lucide-react";
-import type { AdminOutreach, AdminProductMetrics } from "./adminApi";
+import type { AdminPaymentSummary, AdminProductMetrics } from "./adminApi";
 
 export type AdminWorkbenchTarget = "metrics" | "outreach" | "pending" | "plus";
 
 interface AdminWorkbenchProps {
   metrics: AdminProductMetrics;
-  outreach: AdminOutreach[];
-  pendingCount: number;
-  activeCreatorCount: number;
   dateRangeLabel: string;
+  paymentSummary: AdminPaymentSummary;
   onNavigate: (target: AdminWorkbenchTarget) => void;
 }
 
@@ -34,54 +32,50 @@ const DIRECTIONS = [
   {
     index: "01",
     priority: "P0",
-    title: "证明用户价值",
-    outcome: "用户能从结果里找到真正值得参考的人或内容。",
-    actions: ["先收集 50 条有效负反馈", "按四类固定原因拆清问题", "样本达标后只处理最高频原因"],
+    title: "跑通会员与账期",
+    outcome: "Stripe 与支付宝付款后每月积分准确到账，重复通知不重复发分，退款不破坏余额。",
+    actions: ["先完成两家供应商真实小额订单", "验证重复回调与全额退款", "支付验收前保持线上开关关闭"],
   },
   {
     index: "02",
     priority: "P1",
-    title: "跑通邀请与次数",
-    outcome: "未开通 Plus 的用户能从免费次数用完走到邀请奖励实际可用。",
-    actions: ["观察注册和发出邀请", "核对受邀者确认邮箱并完成首次匹配", "只修复闭环里的明确阻塞"],
+    title: "验证报告付费价值",
+    outcome: "购买的积分在 7 天内用于完整报告，并成功保存到用户本机。",
+    actions: ["观察报告创建到本机保存", "核对失败退分和人工支持成本", "至少 20 笔支付或 4 周后判断套餐"],
   },
   {
     index: "03",
     priority: "P1",
-    title: "完成 Plus 交付",
-    outcome: "前 10 位真实付费用户完成激活、报告交付和实际使用验证。",
-    actions: ["分别记录付款、激活与成功交付", "跟进满意度、实际使用和转介绍", "记录退款与人工支持成本"],
+    title: "验证邀请增长",
+    outcome: "免费次数用完后，用户愿意完成有效邀请并继续使用普通匹配。",
+    actions: ["观察邀请发出到有效完成", "核对双方权益到账", "不把链接点击当作有效邀请"],
   },
 ] as const;
 
 export function AdminWorkbench({
   metrics,
-  outreach,
-  pendingCount,
-  activeCreatorCount,
   dateRangeLabel,
+  paymentSummary,
   onNavigate,
 }: AdminWorkbenchProps) {
-  const feedbackTotal = metrics.feedback_yes + metrics.feedback_no;
-
   return (
     <section className="admin-workbench" aria-labelledby="admin-workbench-title">
       <div className="admin-workbench-focus">
         <div>
           <p className="admin-kicker">NOW / CORE VALUE</p>
-          <h2 id="admin-workbench-title">先弄清用户为什么说“不符合”</h2>
-          <p>在调算法、加收费 AI 或扩充博主库前，先分清是分析不对、博主不像、风格不适合，还是没有解决真实化妆问题。</p>
+          <h2 id="admin-workbench-title">先把会员、账期、消费和交付跑成一条线</h2>
+          <p>默认看会员结算、真实订单、报告交付和邀请增长；主动反馈只用于定位具体故障，不外推整体满意度。</p>
           <button className="admin-secondary-button" type="button" onClick={() => onNavigate("metrics")}>
             <BarChart3 size={16} />查看当前数据<ArrowRight size={15} />
           </button>
         </div>
         <div className="admin-workbench-exit">
           <span>本轮退出条件</span>
-          <strong>收集 50 条有效负反馈</strong>
+          <strong>完成一条可核对的会员商业化证据链</strong>
           <ul>
-            <li><CheckCircle2 size={15} />每条至少选择一个固定原因</li>
-            <li><CheckCircle2 size={15} />只比较四类原因的选择次数</li>
-            <li><CheckCircle2 size={15} />只处理达到样本线后的最高频问题</li>
+            <li><CheckCircle2 size={15} />支付成功与积分到账一致</li>
+            <li><CheckCircle2 size={15} />报告消费可聚合核对</li>
+            <li><CheckCircle2 size={15} />失败退分与退款结果可验证</li>
           </ul>
         </div>
       </div>
@@ -91,15 +85,15 @@ export function AdminWorkbench({
         <span>按顺序推进，不并行开新实验</span>
       </div>
       <ol className="admin-workbench-actions">
-        <li><span>01</span><div><strong>检查结构化负反馈是否正常入库</strong><p>确认原因完整、没有照片和面部数据，并观察距离 50 条还差多少。</p></div><button className="admin-secondary-button" type="button" onClick={() => onNavigate("metrics")}><BarChart3 size={15} />看原因分布</button></li>
-        <li><span>02</span><div><strong>完成目标用户访谈</strong><p>累计 10 至 15 位，记录原本想解决什么、哪里不符合和是否找到可继续参考的内容。</p></div><em>核心证据</em></li>
-        <li><span>03</span><div><strong>观察一次完整邀请闭环</strong><p>核对邀请、邮箱确认、首次女生匹配、双方奖励到账与实际使用。</p></div><em>不加新玩法</em></li>
-        <li><span>04</span><div><strong>完成 Plus 真实交付</strong><p>分别记录激活、报告交付、实际使用、满意度、转介绍、退款和支持成本。</p></div><button className="admin-secondary-button" type="button" onClick={() => onNavigate("plus")}><Target size={15} />管理 Plus</button></li>
+        <li><span>01</span><div><strong>部署前修复迁移历史</strong><p>只对齐远程与本地迁移版本，不强推未知迁移，也不提前打开支付入口。</p></div><em>上线阻塞</em></li>
+        <li><span>02</span><div><strong>验收 Stripe 与支付宝</strong><p>分别完成首期会员、账期回调、重复通知、积分到账和退款测试。</p></div><button className="admin-secondary-button" type="button" onClick={() => onNavigate("metrics")}><BarChart3 size={15} />看支付聚合</button></li>
+        <li><span>03</span><div><strong>检查积分消费闭环</strong><p>完整报告消耗 10 分；成功确认消费，失败或过期只退一次。</p></div><button className="admin-secondary-button" type="button" onClick={() => onNavigate("plus")}><Target size={15} />管理积分</button></li>
+        <li><span>04</span><div><strong>开始首轮套餐验证</strong><p>至少 20 笔真实支付或 4 周，按较晚到达者复核套餐选择、7 日内使用和退款。</p></div><em>首轮证据</em></li>
       </ol>
 
       <div className="admin-workbench-section-heading">
-        <div><p className="admin-kicker">CURRENT LOOPS</p><h3>三个真实闭环</h3></div>
-        <span>反馈、邀请和 Plus 分别统计</span>
+        <div><p className="admin-kicker">CURRENT LOOPS</p><h3>三个商业化闭环</h3></div>
+        <span>支付、报告和邀请分别统计</span>
       </div>
       <div className="admin-direction-grid">
         {DIRECTIONS.map((direction) => (
@@ -141,12 +135,12 @@ export function AdminWorkbench({
         <span>{dateRangeLabel}</span>
       </div>
       <div className="admin-evidence-grid">
-        <div><Target size={18} /><span>反馈者符合率</span><strong>{formatRate(metrics.feedback_yes, feedbackTotal)}</strong><p>{feedbackTotal} 份主动反馈，只代表反馈者</p></div>
-        <div><UsersRound size={18} /><span>创作者点击率</span><strong>{formatRate(metrics.creator_link_clicked, metrics.match_result_view)}</strong><p>点击代表继续找参考，不等于认可匹配</p></div>
-        <div><MessageCircle size={18} /><span>博主跟进记录</span><strong>{outreach.length} 条</strong><p>仅作合规供给跟进，不当作用户价值证据</p></div>
-        <div><ShieldCheck size={18} /><span>在线创作者</span><strong>{activeCreatorCount}</strong><p>{pendingCount} 条申请等待处理</p></div>
+        <div><Target size={18} /><span>积分结算入口</span><strong>{metrics.points_checkout_started ?? 0}</strong><p>{metrics.points_page_viewed ?? 0} 次积分页访问</p></div>
+        <div><UsersRound size={18} /><span>真实支付订单</span><strong>{paymentSummary.order_count ?? 0}</strong><p>已支付 {paymentSummary.by_status?.paid ?? 0} · 已退款 {paymentSummary.by_status?.refunded ?? 0}</p></div>
+        <div><MessageCircle size={18} /><span>报告本机保存</span><strong>{metrics.plus_report_saved_local ?? 0}</strong><p>报告成功 {metrics.plus_job_succeeded ?? 0} · 失败 {metrics.plus_job_failed ?? 0}</p></div>
+        <div><ShieldCheck size={18} /><span>历史独立推荐点击</span><strong>{metrics.ai_creator_name_clicked ?? 0}</strong><p>退役前成功 {metrics.ai_discovery_succeeded ?? 0}</p></div>
         <div><BarChart3 size={18} /><span>分析完成率</span><strong>{formatRate(metrics.analysis_succeeded, metrics.photo_selected)}</strong><p>低于 70% 时优先处理主流程</p></div>
-        <div><CircleDot size={18} /><span>有效负反馈</span><strong>{metrics.negative_feedback.valid_responses} / 50</strong><p>满 50 条前不根据原因分布改产品</p></div>
+        <div><CircleDot size={18} /><span>创作者点击率</span><strong>{formatRate(metrics.creator_link_clicked, metrics.match_result_view)}</strong><p>点击代表继续找参考，不等于认可匹配</p></div>
       </div>
 
       <div className="admin-workbench-section-heading">
@@ -154,9 +148,9 @@ export function AdminWorkbench({
         <span>出现新证据后再重排</span>
       </div>
       <div className="admin-workbench-paused">
-        <p><Ban size={16} /><span><strong>暂停收费 AI 功能开发</strong>现有入口只保持稳定，不继续扩展能力。</span></p>
+        <p><Ban size={16} /><span><strong>暂停新增积分玩法</strong>首版不做签到、等级、积分商城、转赠或有效期。</span></p>
         <p><Ban size={16} /><span><strong>暂停凭低符合率直接调权重</strong>当前反馈仍混合了匹配、内容价值和理解偏差。</span></p>
-        <p><Ban size={16} /><span><strong>暂停扩展自动收费与付费排名</strong>当前只运行 ¥9.9 邀请制人工内测，付款不会改变普通匹配排名。</span></p>
+        <p><Ban size={16} /><span><strong>暂停付费排名</strong>会员只改变积分额度和账期权益，付款不会改变普通匹配排序。</span></p>
         <p><Ban size={16} /><span><strong>暂停盲目扩充博主库</strong>继续处理主动授权申请；只有“博主不像”最多时才检查覆盖和排序。</span></p>
       </div>
     </section>

@@ -89,6 +89,7 @@ interface PendingMatchQuota {
   accessMode: WomenMatchAccessMode;
   accessError?: string;
   consumeBonus: boolean;
+  consumeMembership: boolean;
   photoId: string;
   rewardSession: boolean;
   successId: string;
@@ -260,7 +261,11 @@ function App() {
   useEffect(() => {
     const syncView = () => setView(viewFromLocation());
     window.addEventListener("popstate", syncView);
-    return () => window.removeEventListener("popstate", syncView);
+    window.addEventListener("hashchange", syncView);
+    return () => {
+      window.removeEventListener("popstate", syncView);
+      window.removeEventListener("hashchange", syncView);
+    };
   }, []);
 
   useEffect(() => {
@@ -364,11 +369,9 @@ function App() {
     let active = true;
     setMatching(true);
     void (async () => {
-      if (pendingQuota.accessMode === "plus") {
+      if (["plus", "membership_daily", "membership_unlimited"].includes(pendingQuota.accessMode)) {
         if (pendingQuota.rewardSession) {
-          void recordRewardMatchSuccess(pendingQuota.successId, false).catch((rewardError) => {
-            console.warn("无法同步 Plus 用户匹配记录", rewardError);
-          });
+          await recordRewardMatchSuccess(pendingQuota.successId, false, pendingQuota.consumeMembership);
         }
       } else if (pendingQuota.accessMode === "referral") {
         await recordRewardMatchSuccess(pendingQuota.successId, pendingQuota.consumeBonus);
@@ -631,6 +634,7 @@ function App() {
       : null;
     let accessMode: WomenMatchAccessMode = "local";
     let consumeBonus = false;
+    let consumeMembership = false;
     let accessError: string | undefined;
 
     if (countsAsNewMatch) {
@@ -645,7 +649,7 @@ function App() {
       }
 
       let rewards: RewardStatus | undefined;
-      if (!hasActivePlus && localSuccessfulMatches >= FREE_SUCCESSFUL_MATCH_LIMIT && rewardSession) {
+      if (!hasActivePlus && rewardSession) {
         try {
           rewards = await getRewardStatus();
         } catch (rewardError) {
@@ -656,12 +660,13 @@ function App() {
       const access = resolveWomenMatchAccess(localSuccessfulMatches, hasActivePlus, rewards);
       accessMode = access.mode;
       consumeBonus = access.consumeBonus;
+      consumeMembership = access.consumeMembership;
       if (accessMode === "blocked" && !accessError) {
         accessError = !rewardSession
-          ? "3 次免费匹配已用完。登录后可邀请朋友，或激活 Plus 继续匹配。"
+          ? "3 次免费匹配已用完。登录后可邀请朋友获得新次数。"
           : plusAccessUnavailable
             ? "暂时无法确认 Plus 权益，请稍后重试。"
-            : "匹配次数已用完。邀请朋友可获得新次数，Plus 有效期内不限次。";
+            : "匹配次数已用完。邀请朋友可获得新次数；月卡和年卡权益可在订阅页查看。";
       }
     }
 
@@ -706,6 +711,7 @@ function App() {
             accessMode,
             accessError,
             consumeBonus,
+            consumeMembership,
             photoId: photo.id,
             rewardSession: Boolean(rewardSession),
             successId: crypto.randomUUID(),
@@ -837,7 +843,7 @@ function App() {
                 </dl>
                 <p className="measurement-note">
                   环境亮度 {Math.round(result.luminance)} / 255 · {result.issues.length === 0
-                    ? "已保存在当前浏览器，可在 Plus 会员页查看"
+                    ? "已保存在当前浏览器，可在妆容报告页查看"
                     : "数据仅用于当前页面"}
                 </p>
               </>
@@ -909,7 +915,7 @@ function App() {
                     <span>
                       {freeSuccessfulMatchesRemaining(localSuccessfulMatches) > 0
                         ? `还可免费成功匹配 ${freeSuccessfulMatchesRemaining(localSuccessfulMatches)} 次，失败不计次数`
-                        : "免费次数已用完，可邀请朋友或使用 Plus 继续匹配"}
+                        : "免费次数已用完，登录后可邀请朋友获得新次数"}
                     </span>
                     <button className="button button-ghost" onClick={() => setShowRewardsPanel((current) => !current)} type="button">
                       <Gift size={16} />邀请赚次数
@@ -975,7 +981,6 @@ function App() {
                         onViewCreators={() => navigate("creators")}
                         shareStatus={shareStatus}
                         showPlus
-                        userPhoto={photo.image}
                       />
                     </div>
                   )}
@@ -1048,7 +1053,6 @@ function App() {
                     onViewCreators={() => navigate("creators")}
                     shareStatus={shareStatus}
                     showPlus
-                    userPhoto={photo.image}
                   />
                 ) : null
               )}

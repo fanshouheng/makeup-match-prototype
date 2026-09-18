@@ -124,11 +124,11 @@ describe("MatchResults", () => {
     expect(html).toContain("可以优先参考她的妆容思路");
     expect(html).not.toContain("综合参考");
     expect(html).toContain("把面部分析，变成可执行的妆造方案");
-    expect(html).toContain("获取 Plus 报告");
-    expect(html).toContain("1 份正式报告 + 2 次内测重试");
-    expect(html).toContain("有效期内普通匹配不限次");
-    expect(html).toContain("¥9.9");
-    expect(html).toContain('href="/plus"');
+    expect(html).toContain("生成妆容报告");
+    expect(html).toContain("100 积分");
+    expect(html).toContain("使用最近一次本机分析");
+    expect(html).not.toContain("有效期内普通匹配不限次");
+    expect(html).toContain('href="/plus.html"');
     expect(html).not.toContain("仅测试购买意向");
     expect(html).not.toContain("配置我的 Plus");
     expect(html).not.toContain("查看示例交付");
@@ -241,26 +241,4 @@ describe("MatchResults", () => {
     expect(html).not.toContain("这个结果是否符合你的感觉？");
   });
 
-  it("offers optional AI discovery when the primary result has a user photo", () => {
-    const html = renderToStaticMarkup(
-      <MatchResults
-        creatorsCount={1}
-        faceFeatures={match.creator.featureVector}
-        feedback={null}
-        matches={[match]}
-        feedbackSubmitted={false}
-        onCreatorLinkClick={() => undefined}
-        onFeedback={() => undefined}
-        onNegativeFeedbackSubmit={() => undefined}
-        onShare={() => undefined}
-        onViewCreators={() => undefined}
-        shareStatus="idle"
-        userPhoto={{} as HTMLImageElement}
-      />,
-    );
-
-    expect(html).toContain("AI 找更多参考");
-    expect(html).toContain("只返回博主名字");
-    expect(html).not.toContain("豆包");
-  });
 });

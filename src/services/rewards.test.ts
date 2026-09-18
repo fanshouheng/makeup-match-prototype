@@ -31,20 +31,42 @@ describe("local successful match quota", () => {
 
   it("keeps local and referral balances untouched while Plus is active", () => {
     expect(resolveWomenMatchAccess(0, true, { matchCredits: 4, pendingReferral: false }))
-      .toEqual({ mode: "plus", consumeBonus: false });
+      .toEqual({ mode: "plus", consumeBonus: false, consumeMembership: false });
     expect(resolveWomenMatchAccess(3, true, { matchCredits: 0, pendingReferral: false }))
-      .toEqual({ mode: "plus", consumeBonus: false });
+      .toEqual({ mode: "plus", consumeBonus: false, consumeMembership: false });
   });
 
   it("falls back to local and referral access without active Plus", () => {
     expect(resolveWomenMatchAccess(2, false))
-      .toEqual({ mode: "local", consumeBonus: false });
+      .toEqual({ mode: "local", consumeBonus: false, consumeMembership: false });
     expect(resolveWomenMatchAccess(3, false, { matchCredits: 2, pendingReferral: false }))
-      .toEqual({ mode: "referral", consumeBonus: true });
+      .toEqual({ mode: "referral", consumeBonus: true, consumeMembership: false });
     expect(resolveWomenMatchAccess(3, false, { matchCredits: 0, pendingReferral: true }))
-      .toEqual({ mode: "referral", consumeBonus: false });
+      .toEqual({ mode: "referral", consumeBonus: false, consumeMembership: false });
     expect(resolveWomenMatchAccess(3, false, { matchCredits: 0, pendingReferral: false }))
-      .toEqual({ mode: "blocked", consumeBonus: false });
+      .toEqual({ mode: "blocked", consumeBonus: false, consumeMembership: false });
+  });
+
+  it("uses active membership access before free or referral balances", () => {
+    expect(resolveWomenMatchAccess(0, false, {
+      matchCredits: 4, pendingReferral: false,
+      membershipMatchMode: "daily", membershipMatchesRemaining: 50,
+    })).toEqual({ mode: "membership_daily", consumeBonus: false, consumeMembership: true });
+    expect(resolveWomenMatchAccess(3, false, {
+      matchCredits: 0, pendingReferral: false,
+      membershipMatchMode: "unlimited", membershipMatchesRemaining: null,
+    })).toEqual({ mode: "membership_unlimited", consumeBonus: false, consumeMembership: true });
+  });
+
+  it("falls back to free and referral access after the monthly daily quota is exhausted", () => {
+    expect(resolveWomenMatchAccess(2, false, {
+      matchCredits: 0, pendingReferral: false,
+      membershipMatchMode: "daily", membershipMatchesRemaining: 0,
+    })).toEqual({ mode: "local", consumeBonus: false, consumeMembership: false });
+    expect(resolveWomenMatchAccess(3, false, {
+      matchCredits: 2, pendingReferral: false,
+      membershipMatchMode: "daily", membershipMatchesRemaining: 0,
+    })).toEqual({ mode: "referral", consumeBonus: true, consumeMembership: false });
   });
 });
 

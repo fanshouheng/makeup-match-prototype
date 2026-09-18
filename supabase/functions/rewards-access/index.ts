@@ -1,13 +1,15 @@
 import { createClient, type SupabaseClient, type User } from "npm:@supabase/supabase-js@2.110.7";
 import { isAuthorizedAdmin } from "../_shared/adminAuthorization.ts";
 
-type Action = "claimReferral" | "grantPurchase" | "recordMatchSuccess" | "status";
+type Action = "claimReferral" | "grantPoints" | "grantPurchase" | "recordMatchSuccess" | "status";
 
 interface RequestBody {
   action?: Action;
   consumeBonus?: boolean;
+  membershipAccess?: boolean;
   credits?: number;
   email?: string;
+  points?: number;
   referralCode?: string;
   successId?: string;
 }
@@ -19,6 +21,9 @@ interface RewardStatusRow {
   successful_match_count: number;
   successful_invites: number;
   pending_referral: boolean;
+  points: number;
+  membership_match_mode: "daily" | "unlimited" | null;
+  membership_matches_remaining: number | null;
 }
 
 function configuredOrigins(): string[] {
@@ -85,10 +90,14 @@ function rewardResponse(row: RewardStatusRow): Record<string, unknown> {
   return {
     referralCode: row.referral_code,
     matchCredits: row.match_credits,
-    aiCredits: row.ai_credits,
+    // Temporary compatibility for the deployed pre-points frontend.
+    aiCredits: Math.floor(row.points / 3),
+    points: row.points,
     successfulMatchCount: row.successful_match_count,
     successfulInvites: row.successful_invites,
     pendingReferral: row.pending_referral,
+    membershipMatchMode: row.membership_match_mode,
+    membershipMatchesRemaining: row.membership_matches_remaining,
   };
 }
 
@@ -125,11 +134,23 @@ async function authenticate(
 }
 
 async function loadStatus(admin: SupabaseClient, userId: string): Promise<RewardStatusRow> {
+  const [balance, membership] = await Promise.all([
+    admin.rpc("get_point_balance", { p_user_id: userId }),
+    admin.rpc("get_membership_match_status", { p_user_id: userId }),
+  ]);
+  if (balance.error) throw balance.error;
+  if (membership.error) throw membership.error;
   const result = await admin.rpc("get_reward_status", { p_user_id: userId });
   if (result.error) throw result.error;
   const row = result.data?.[0] as RewardStatusRow | undefined;
   if (!row) throw new Error("reward_status_missing");
-  return row;
+  const membershipRow = membership.data?.[0] as Pick<RewardStatusRow, "membership_match_mode" | "membership_matches_remaining"> | undefined;
+  return {
+    ...row,
+    points: Number(balance.data),
+    membership_match_mode: membershipRow?.membership_match_mode ?? null,
+    membership_matches_remaining: membershipRow?.membership_matches_remaining ?? null,
+  };
 }
 
 function knownDatabaseCode(message: string): string | undefined {
@@ -137,7 +158,9 @@ function knownDatabaseCode(message: string): string | undefined {
     "account_not_found",
     "email_not_confirmed",
     "invalid_credit_amount",
+    "invalid_point_amount",
     "no_match_credits",
+    "daily_match_limit_reached",
     "referral_already_claimed",
     "referral_invalid",
     "self_referral",
@@ -188,47 +211,55 @@ Deno.serve(async (request) => {
 
     if (body.action === "recordMatchSuccess") {
       if (
-        Object.keys(body).some((key) => !["action", "consumeBonus", "successId"].includes(key)) ||
+        Object.keys(body).some((key) => !["action", "consumeBonus", "membershipAccess", "successId"].includes(key)) ||
         typeof body.consumeBonus !== "boolean" ||
+        body.membershipAccess !== undefined && typeof body.membershipAccess !== "boolean" ||
         typeof body.successId !== "string" ||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.successId)
       ) return reply(origin, 400, { code: "invalid_request" });
-      const result = await identity.admin.rpc("record_reward_match_success", {
-        p_user_id: identity.user.id,
-        p_success_id: body.successId,
-        p_consume_bonus: body.consumeBonus,
-      });
+      const result = body.membershipAccess
+        ? await identity.admin.rpc("record_membership_match_success", {
+          p_user_id: identity.user.id,
+          p_success_id: body.successId,
+        })
+        : await identity.admin.rpc("record_reward_match_success", {
+          p_user_id: identity.user.id,
+          p_success_id: body.successId,
+          p_consume_bonus: body.consumeBonus,
+        });
       if (result.error) {
         const code = knownDatabaseCode(result.error.message);
-        return reply(origin, code === "no_match_credits" ? 409 : 400, { code: code ?? "invalid_request" });
+        return reply(origin, code === "no_match_credits" || code === "daily_match_limit_reached" ? 409 : 400, { code: code ?? "invalid_request" });
       }
-      const row = result.data?.[0] as RewardStatusRow | undefined;
-      if (!row) throw new Error("reward_status_missing");
-      return reply(origin, 200, { rewards: rewardResponse(row) });
+      return reply(origin, 200, { rewards: rewardResponse(await loadStatus(identity.admin, identity.user.id)) });
     }
 
-    if (body.action === "grantPurchase") {
-      if (
-        Object.keys(body).some((key) => !["action", "credits", "email"].includes(key)) ||
+    if (body.action === "grantPoints" || body.action === "grantPurchase") {
+      const isLegacyPurchase = body.action === "grantPurchase";
+      const allowedKeys = isLegacyPurchase ? ["action", "credits", "email"] : ["action", "email", "points"];
+      const points = isLegacyPurchase ? 30 : body.points;
+      if (Object.keys(body).some((key) => !allowedKeys.includes(key)) ||
         typeof body.email !== "string" ||
-        body.credits !== 10
-      ) return reply(origin, 400, { code: "invalid_request" });
+        isLegacyPurchase && body.credits !== 10 ||
+        !Number.isInteger(points) || Number(points) <= 0 || Number(points) > 100000) {
+        return reply(origin, 400, { code: "invalid_request" });
+      }
       if (!isAuthorizedAdmin(identity.user, Deno.env.get("ADMIN_USER_IDS"))) {
         return reply(origin, 403, { code: "not_admin" });
       }
-      const result = await identity.admin.rpc("grant_reward_ai_purchase", {
+      const result = await identity.admin.rpc("grant_points_by_email", {
         p_email: body.email.trim().toLowerCase(),
-        p_credits: body.credits,
         p_admin_id: identity.user.id,
+        p_points: Number(points),
         p_reference_id: crypto.randomUUID(),
       });
       if (result.error) {
         const code = knownDatabaseCode(result.error.message);
         return reply(origin, code === "account_not_found" ? 404 : 400, { code: code ?? "invalid_request" });
       }
-      const row = result.data?.[0] as RewardStatusRow | undefined;
-      if (!row) throw new Error("reward_status_missing");
-      return reply(origin, 200, { rewards: rewardResponse(row) });
+      const granted = (result.data as Array<{ user_id: string }> | null)?.[0];
+      if (!granted) throw new Error("reward_status_missing");
+      return reply(origin, 200, { rewards: rewardResponse(await loadStatus(identity.admin, granted.user_id)) });
     }
 
     return reply(origin, 400, { code: "unsupported_action" });

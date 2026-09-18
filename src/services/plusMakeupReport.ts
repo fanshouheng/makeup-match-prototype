@@ -32,7 +32,7 @@ export interface PlusMakeupJob {
 
 export interface PlusMakeupJobResponse {
   job: PlusMakeupJob | null;
-  remainingCredits: number;
+  remainingPoints: number;
 }
 
 function disclosedFeatures(features: FaceFeatureVector): FaceFeatureVector {
@@ -93,13 +93,13 @@ function parseJob(value: unknown): PlusMakeupJob | null {
 async function invokeReport(body: Record<string, unknown>): Promise<PlusMakeupJobResponse> {
   const { data, error } = await plusClient.functions.invoke("plus-makeup-report", { body });
   if (!error) {
-    const value = data as { job?: unknown; remainingCredits?: unknown };
-    if (!Number.isInteger(value.remainingCredits) || Number(value.remainingCredits) < 0) {
-      throw new Error("报告返回了无法识别的额度状态。");
+    const value = data as { job?: unknown; remainingPoints?: unknown };
+    if (!Number.isInteger(value.remainingPoints) || Number(value.remainingPoints) < 0) {
+      throw new Error("报告返回了无法识别的积分状态。");
     }
     return {
       job: parseJob(value.job ?? null),
-      remainingCredits: Number(value.remainingCredits),
+      remainingPoints: Number(value.remainingPoints),
     };
   }
 
@@ -111,19 +111,18 @@ async function invokeReport(body: Record<string, unknown>): Promise<PlusMakeupJo
     code = payload?.code;
   }
   if (code === "auth_required") throw new Error("登录状态已失效，请重新登录。");
-  if (code === "membership_inactive") throw new Error("Plus 权益当前不可用，请联系运营者。");
-  if (code === "no_credits") throw new Error("体验额度已经用完，请联系运营者。");
+  if (code === "no_points") throw new Error("积分不足。生成完整报告需要 100 积分。");
   if (code === "service_not_configured") throw new Error("报告功能尚未完成服务配置。");
   if (code === "invalid_request") throw new Error("本次配置无法生成报告，请检查后重试。");
   throw new Error("报告任务暂时不可用，请稍后重试。");
 }
 
 export function plusMakeupJobFailureMessage(code?: string): string {
-  if (code === "web_search_not_configured") return "博主查找尚未完成配置，额度已退回。";
-  if (code === "invalid_provider_response") return "返回内容不完整，额度已退回，请重新生成。";
-  if (code === "timeout") return "生成超时，额度已退回，请重新生成。";
-  if (code === "service_not_configured") return "报告服务尚未完成配置，额度已退回。";
-  return "报告生成失败，额度已退回，请重新生成。";
+  if (code === "web_search_not_configured") return "博主查找尚未完成配置，积分已退回。";
+  if (code === "invalid_provider_response") return "返回内容不完整，积分已退回，请重新生成。";
+  if (code === "timeout") return "生成超时，积分已退回，请重新生成。";
+  if (code === "service_not_configured") return "报告服务尚未完成配置，积分已退回。";
+  return "报告生成失败，积分已退回，请重新生成。";
 }
 
 export async function startPlusMakeupReport(

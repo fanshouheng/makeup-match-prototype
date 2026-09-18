@@ -23,23 +23,28 @@ const features: FaceFeatureVector = {
 };
 
 describe("PlusMakeupReportGenerator", () => {
-  it("shows the full scene, direction, consent, and credit configuration", () => {
+  it("shows the direct scene, direction, consent, and credit configuration", () => {
     const html = renderToStaticMarkup(
       <PlusMakeupReportGenerator
         faceFeatures={features}
-        onCreditsChanged={vi.fn()}
+        isAuthenticated
+        loginHref="/account?returnTo=/report"
+        onPointsChanged={vi.fn()}
         onGenerated={vi.fn()}
-        remainingCredits={3}
+        onViewReports={vi.fn()}
+        photoStatus="ready"
+        remainingPoints={300}
       />,
     );
 
-    expect(html).toContain("生成面容报告和 3 套妆造方案");
-    expect(html).toContain("毕业典礼");
-    expect(html).toContain("帮我选择");
-    expect(html).toContain("我要参加毕业典礼");
+    expect(html).toContain("设置使用场景");
+    expect(html).toContain("化妆应用场景");
+    expect(html).toContain("让 AI 建议");
+    expect(html).toContain("周末参加朋友婚礼");
     expect(html).toContain("查看将发送的九项面部比例");
     expect(html).toContain("最多临时保存 24 小时");
-    expect(html).toContain("当前剩余 <strong>3</strong> 次");
-    expect(html).not.toMatch(/AI|DeepSeek|豆包/);
+    expect(html).toContain("当前余额 <strong>300</strong> 积分");
+    expect(html).toContain("请填写这次化妆的使用场景");
+    expect(html).not.toMatch(/DeepSeek|豆包/);
   });
 });

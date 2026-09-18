@@ -7,8 +7,16 @@ import "./styles.css";
 
 const isAdminRoute = window.location.pathname === "/admin" ||
   window.location.pathname.startsWith("/admin/");
-const isPlusRoute = window.location.pathname === "/plus" ||
+const isPlusDocumentRoute = window.location.pathname === "/plus.html";
+const isLegacyPlusRoute = window.location.pathname === "/plus" ||
   window.location.pathname.startsWith("/plus/");
+const isAccountRoute = window.location.pathname === "/account" ||
+  window.location.pathname.startsWith("/account/");
+const isSubscriptionRoute = window.location.pathname === "/subscription" ||
+  window.location.pathname.startsWith("/subscription/");
+const isReportRoute = isPlusDocumentRoute || isLegacyPlusRoute || window.location.pathname === "/report" ||
+  window.location.pathname.startsWith("/report/");
+const isPlusAppRoute = isReportRoute || isAccountRoute || isSubscriptionRoute;
 const isSimilarityLabelerRoute =
   window.location.pathname === "/similarity-labeler" ||
   window.location.pathname.startsWith("/similarity-labeler/");
@@ -22,8 +30,15 @@ if (isAdminRoute || isSimilarityLabelerRoute) {
   robots.name = "robots";
   robots.content = "noindex, nofollow, noarchive";
   if (!robots.parentNode) document.head.append(robots);
-} else if (isPlusRoute) {
-  document.title = "MAKE UP Plus｜9.9 元邀请制内测";
+} else if (isReportRoute) {
+  document.title = "MAKE UP 妆容报告";
+  if (isLegacyPlusRoute || isPlusDocumentRoute) {
+    window.history.replaceState({}, "", `/report${window.location.search}${window.location.hash}`);
+  }
+} else if (isAccountRoute) {
+  document.title = "MAKE UP 账号";
+} else if (isSubscriptionRoute) {
+  document.title = "MAKE UP Pro 订阅";
 }
 
 if (!isAdminRoute && !isSimilarityLabelerRoute) {
@@ -41,8 +56,8 @@ createRoot(document.getElementById("root")!).render(
       <Suspense fallback={<main className="admin-loading">正在载入管理台…</main>}>
         <AdminApp />
       </Suspense>
-    ) : isPlusRoute ? (
-      <Suspense fallback={<main className="admin-loading">正在载入 Plus…</main>}>
+    ) : isPlusAppRoute ? (
+      <Suspense fallback={<main className="admin-loading">正在载入 MAKE UP…</main>}>
         <PlusApp />
         <Analytics />
       </Suspense>

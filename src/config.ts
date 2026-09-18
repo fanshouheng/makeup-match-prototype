@@ -1,6 +1,10 @@
 export const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY?.trim() ?? "";
 export const hasTurnstileConfig = Boolean(turnstileSiteKey);
 
+const paymentAcceptancePassed = false;
+export const onlineCheckoutEnabled =
+  paymentAcceptancePassed && import.meta.env.VITE_ENABLE_ONLINE_CHECKOUT === "true";
+
 export const privacyContactEmail =
   import.meta.env.VITE_PRIVACY_CONTACT_EMAIL?.trim() ?? "";
 

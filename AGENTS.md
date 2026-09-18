@@ -2,19 +2,24 @@
 
 ## Positioning
 
-MAKE UP is a privacy-first makeup-reference prototype with three browser-local
-free successful matches, referral-earned match access, credit-gated AI creator
-discovery, and a 9.9 yuan invitation-only Plus beta that includes unlimited
-ordinary matching while the membership is active. A user selects a front-facing photo,
+MAKE UP is a privacy-first makeup-reference product with three browser-local
+free successful matches, referral-earned match access, and a unified points
+wallet for makeup reports. The approved commercial catalog contains a one-time
+100-point report purchase, a monthly MAKE UP Pro plan with 1000 permanent points
+and 50 ordinary matches per day, and an annual plan with unlimited ordinary
+matching plus 2000 permanent points granted monthly for 12 months. At launch,
+every still-active legacy Plus membership is replaced by one monthly plan and a
+one-time grant of 1000 permanent points; its old unlimited entitlement ends
+immediately. A user selects a front-facing photo,
 and the browser measures face-structure proportions locally.
-The women flow returns authorized creators and tutorial links. Activated Plus
-users can separately consent to send nine disclosed exact ratios and scene/style
+The women flow returns authorized creators and tutorial links. Authenticated
+users with enough points can separately consent to send nine disclosed exact ratios and scene/style
 choices to DeepSeek for a structured makeup report; Doubao then receives only
 the generated text summary and plan highlights for names-only public creator
 discovery. The implemented men entertainment-report flow is currently hidden
 from the public UI while the product prepares authorized male makeup-creator
-matching. Another separately consented AI flow sends a sanitized
-photo copy for names-only public creator discovery. It is not identity
+matching. The former standalone photo-based AI creator-discovery flow is retired
+and its endpoint rejects new requests. It is not identity
 recognition, appearance scoring, medical advice, or a professional result guarantee.
 
 - Production: https://makeup.soul.xn--fiqs8s/
@@ -49,31 +54,32 @@ npm run build
   consent and Turnstile verification. Do not send the photo, landmarks, identity,
   device/session identifiers, creator data, or local rankings. Do not persist
   ratios, prompts, or generated reports, and label the result as AI-generated.
-- Optional AI discovery requires an authenticated account with an available AI
-  credit and may send only
-  a canvas-reencoded JPEG after separate consent and Turnstile verification. Do
-  not persist the photo, AI result, returned creator names, or user ID in AI
-  invocation logs; request provider-side conversation storage to be off.
+- The former standalone photo-based AI discovery feature is retired. Do not add
+  a public entry point, accept new requests, reserve points, or send photos for
+  this flow. Keep its ledger purposes and aggregate events only for historical
+  compatibility.
 - The first three successful women matches are counted only in the current
   browser; failed analysis and rerunning the same loaded photo do not count.
   Later women matches require referral-earned credits unless the user has an
-  active Plus membership. Ordinary match credits cannot be purchased separately;
-  active Plus members receive unlimited ordinary matching until membership expiry.
+  active membership match entitlement. Ordinary match credits cannot be purchased
+  separately; monthly members receive 50 successful matches per day, annual
+  members receive unlimited ordinary matching. The launch migration replaces
+  every still-active legacy Plus entitlement with one monthly plan.
   A qualified referral means the invited account confirmed its email and
   completed one successful women match. Reward tables may store the two account
   IDs, balances, reason, idempotency UUID, and time, but never photos, face data,
   local rankings, creator names, AI output, payment evidence, or device identity.
-- Optional Plus makeup generation requires an active authenticated membership,
-  separate consent, and remaining credit; it does not use Turnstile. DeepSeek
+- Optional makeup report generation requires an authenticated account, separate
+  consent, and at least 100 points; it does not use Turnstile. DeepSeek
   may receive only the nine disclosed ratios, up to three scenes, and one fixed
   makeup direction. Doubao may receive only the generated structural summary,
   plan highlights, scenes, and direction; it must not receive the photo or exact
   ratios. A server-side job may temporarily associate the ratios, configuration,
-  generated report, and creator names with the Plus user for less than 24 hours
+  generated report, and creator names with the user for less than 24 hours
   so generation can continue after the page closes. Clear exact ratios as soon
   as generation finishes; delete the job after the report is saved to local
-  IndexedDB or expires. Reserve one credit atomically when the job is created,
-  refund it on failure or expiry, and label generated content and creator names
+  IndexedDB or expires. Reserve 100 points atomically when the job is created,
+  refund them on failure or expiry, and label generated content and creator names
   as AI-generated and unverified.
 - AI-discovered names are unverified public leads. Do not download or analyze
   candidate photos, present them as authorized, or import them into the creator
@@ -93,10 +99,17 @@ npm run build
   has explicitly authorized that specific operation and confirmed the required
   creator permissions.
 - Keep the three browser-local successful matches and referral-earned continuation
-  free of charge. Do not sell ordinary match-credit packs. Plus is limited to the
-  current 9.9 yuan manual-payment, invitation-only beta and includes unlimited
-  ordinary matching only while the membership is active. Do not add automatic payments,
-  subscriptions, paid ranking, ads, or broader monetization without explicit
+  free of charge. Do not sell ordinary match-credit packs. The approved catalog is
+  a 100-point report purchase at CNY 19.9 / USD 2.99; a monthly plan at CNY 59 /
+  USD 8.99 with 1000 permanent points per paid cycle and 50 successful ordinary
+  matches refreshed daily; and an annual plan at CNY 599 / USD 89.99 with
+  unlimited ordinary matching and 2000 permanent points granted monthly for 12
+  months. Reports cost 100 points; reserve atomically and refund failures. Payment
+  failure grants no points, and duplicate
+  callbacks or invoices must never grant points twice. Cancellation must not
+  remove already granted points. Annual points must not be granted upfront. Do not
+  publicly sell legacy point packs, create or renew legacy Plus from a new membership,
+  or add another plan, paid ranking, ads, or broader monetization without explicit
   user approval.
 - Production audits are read-only by default. Approval, rejection, deletion, or
   Storage changes require explicit user authorization. A direct instruction to
@@ -109,9 +122,17 @@ npm run build
 Supabase for consent-backed creator intake, Cloudflare
 Turnstile for submission protection, and manual review before publication.
 The result page supports login-free yes/no feedback, local share-poster
-generation, separately consented AI names-only discovery using invite-earned or
-manually purchased credits, and the 9.9 yuan invitation-only Plus beta with
-unlimited ordinary matching during its 180-day active period. Feedback,
+generation, and the one-time legacy Plus to monthly-plan conversion. The
+standalone 3-point AI creator-discovery flow is retired; reports still include
+unverified public creator-name leads. The report/monthly/annual catalog is
+implemented locally with the prices and entitlements above. The subscription and admin-management
+migrations are not deployed and production checkout remains disabled until the
+payment, recurring-cycle, cancellation, idempotency, and refund acceptance gates
+pass. The local `ai-creator-discovery` retirement handler is not deployed yet;
+do not claim that production rejects old discovery requests until it is deployed
+and verified. As of 2026-09-16, the production root and `/admin` respond, but `/report`
+and `/subscription` return 404; do not describe this working-tree frontend as
+deployed until the production routes are published and live-verified. Feedback,
 share, and AI telemetry must remain aggregate and must not include user photos,
 face proportions, match scores, creator names, AI results, rankings, or account
 identifiers.
