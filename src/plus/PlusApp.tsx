@@ -13,12 +13,14 @@ import {
   LoaderCircle,
   LogIn,
   LogOut,
+  MessageCircle,
   Palette,
   ShieldCheck,
   Trash2,
 } from "lucide-react";
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import { ProductHeader } from "../components/ProductHeader";
+import { contactWechatQrUrl, onlineCheckoutEnabled } from "../config";
 import { extractFaceAnalysis } from "../domain/faceFeatures";
 import { FEATURE_LABELS } from "../domain/featureLabels";
 import { assessPhotoQuality } from "../domain/quality";
@@ -771,7 +773,27 @@ export default function PlusApp() {
               <div><span>年卡</span><strong>每月 2000 积分 · 普通匹配不限次</strong></div>
             </div>
 
-            {hasSubscriptionViewer && <PaymentCheckout preview={subscriptionPreview} />}
+            {onlineCheckoutEnabled || subscriptionPreview ? (
+              hasSubscriptionViewer && <PaymentCheckout preview={subscriptionPreview} />
+            ) : (
+              <section className="subscription-wechat" aria-labelledby="subscription-wechat-title">
+                <div className="subscription-wechat-copy">
+                  <div className="subscription-wechat-label"><MessageCircle size={17} /><span>微信人工开通</span></div>
+                  <h2 id="subscription-wechat-title">扫码添加好友，人工处理</h2>
+                  <p>添加后请发送注册邮箱和想要的方案。确认后会人工发放积分或开通会员，权益到账后可在“我的”页面查看。</p>
+                  <ol>
+                    <li>先注册并确认 MAKE UP 账号邮箱</li>
+                    <li>添加微信，发送邮箱和方案</li>
+                    <li>确认后等待权益到账</li>
+                  </ol>
+                  <p className="subscription-wechat-note">请勿发送照片、面部数据或付款密码。</p>
+                </div>
+                <figure className="subscription-wechat-qr">
+                  <img alt="MAKE UP 微信好友二维码" src={contactWechatQrUrl} />
+                  <figcaption>微信扫码添加好友</figcaption>
+                </figure>
+              </section>
+            )}
             {notice && <p className="plus-access-notice" role="status">{notice}</p>}
             {error && <p className="plus-access-error" role="alert">{error}</p>}
           </section>

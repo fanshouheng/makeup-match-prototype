@@ -2043,6 +2043,76 @@
   padding-top: 28px;
 }
 
+.subscription-wechat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  align-items: center;
+  gap: 56px;
+  margin-top: 40px;
+  padding: 36px 0;
+  border-block: 1px solid var(--ink);
+}
+
+.subscription-wechat-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.subscription-wechat-copy h2 {
+  margin: 12px 0 0;
+  font-size: 26px;
+  font-weight: 620;
+  letter-spacing: 0;
+}
+
+.subscription-wechat-copy > p {
+  max-width: 570px;
+  margin: 13px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.subscription-wechat-copy ol {
+  display: grid;
+  gap: 9px;
+  margin: 22px 0 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.subscription-wechat-copy .subscription-wechat-note {
+  margin-top: 18px;
+  font-size: 11px;
+}
+
+.subscription-wechat-qr {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.subscription-wechat-qr img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.subscription-wechat-qr figcaption {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .subscription-login-note {
   margin: 22px 0 0;
   color: var(--muted);
@@ -2969,6 +3039,16 @@
     gap: 20px;
   }
 
+  .subscription-wechat {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 28px;
+  }
+
+  .subscription-wechat-qr {
+    width: min(100%, 280px);
+  }
+
   .subscription-price-pair {
     width: 100%;
   }
@@ -3040,7 +3120,8 @@
   }
 
   .subscription-section-heading h2,
-  .subscription-plan-intro h2 {
+  .subscription-plan-intro h2,
+  .subscription-wechat-copy h2 {
     font-size: 24px;
   }
 
