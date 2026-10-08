@@ -117,6 +117,71 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function providerText(value: unknown, maxLength: number): unknown {
+  if (typeof value !== "string") return value;
+  const text = value.trim();
+  if (BANNED_TEXT.test(text)) throw new Error("invalid_report");
+  return text.slice(0, maxLength).trim();
+}
+
+function providerTextList(value: unknown, maximum: number, itemMaxLength: number): unknown {
+  if (!Array.isArray(value)) return value;
+  return value.slice(0, maximum).map((item) => providerText(item, itemMaxLength));
+}
+
+function normalizeProviderCoreReport(value: unknown): Record<string, unknown> {
+  const report = record(value);
+  const faceProfile = record(report.faceProfile);
+  const plans = Array.isArray(report.plans)
+    ? report.plans.slice(0, 3).map((value) => {
+      const plan = record(value);
+      const steps = Array.isArray(plan.steps)
+        ? plan.steps.slice(0, 7).map((value) => {
+          const step = record(value);
+          return {
+            area: providerText(step.area, 16),
+            instruction: providerText(step.instruction, 180),
+          };
+        })
+        : plan.steps;
+      return {
+        name: providerText(plan.name, 40),
+        sceneFit: providerText(plan.sceneFit, 100),
+        effect: providerText(plan.effect, 180),
+        steps,
+        products: providerTextList(plan.products, 7, 60),
+        avoid: providerTextList(plan.avoid, 3, 100),
+      };
+    })
+    : report.plans;
+
+  return {
+    title: providerText(report.title, 60),
+    faceProfile: {
+      summary: providerText(faceProfile.summary, 420),
+      focusAreas: providerTextList(faceProfile.focusAreas, 4, 140),
+      limitations: providerTextList(faceProfile.limitations, 3, 140),
+    },
+    plans,
+    disclaimer: providerText(report.disclaimer, 160),
+  };
+}
+
+function parseProviderJson(content: string): unknown {
+  const trimmed = content.trim();
+  const withoutFence = trimmed.startsWith("```")
+    ? trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")
+    : trimmed;
+  try {
+    return JSON.parse(withoutFence);
+  } catch {
+    const start = withoutFence.indexOf("{");
+    const end = withoutFence.lastIndexOf("}");
+    if (start < 0 || end <= start) throw new Error("invalid_provider_response");
+    return JSON.parse(withoutFence.slice(start, end + 1));
+  }
+}
+
 function exactKeys(value: Record<string, unknown>, keys: string[]): void {
   if (Object.keys(value).sort().join("|") !== [...keys].sort().join("|")) {
     throw new Error("invalid_report");
@@ -198,11 +263,7 @@ export function parseDeepSeekPlusMakeupReport(response: unknown): PlusMakeupCore
     throw new Error("invalid_provider_response");
   }
   try {
-    const trimmed = content.trim();
-    const json = trimmed.startsWith("```")
-      ? trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")
-      : trimmed;
-    return parsePlusMakeupCoreReport(JSON.parse(json));
+    return parsePlusMakeupCoreReport(normalizeProviderCoreReport(parseProviderJson(content)));
   } catch {
     throw new Error("invalid_provider_response");
   }
