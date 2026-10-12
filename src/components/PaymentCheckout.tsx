@@ -102,7 +102,7 @@ export function PaymentCheckout({ preview = false, authenticated = false }: { pr
           const benefits = [
             { title: annual ? "普通匹配不限次数" : `每天 ${dailyMatches} 次普通匹配`, detail: annual ? "会员有效期内，随时寻找结构接近的授权美妆博主。" : "每天北京时间 0 点刷新；只计成功匹配，未用次数不结转。" },
             { title: `每月 ${points} 永久积分`, detail: annual ? "连续发放 12 个月，首月付款确认后到账，之后按月发放。" : "每个确认付款的月度账期发放一次。" },
-            { title: `每月积分可生成 ${Math.floor(points / 100)} 份完整报告`, detail: "每份消耗 100 积分，包含面容结构说明、3 套妆造方案和公开博主线索。" },
+            { title: "完整 Plus 功能", detail: "面容结构说明、3 套妆造方案、分步化妆指导与公开博主线索；每份报告消耗 100 积分。" },
             { title: "剩余积分永久有效", detail: "已到账积分可累积；会员到期或取消续费后，仍可用于报告。" },
             { title: "生成失败，积分退回", detail: "开始生成时预占 100 积分；生成失败或任务过期会退回。" },
             { title: "照片在本机分析", detail: "普通匹配不上传照片；报告在单独同意后只发送九项比例和场景、方向。" },
