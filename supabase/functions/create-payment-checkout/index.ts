@@ -262,6 +262,7 @@ Deno.serve(async (request) => {
         catalogClient.from("point_packages")
         .select("code,provider,name,points,amount_minor,currency,sort_order")
         .eq("is_active", true)
+        .neq("code", "report_single")
         .order("sort_order", { ascending: true }),
         catalogClient.from("membership_plans")
           .select("code,provider,name,monthly_amount_minor,currency,monthly_points,stripe_price_id,billing_interval,match_access,daily_match_limit,sort_order")
@@ -308,6 +309,9 @@ Deno.serve(async (request) => {
     const body = parsed as CheckoutRequest;
     const product = body.product ?? (body.planCode ? "membership" : "points");
     const code = product === "membership" ? body.planCode : body.packageCode;
+    if (product === "points" && code === "report_single") {
+      return reply(origin, 404, { code: "package_not_found" });
+    }
     const requestKeys = Object.keys(body).sort().join("|");
     const validRequestShape = product === "membership"
       ? (requestKeys === "idempotencyKey|planCode|product|provider" || requestKeys === "planCode|product|provider")

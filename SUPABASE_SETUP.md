@@ -75,7 +75,7 @@ ZPAY_TYPE=wxpay
 
 在 Supabase Dashboard -> Authentication -> URL Configuration 中，把正式站点设为 Site URL，并把账号确认邮件使用的 `https://你的域名/` 和管理员邮箱链接使用的 `https://你的域名/admin` 加入 Redirect URLs；需要本地联调时再临时加入对应本地地址。普通账号与 Plus 复用 `make-up-plus-auth` 本地存储键，已有账号可直接兑换 Plus 邀请码；`/admin` 使用独立登录态，不会被覆盖。保持 `sessions_single_per_user=false` 以允许多设备分别登录；退出管理台时只退出当前设备。
 
-支付函数为 `create-payment-checkout`、`payment-status`、`payment-webhook` 和 `refund-payment`。正式目录为：100 积分单次报告（¥19.9 / US$2.99）、1000 积分月卡（¥59 / US$8.99，每天 50 次普通匹配）和年卡（¥599 / US$89.99，普通匹配不限次并连续 12 个月每月发 2000 积分）。客户端只提交供应商与商品代码；服务端读取金额、币种、积分和匹配权益。Stripe 根据月卡或年卡周期创建订阅 Checkout，只在确认付款后幂等发分；ZPAY 使用 `submit.php` POST 表单并在回调核对商户号、签名、金额和 `TRADE_SUCCESS`。年卡首月支付确认后发首月积分，后续由 `grant-due-annual-subscription-cycles` 定时任务按月发放，禁止一次性预发。管理员可按内部订单 ID 发起全额退款；积分已使用时自动退款会被阻止。不要把商户密钥、回调原文或付款凭证写入仓库、日志或数据库。
+支付函数为 `create-payment-checkout`、`payment-status`、`payment-webhook` 和 `refund-payment`。正式目录为：1000 积分月卡（¥59 / US$8.99，每天 50 次普通匹配）和年卡（¥599 / US$89.99，普通匹配不限次并连续 12 个月每月发 2000 积分）。单次报告已下架；部署 `20261012090000_retire_single_report_purchase.sql` 和新版 `create-payment-checkout`，停用单次报告目录并拒绝新订单；历史订单与退款保留兼容。客户端只提交供应商与商品代码；服务端读取金额、币种、积分和匹配权益。Stripe 根据月卡或年卡周期创建订阅 Checkout，只在确认付款后幂等发分；ZPAY 使用 `submit.php` POST 表单并在回调核对商户号、签名、金额和 `TRADE_SUCCESS`。年卡首月支付确认后发首月积分，后续由 `grant-due-annual-subscription-cycles` 定时任务按月发放，禁止一次性预发。管理员可按内部订单 ID 发起全额退款；积分已使用时自动退款会被阻止。不要把商户密钥、回调原文或付款凭证写入仓库、日志或数据库。
 
 截至 2026-09-18，生产已部署统一钱包、会员订阅、正式目录、旧 Plus 转换、人工会员管理与商业概览迁移，以及对应订阅和支付 Edge Functions。`ZPAY_TYPE` 已明确设置为 `alipay`；Stripe Secrets 和真实支付验收尚未完成。支付验收完成前保持源码支付硬门槛和 `VITE_ENABLE_ONLINE_CHECKOUT=false`。
 

@@ -4,8 +4,8 @@
 
 MAKE UP is a privacy-first makeup-reference product with three browser-local
 free successful matches, referral-earned match access, and a unified points
-wallet for makeup reports. The approved commercial catalog contains a one-time
-100-point report purchase, a monthly MAKE UP Pro plan with 1000 permanent points
+wallet for makeup reports. The approved commercial catalog contains only a
+monthly MAKE UP Pro plan with 1000 permanent points
 and 50 ordinary matches per day, and an annual plan with unlimited ordinary
 matching plus 2000 permanent points granted monthly for 12 months. At launch,
 every still-active legacy Plus membership is replaced by one monthly plan and a
@@ -100,8 +100,8 @@ npm run build
   creator permissions.
 - Keep the three browser-local successful matches and referral-earned continuation
   free of charge. Do not sell ordinary match-credit packs. The approved catalog is
-  a 100-point report purchase at CNY 19.9 / USD 2.99; a monthly plan at CNY 59 /
-  USD 8.99 with 1000 permanent points per paid cycle and 50 successful ordinary
+  a monthly plan at CNY 59 / USD 8.99 with 1000 permanent points per paid cycle
+  and 50 successful ordinary
   matches refreshed daily; and an annual plan at CNY 599 / USD 89.99 with
   unlimited ordinary matching and 2000 permanent points granted monthly for 12
   months. Reports cost 100 points; reserve atomically and refund failures. Payment
@@ -124,8 +124,10 @@ Turnstile for submission protection, and manual review before publication.
 The result page supports login-free yes/no feedback, local share-poster
 generation, and the one-time legacy Plus to monthly-plan conversion. The
 standalone 3-point AI creator-discovery flow is retired; reports still include
-unverified public creator-name leads. The report/monthly/annual catalog is
-live with the prices and entitlements above. On 2026-09-18 the subscription,
+unverified public creator-name leads. The monthly/annual catalog uses the prices
+and entitlements above. Single-report
+purchases are retired in source; deploy the retirement migration and checkout handler
+to disable new single-report orders in production. On 2026-09-18 the subscription,
 catalog, legacy-conversion, and admin-commerce migrations and related Edge
 Functions were deployed; 12 active legacy Plus memberships were converted to
 monthly plans with 1000 points each. The production root, `/report`,

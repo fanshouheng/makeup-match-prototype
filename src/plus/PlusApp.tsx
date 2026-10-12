@@ -731,10 +731,21 @@ export default function PlusApp() {
       <div className="plus-account-shell">
         <ProductHeader current="subscription" />
         <main className="plus-account-main subscription-page-main">
-          <section className="account-page-heading">
+          <section className="account-page-heading subscription-page-heading">
             <p className="eyebrow">MEMBERSHIP / 订阅方案</p>
             <h1>MAKE UP Pro</h1>
-            <p>按需要购买单次报告、月卡或年卡。积分永久有效，普通匹配权益随会员有效期生效。</p>
+            <p>更多妆容参考，更具体的化妆方案。<br />选择月付或年付，已到账积分永久有效。</p>
+          </section>
+
+          <section className="subscription-plan-section" aria-labelledby="subscription-plan-title">
+            <div className="subscription-plan-intro">
+              <div>
+                <h2 id="subscription-plan-title">选择适合你的使用周期</h2>
+                <p>两种方案均包含博主匹配和完整妆容报告。区别在于匹配额度、每月积分和付费周期。</p>
+              </div>
+            </div>
+            <PaymentCheckout authenticated={Boolean(session)} preview={subscriptionPreview} />
+            <p className="subscription-free-note">想先试试？当前浏览器前 3 次成功匹配免费，之后也可通过邀请获得匹配次数。<a href="/">去免费匹配 <ArrowRight size={14} /></a></p>
           </section>
 
           <section className="subscription-status-section" aria-labelledby="subscription-status-title">
@@ -759,44 +770,35 @@ export default function PlusApp() {
             )}
           </section>
 
-          <section className="subscription-plan-section" aria-labelledby="subscription-plan-title">
-            <div className="subscription-plan-intro">
-              <div>
-                <p className="eyebrow">CHOOSE / 购买方案</p>
-                <h2 id="subscription-plan-title">从一份报告到全年不限匹配</h2>
-                <p>报告每份 100 积分。月卡每天刷新 50 次普通匹配；年卡有效期内普通匹配不限次数，积分按月发放。</p>
+          {!onlineCheckoutEnabled && !subscriptionPreview && (
+            <section className="subscription-wechat" aria-labelledby="subscription-wechat-title">
+              <div className="subscription-wechat-copy">
+                <div className="subscription-wechat-label"><MessageCircle size={17} /><span>微信人工开通</span></div>
+                <h2 id="subscription-wechat-title">扫码添加好友，人工处理</h2>
+                <p>目前月付可通过微信人工开通，年付可先咨询。添加好友后发送注册邮箱和想要的方案；确认开通后，可在“我的”页面查看权益。</p>
+                <ol>
+                  <li>先注册并确认 MAKE UP 账号邮箱</li>
+                  <li>添加微信，发送邮箱和方案</li>
+                  <li>确认后等待权益到账</li>
+                </ol>
+                <p className="subscription-wechat-note">请勿发送照片、面部数据或付款密码。</p>
               </div>
-            </div>
-            <div className="subscription-plan-summary">
-              <div><span>单次报告</span><strong>¥19.9 / US$2.99 · 100 积分</strong></div>
-              <div><span>月卡</span><strong>1000 积分 / 月 · 每天 50 次匹配</strong></div>
-              <div><span>年卡</span><strong>每月 2000 积分 · 普通匹配不限次</strong></div>
-            </div>
-
-            {onlineCheckoutEnabled || subscriptionPreview ? (
-              hasSubscriptionViewer && <PaymentCheckout preview={subscriptionPreview} />
-            ) : (
-              <section className="subscription-wechat" aria-labelledby="subscription-wechat-title">
-                <div className="subscription-wechat-copy">
-                  <div className="subscription-wechat-label"><MessageCircle size={17} /><span>微信人工开通</span></div>
-                  <h2 id="subscription-wechat-title">扫码添加好友，人工处理</h2>
-                  <p>添加后请发送注册邮箱和想要的方案。确认后会人工发放积分或开通会员，权益到账后可在“我的”页面查看。</p>
-                  <ol>
-                    <li>先注册并确认 MAKE UP 账号邮箱</li>
-                    <li>添加微信，发送邮箱和方案</li>
-                    <li>确认后等待权益到账</li>
-                  </ol>
-                  <p className="subscription-wechat-note">请勿发送照片、面部数据或付款密码。</p>
-                </div>
-                <figure className="subscription-wechat-qr">
-                  <img alt="MAKE UP 微信好友二维码" src={contactWechatQrUrl} />
-                  <figcaption>微信扫码添加好友</figcaption>
-                </figure>
-              </section>
-            )}
-            {notice && <p className="plus-access-notice" role="status">{notice}</p>}
-            {error && <p className="plus-access-error" role="alert">{error}</p>}
+              <figure className="subscription-wechat-qr">
+                <img alt="MAKE UP 微信好友二维码" src={contactWechatQrUrl} />
+                <figcaption>微信扫码添加好友</figcaption>
+              </figure>
+            </section>
+          )}
+          <section className="subscription-faq" aria-labelledby="subscription-faq-title">
+            <h2 id="subscription-faq-title">订阅前，你可能想了解</h2>
+            <details><summary>普通匹配和妆容报告有什么区别？</summary><p>普通匹配在浏览器本地比较面部结构，帮你找到可参考的授权美妆博主和教程，不消耗报告积分。完整报告由 AI 生成，包含面容结构说明、3 套妆造方案，每套 5 至 7 个步骤，以及产品类别建议和公开博主名字。AI 名字只是未核验线索，报告不保证专业效果。</p></details>
+            <details><summary>年付的积分什么时候到账？</summary><p>年付一次支付全年费用，首月付款确认后到账 2000 积分，后续 11 次按月发放，全年共 24000 积分。不会一次性到账。每月 2000 积分可用于 20 份报告；未用积分可以累积。</p></details>
+            <details><summary>到期或取消续费后，积分和匹配次数会怎样？</summary><p>已到账积分永久有效，可继续生成报告。会员到期后，会员匹配权益结束，仍可使用剩余的浏览器免费次数或邀请次数。月付每天 50 次匹配在北京时间 0 点刷新，不结转到第二天。</p></details>
+            <details><summary>怎么付款，会自动续费吗？</summary><p>目前月付通过微信人工开通，不自动扣费；年付在线购买暂未开放，可先咨询。线上支付开放后，支付宝以人民币支付并手动续费，Stripe 以美元支付并按所选月度或年度周期自动续费。购买前需注册并确认邮箱。</p></details>
+            <details><summary>我的照片会上传吗？</summary><p>普通匹配的照片、面部比例和排序都在当前浏览器处理。生成报告需要另行同意，AI 只接收已披露的九项比例、场景和妆造方向，不接收照片。生成成功的报告保存在当前设备，可在“我的”页面查看或删除。<a href="/#privacy">查看完整隐私说明</a></p></details>
           </section>
+          {notice && <p className="plus-access-notice" role="status">{notice}</p>}
+          {error && <p className="plus-access-error" role="alert">{error}</p>}
         </main>
       </div>
     );
