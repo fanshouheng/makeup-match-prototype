@@ -131,9 +131,10 @@ The result page supports login-free yes/no feedback, local share-poster
 generation, and the one-time legacy Plus to monthly-plan conversion. The
 standalone 3-point AI creator-discovery flow is retired; reports still include
 unverified public creator-name leads. The monthly/annual catalog uses the prices
-and entitlements above. Single-report
-purchases are retired in source; deploy the retirement migration and checkout handler
-to disable new single-report orders in production. On 2026-09-18 the subscription,
+and entitlements above. On 2026-10-12, the single-report retirement migration and
+checkout handler were deployed; production rejects new single-report orders, and
+the gray monthly/annual pricing page was verified on desktop and mobile.
+On 2026-09-18 the subscription,
 catalog, legacy-conversion, and admin-commerce migrations and related Edge
 Functions were deployed; 12 active legacy Plus memberships were converted to
 monthly plans with 1000 points each. The production root, `/report`,
