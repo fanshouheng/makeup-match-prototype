@@ -398,12 +398,11 @@
   padding: 32px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #f6f6f2;
+  background: #f5f5f5;
 }
 
 .commercial-offer.is-featured {
   border-color: var(--ink);
-  background: #f0f1e8;
 }
 
 .commercial-offer-heading span {

@@ -26,6 +26,12 @@ recognition, appearance scoring, medical advice, or a professional result guaran
 - Source: https://github.com/fanshouheng/makeup-match-prototype
 - Current priorities: `ROADMAP.md`
 
+## UI Style
+
+Read `docs/UI_STYLE.md` before adding or changing UI. Use black, white, and
+neutral gray by default; do not introduce green or yellow-green decorative
+backgrounds. External references guide layout, not the site's color palette.
+
 ## Commands
 
 Use Node.js 20.19 or newer in the 20.x line, or Node.js 22.12 or newer.
